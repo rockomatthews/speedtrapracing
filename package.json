@@ -1,0 +1,21 @@
+{
+  "name": "speedtrapracing",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.13.3",
+    "@emotion/styled": "^11.13.0",
+    "@mui/icons-material": "^6.1.1",
+    "@mui/material": "^6.1.1",
+    "firebase": "^10.14.0",
+    "next": "14.2.14",
+    "react": "^18",
+    "react-dom": "^18"
+  }
+}
