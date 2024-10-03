@@ -39,7 +39,7 @@ const Booking = () => {
       <Button
         variant="contained"
         sx={{ backgroundColor: '#FFC107', color: '#000', fontSize: '20px', padding: '10px 30px' }}
-        onClick={() => handleNavigate('/schedule')}
+        onClick={() => handleNavigate('/book')}
       >
         RACE NOW
       </Button>

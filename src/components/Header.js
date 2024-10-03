@@ -41,7 +41,7 @@ const Header = () => {
               <Link href="/members" passHref>
                 <Button>Members</Button>
               </Link>
-              <Link href="/apparel" passHref>
+              <Link href="/marketplace" passHref>
                 <Button>Apparel</Button>
               </Link>
               <Link href="/franchise" passHref>

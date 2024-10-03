@@ -1,0 +1,14 @@
+/* schedule.css */
+.react-datepicker__input {
+    width: 250px;
+    padding: 10px;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    text-align: center;
+    background-color: white;
+  }
+  
+  .date-picker-wrapper {
+    margin-bottom: 20px;
+  }
+  

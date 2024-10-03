@@ -36,7 +36,7 @@ const SlideMenu = ({ open, onClose }) => {
 
       {/* Navigation Links */}
       <List sx={{ marginTop: '20px' }}>
-        <ListItem button component="a" href="/race-nights">
+        <ListItem button component="a" href="/howitworks">
           <ListItemText primary="How it works" />
         </ListItem>
         <ListItem button component="a" href="/race-nights">
@@ -48,7 +48,7 @@ const SlideMenu = ({ open, onClose }) => {
         <ListItem button component="a" href="/members">
           <ListItemText primary="Member Pass" />
         </ListItem>
-        <ListItem button component="a" href="/apparel">
+        <ListItem button component="a" href="/marketplace">
           <ListItemText primary="Apparel" />
         </ListItem>
         <ListItem button component="a" href="/franchise">

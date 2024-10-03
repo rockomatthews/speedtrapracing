@@ -1,5 +1,11 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Versions
+
+node - v18.20.4
+react - 18
+next - 14.2.14
+
 ## Getting Started
 
 First, run the development server:
