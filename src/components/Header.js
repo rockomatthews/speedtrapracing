@@ -23,7 +23,7 @@ const Header = () => {
   return (
     <>
       {/* Header bar */}
-      <AppBar position="fixed" color="default" sx={{ padding: '0 24px' }}>
+      <AppBar position="fixed" color="dark" sx={{ padding: '0 24px' }}>
         <Toolbar sx={{ justifyContent: 'space-between' }}>
           {/* Left: Logo */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
