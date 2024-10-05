@@ -8,7 +8,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import Link from 'next/link';
 import Image from 'next/image';
-import logo from '../public/logo.svg';  // Ensure this path is correct
+import logo from '../public/logoBlack.svg';  // Ensure this path is correct
 import SlideMenu from './SlideMenu';  // Import the SlideMenu component
 
 const Header = () => {
@@ -23,7 +23,7 @@ const Header = () => {
   return (
     <>
       {/* Header bar */}
-      <AppBar position="fixed" color="dark" sx={{ padding: '0 24px' }}>
+      <AppBar position="fixed" color="dark" sx={{ padding: '0 24px', backgroundColor: "#000" }}>
         <Toolbar sx={{ justifyContent: 'space-between' }}>
           {/* Left: Logo */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>

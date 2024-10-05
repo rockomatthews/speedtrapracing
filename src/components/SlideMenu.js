@@ -11,11 +11,11 @@ import InstagramIcon from '@mui/icons-material/Instagram';
 
 const SlideMenu = ({ open, onClose }) => {
   return (
-    <Drawer anchor="left" open={open} onClose={onClose} PaperProps={{ sx: { width: '75%' } }}>
+    <Drawer anchor="left" open={open} onClose={onClose} PaperProps={{ sx: { width: '75%', backgroundColor:"#000" , color: "#fff"} }}>
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', padding: '10px' }}>
         <IconButton onClick={onClose}>
-          <CloseIcon />
+          <CloseIcon color='primary' />
         </IconButton>
               {/* Sign Up and Log In buttons */}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end'}}>
@@ -60,16 +60,16 @@ const SlideMenu = ({ open, onClose }) => {
         <Box sx={{ flexGrow: 1 }} /> {/* This pushes the icons to the bottom */}
         <Box sx={{ display: 'flex', justifyContent: 'center', padding: '10px' }}>
           <IconButton component="a" href="https://www.youtube.com" target="_blank">
-            <YouTubeIcon />
+            <YouTubeIcon color='primary' />
           </IconButton>
           <IconButton component="a" href="https://www.twitch.tv" target="_blank">
-            <XIcon />
+            <XIcon color='primary' />
           </IconButton>
           <IconButton component="a" href="https://www.instagram.com" target="_blank">
-            <InstagramIcon />
+            <InstagramIcon color='primary' />
           </IconButton>
           <IconButton component="a" href="https://www.twitter.com" target="_blank">
-            <ShareIcon />
+            <ShareIcon color='primary' />
           </IconButton>
         </Box>
       </Box>
