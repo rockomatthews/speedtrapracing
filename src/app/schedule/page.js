@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Box, Typography, Button, TextField, Grid, InputLabel, MenuItem, FormControl, Select } from '@mui/material';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterLuxon } from '@mui/x-date-pickers/AdapterLuxon';
 import { DateTime } from 'luxon';
@@ -12,25 +12,35 @@ import loginBackground from '../../public/loginBackground.png';
 const Schedule = () => {
   const [selectedDate, setSelectedDate] = useState(DateTime.now());
   const [availableSlots, setAvailableSlots] = useState([{
-    time: '4:00 PM', available: 8
+    time: '10:00 AM', available: 10
+  }, {
+    time: '10:30 AM', available: 10
+  }, {
+    time: '11:00 AM', available: 10
+  }, {
+    time: '11:30 AM', available: 10
+  }, {
+    time: '12:00 PM', available: 10
+  }, {
+    time: '12:30 PM', available: 10
+  }, {
+    time: '1:00 PM', available: 10
+  }, {
+    time: '1:30 PM', available: 10
+  }, {
+    time: '2:00 PM', available: 10
+  }, {
+    time: '2:30 PM', available: 10
+  }, {
+    time: '3:00 PM', available: 10
+  }, {
+    time: '3:30 PM', available: 10
+  }, {
+    time: '4:00 PM', available: 10
   }, {
     time: '4:30 PM', available: 10
   }, {
     time: '5:00 PM', available: 10
-  }, {
-    time: '5:30 PM', available: 10
-  }, {
-    time: '6:00 PM', available: 10
-  }, {
-    time: '6:30 PM', available: 10
-  }, {
-    time: '7:00 PM', available: 10
-  }, {
-    time: '8:30 PM', available: 10
-  }, {
-    time: '9:00 PM', available: 10
-  }, {
-    time: '10:30 PM', available: 10
   }]);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -43,7 +53,10 @@ const Schedule = () => {
   };
 
   const handleCheckout = () => {
-    // Handle reservation logic here
+    if (!startTime || !endTime) {
+      alert('Please select both start and end times.');
+      return;
+    }
     console.log('Start Time:', startTime);
     console.log('End Time:', endTime);
     console.log('Party Size:', partySize);
@@ -69,7 +82,6 @@ const Schedule = () => {
         style={{ zIndex: -1 }}
       />
 
-      {/* Heading */}
       <Typography
         variant="h4"
         sx={{
@@ -82,30 +94,53 @@ const Schedule = () => {
           zIndex: 1,
         }}
       >
-        Pick a day to race
+        Available Slots
       </Typography>
 
-      {/* Date Picker */}
       <LocalizationProvider dateAdapter={AdapterLuxon}>
-        <DateTimePicker
+        <DatePicker
           label="Select Date"
           value={selectedDate}
           onChange={handleDateChange}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              sx={{
-                mb: 3,
-                backgroundColor: '#000',
-                input: { color: '#fff' },
-                label: { color: '#fff' },
-              }}
-            />
-          )}
+          sx={{
+            mb: 3,
+            '& .MuiInputBase-root': {
+              color: '#fff',
+              backgroundColor: '#000',
+              '& fieldset': {
+                borderColor: '#ffcc03',
+              },
+              '&:hover fieldset': {
+                borderColor: '#ffcc03',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#ffcc03',
+              },
+            },
+            '& .MuiInputLabel-root': {
+              color: '#fff',
+            },
+            '& .MuiSvgIcon-root': {
+              color: '#fff',
+            },
+            '& .MuiPickersDay-root': {
+              color: '#000',
+              backgroundColor: '#fff',
+              '&:hover': {
+                backgroundColor: '#ffcc03',
+              },
+              '&.Mui-selected': {
+                backgroundColor: '#ffcc03',
+                color: '#000',
+              },
+            },
+            '& .MuiPickersDay-today': {
+              borderColor: '#ffcc03',
+            },
+          }}
         />
       </LocalizationProvider>
-
-      {/* Available Slots */}
+      
       <Box sx={{ width: '100%', maxHeight: '40vh', overflowY: 'auto', marginBottom: '20px', zIndex: 1 }}>
         <Grid container spacing={2} sx={{ padding: '10px', backgroundColor: '#000', borderRadius: '5px' }}>
           {availableSlots.map((slot, index) => (
@@ -117,10 +152,9 @@ const Schedule = () => {
                   padding: '10px',
                   textAlign: 'center',
                   borderRadius: '5px',
-                  cursor: 'pointer',
-                  '&:hover': { backgroundColor: '#333' },
+                  cursor: 'default',
+                  pointerEvents: 'none'
                 }}
-                onClick={() => setStartTime(slot.time)}
               >
                 <Typography variant="h6">{slot.time}</Typography>
                 <Typography variant="body2">{slot.available} open</Typography>
@@ -130,7 +164,6 @@ const Schedule = () => {
         </Grid>
       </Box>
 
-      {/* Selection Section */}
       <Box sx={{ width: '100%', maxWidth: '500px', backgroundColor: '#000', padding: '20px', borderRadius: '5px', zIndex: 1 }}>
         <Typography variant="h6" sx={{ color: '#fff', marginBottom: '10px' }}>Select Start and End Time</Typography>
         <FormControl fullWidth sx={{ marginBottom: '10px' }}>

@@ -23,8 +23,8 @@ const Header = () => {
   return (
     <>
       {/* Header bar */}
-      <AppBar position="fixed" color="dark" sx={{ padding: '0 24px', backgroundColor: "#000" }}>
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
+      <AppBar position="fixed" sx={{ backgroundColor: theme.palette.background.default }}>
+        <Toolbar sx={{ justifyContent: 'space-between', padding: '0 24px' }}>
           {/* Left: Logo */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Link href="/">
@@ -36,25 +36,24 @@ const Header = () => {
           {!isMobile && (
             <Box sx={{ display: 'flex', gap: '20px' }}>
               <Link href="/race-nights" passHref>
-                <Button>Race Nights</Button>
+                <Button color="primary">Race Nights</Button>
               </Link>
               <Link href="/members" passHref>
-                <Button>Members</Button>
+                <Button color="primary">Members</Button>
               </Link>
               <Link href="/marketplace" passHref>
-                <Button>Apparel</Button>
+                <Button color="primary">Apparel</Button>
               </Link>
               <Link href="/franchise" passHref>
-                <Button>Franchise</Button>
+                <Button color="primary">Franchise</Button>
               </Link>
             </Box>
           )}
 
           {!isMobile && (
-
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
               {/* Cart Icon */}
-              <IconButton>
+              <IconButton color="primary">
                 <ShoppingCartIcon />
               </IconButton>
 
@@ -73,7 +72,7 @@ const Header = () => {
           )}
 
           {isMobile && (
-            <IconButton edge="end" color="inherit" aria-label="menu" onClick={toggleMenu}>
+            <IconButton edge="end" color="primary" aria-label="menu" onClick={toggleMenu}>
               <MenuIcon />
             </IconButton>
           )}
