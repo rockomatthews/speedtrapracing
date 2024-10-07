@@ -61,7 +61,7 @@ const SlideMenu = ({ open, onClose }) => {
         <ListItem button component="a" href="/race-nights">
           <ListItemText primary="Race Nights" />
         </ListItem>
-        <ListItem button component="a" href="/race-nights">
+        <ListItem button component="a" href="/pricing">
           <ListItemText primary="Pricing" />
         </ListItem>
         <ListItem button component="a" href="/members">
