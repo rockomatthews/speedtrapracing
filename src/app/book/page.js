@@ -19,8 +19,8 @@ const Book = () => {
   };
 
   const buttonStyle = {
-    width: { xs: '150px', sm: '180px', md: '200px' },
-    height: { xs: '150px', sm: '180px', md: '200px' },
+    width: { xs: '165px', sm: '198px', md: '220px' },  // Increased by 10%
+    height: { xs: '165px', sm: '198px', md: '220px' },  // Increased by 10%
     backgroundColor: '#ff0000',
     color: '#fff',
     fontSize: { xs: '16px', sm: '18px', md: '20px' },
@@ -29,43 +29,49 @@ const Book = () => {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: { xs: '10px', sm: '15px', md: '20px' },
+    padding: { xs: '11px', sm: '16.5px', md: '22px' },  // Increased by 10%
     '&:hover': {
       backgroundColor: '#d10000',
     },
   };
 
   const iconStyle = {
-    fontSize: { xs: '40px', sm: '50px', md: '60px' },
-    marginBottom: { xs: '5px', sm: '8px', md: '10px' },
+    fontSize: { xs: '44px', sm: '55px', md: '66px' },  // Increased by 10%
+    marginBottom: { xs: '5.5px', sm: '8.8px', md: '11px' },  // Increased by 10%
   };
 
   return (
     <Box
       sx={{
         minHeight: '100vh',
+        width: '110%',  // Increased to 110%
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: '20px',
-        gap: { xs: '20px', sm: '25px', md: '30px' },
+        padding: '22px',  // Increased by 10%
+        gap: { xs: '22px', sm: '27.5px', md: '33px' },  // Increased by 10%
+        backgroundColor: isMobile ? 'transparent' : '#000000',
+        marginLeft: '-5%',  // Added to center the wider container
+        marginRight: '-5%',  // Added to center the wider container
       }}
     >
-      <Image
-        src={loginBackground}
-        alt="Background"
-        layout="fill"
-        objectFit="cover"
-        quality={100}
-        priority
-      />
+      {isMobile && (
+        <Image
+          src={loginBackground}
+          alt="Background"
+          layout="fill"
+          objectFit="cover"
+          quality={100}
+          priority
+        />
+      )}
       <Box 
         sx={{ 
           position: 'relative',
           textAlign: 'center', 
-          marginBottom: { xs: '20px', sm: '25px', md: '30px' },
+          marginBottom: { xs: '22px', sm: '27.5px', md: '33px' },  // Increased by 10%
           zIndex: 1,
         }}
       >
@@ -93,7 +99,7 @@ const Book = () => {
       >
         <HowToRegIcon sx={iconStyle} />
         Check In
-        <Typography variant="body2" sx={{ fontSize: { xs: '12px', sm: '13px', md: '14px' }, marginTop: '5px' }}>
+        <Typography variant="body2" sx={{ fontSize: { xs: '13.2px', sm: '14.3px', md: '15.4px' }, marginTop: '5.5px' }}>  {/* Increased by 10% */}
           Existing Account
         </Typography>
       </Button>
@@ -105,7 +111,7 @@ const Book = () => {
       >
         <LoginIcon sx={iconStyle} />
         Sign Up
-        <Typography variant="body2" sx={{ fontSize: { xs: '12px', sm: '13px', md: '14px' }, marginTop: '5px' }}>
+        <Typography variant="body2" sx={{ fontSize: { xs: '13.2px', sm: '14.3px', md: '15.4px' }, marginTop: '5.5px' }}>  {/* Increased by 10% */}
           New Accounts
         </Typography>
       </Button>
