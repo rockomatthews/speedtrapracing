@@ -1,6 +1,5 @@
 import React from 'react';
-import { Box, Typography, Button, Container } from '@mui/material';
-import { PricingTable } from '@mui/x-data-grid-pro';
+import { Box, Typography, Button, Container, Grid, Card, CardContent, CardActions, CardHeader } from '@mui/material';
 
 const Pricing = () => {
   const pricingData = [
@@ -30,38 +29,6 @@ const Pricing = () => {
     },
   ];
 
-  const columns = [
-    { field: 'title', headerName: 'Plan', width: 150 },
-    { field: 'price', headerName: 'Price', width: 120 },
-    { field: 'description', headerName: 'Duration', width: 150 },
-    {
-      field: 'features',
-      headerName: 'Features',
-      width: 300,
-      renderCell: (params) => (
-        <ul>
-          {params.value.map((feature, index) => (
-            <li key={index}>{feature}</li>
-          ))}
-        </ul>
-      ),
-    },
-    {
-      field: 'action',
-      headerName: '',
-      width: 150,
-      renderCell: (params) => (
-        <Button
-          variant={params.row.buttonVariant}
-          color="primary"
-          size="small"
-        >
-          {params.row.buttonText}
-        </Button>
-      ),
-    },
-  ];
-
   return (
     <Container maxWidth="lg">
       <Box sx={{ my: 4 }}>
@@ -72,23 +39,51 @@ const Pricing = () => {
           Choose the perfect plan for your racing needs
         </Typography>
 
-        <Box sx={{ height: 400, width: '100%', mt: 4 }}>
-          <PricingTable
-            rows={pricingData}
-            columns={columns}
-            pageSize={3}
-            rowsPerPageOptions={[3]}
-            disableSelectionOnClick
-            disableColumnMenu
-            disableColumnSelector
-            disableDensitySelector
-            componentsProps={{
-              toolbar: {
-                showQuickFilter: false,
-              },
-            }}
-          />
-        </Box>
+        <Grid container spacing={4} alignItems="flex-end" sx={{ mt: 4 }}>
+          {pricingData.map((tier) => (
+            <Grid item key={tier.title} xs={12} sm={6} md={4}>
+              <Card>
+                <CardHeader
+                  title={tier.title}
+                  titleTypographyProps={{ align: 'center' }}
+                  subheaderTypographyProps={{ align: 'center' }}
+                  sx={{
+                    backgroundColor: '#f5f5f5',
+                  }}
+                />
+                <CardContent>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'baseline',
+                      mb: 2,
+                    }}
+                  >
+                    <Typography component="h2" variant="h3" color="text.primary">
+                      {tier.price}
+                    </Typography>
+                    <Typography variant="h6" color="text.secondary">
+                      /{tier.description}
+                    </Typography>
+                  </Box>
+                  <ul>
+                    {tier.features.map((line) => (
+                      <Typography component="li" variant="subtitle1" align="center" key={line}>
+                        {line}
+                      </Typography>
+                    ))}
+                  </ul>
+                </CardContent>
+                <CardActions>
+                  <Button fullWidth variant={tier.buttonVariant}>
+                    {tier.buttonText}
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
 
         <Box sx={{ mt: 6 }}>
           <Typography variant="h4" component="h3" gutterBottom>

@@ -15,6 +15,7 @@
     "@mui/lab": "^6.0.0-beta.10",
     "@mui/material": "^6.1.2",
     "@mui/x-date-pickers-pro": "^7.19.0",
+    "contentful": "^11.0.3",
     "date-fns": "^4.1.0",
     "firebase": "^10.14.0",
     "luxon": "^3.5.0",
