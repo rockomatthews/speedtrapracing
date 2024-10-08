@@ -87,15 +87,83 @@ const Schedule = () => {
           label="Select Date"
           value={selectedDate}
           onChange={handleDateChange}
-          renderInput={(params) => <TextField {...params} />}
+          onAccept={(date) => {
+            setSelectedDate(date);
+            setSelectedTimeSlots({});
+          }}
+          sx={{
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            borderRadius: '4px',
+            marginBottom: 2,
+            '& .MuiInputBase-root': {
+              color: '#ffffff',
+            },
+            '& .MuiInputLabel-root': {
+              color: '#ffffff',
+            },
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#ffffff',
+            },
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#ffffff',
+            },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#ffffff',
+            },
+            '& .MuiPickersDay-root': {
+              color: '#000000',
+              '&.Mui-selected': {
+                backgroundColor: '#ffcc03',
+                color: '#000000',
+                '&:hover': {
+                  backgroundColor: '#d9ad00',
+                },
+              },
+            },
+            '& .MuiPickersDay-today': {
+              borderColor: '#ffcc03',
+            },
+            '& .MuiPickersCalendarHeader-label': {
+              color: '#ffffff',
+            },
+            '& .MuiIconButton-root': {
+              color: '#ffffff',
+            },
+            '& .MuiPickersDay-daySelected': {
+              backgroundColor: '#ffcc03',
+              color: '#000000',
+            },
+            '& .MuiDialogActions-root .MuiButton-text': {
+              color: '#000000',
+            },
+          }}
         />
       </LocalizationProvider>
 
-      <FormControl fullWidth sx={{ mt: 2, mb: 2 }}>
+      <Typography variant="h6" sx={{ color: '#ffffff', marginBottom: 1, alignSelf: 'flex-start' }}>
+        Group Size
+      </Typography>
+      <FormControl fullWidth sx={{ mb: 2 }}>
         <Select
           value={groupSize}
           onChange={(e) => setGroupSize(e.target.value)}
           displayEmpty
+          sx={{
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            color: '#ffffff',
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#ffffff',
+            },
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#ffffff',
+            },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#ffffff',
+            },
+            '& .MuiSelect-icon': {
+              color: '#ffffff',
+            },
+          }}
         >
           {[...Array(10)].map((_, i) => (
             <MenuItem key={i} value={i + 1}>
@@ -117,7 +185,7 @@ const Schedule = () => {
                   height: '80px',
                   flexDirection: 'column',
                   backgroundColor: selectedTimeSlots[time] ? '#ffcc03' : '#333333',
-                  color: selectedTimeSlots[time] ? '#000' : '#fff',
+                  color: selectedTimeSlots[time] ? '#000000' : '#ffffff',
                   border: 'none',
                   '&:hover': {
                     backgroundColor: selectedTimeSlots[time] ? '#d9ad00' : '#444444',
@@ -128,8 +196,8 @@ const Schedule = () => {
                   },
                 }}
               >
-                <Typography variant="body2">{time}</Typography>
-                <Typography variant="caption">{availableSlots} sims open</Typography>
+                <Typography variant="body2" sx={{ color: 'inherit' }}>{time}</Typography>
+                <Typography variant="caption" sx={{ color: 'inherit' }}>{availableSlots} sims open</Typography>
               </Button>
             </Grid>
           );
