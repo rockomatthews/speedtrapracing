@@ -2,6 +2,7 @@ import Header from '../components/Header';
 import localFont from "next/font/local";
 import ThemeRegistry from './ThemeRegistry';
 import { Box } from '@mui/material';
+import { customFont } from './fonts.js'
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",

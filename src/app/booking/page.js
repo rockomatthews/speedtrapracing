@@ -3,7 +3,9 @@
 import React from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import bookingBackground from '../../public/homeScreenImage.jpg';
+import { customFont } from '../fonts.js';
 
 const Booking = () => {
   const router = useRouter();
@@ -28,12 +30,31 @@ const Booking = () => {
       }}
     >
       {/* Heading */}
-      <Typography
-        variant="h3"
-        sx={{ color: '#fff', fontWeight: 'bold', marginBottom: '20px', textAlign: 'center' }}
-      >
-        EASY Race Scheduling <br /> No Waiting
-      </Typography>
+      <Box sx={{ textAlign: 'center' }}>
+        <Typography
+          variant="h3"
+          sx={{ 
+            color: '#fff', 
+            fontWeight: 'bold', 
+            fontFamily: customFont.style.fontFamily,
+            textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+            marginBottom: '10px',  // Add space between the two lines
+          }}
+        >
+          EASY Race Scheduling
+        </Typography>
+        <Typography
+          variant="h3"
+          sx={{ 
+            color: '#fff', 
+            fontWeight: 'bold', 
+            fontFamily: customFont.style.fontFamily,
+            textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+          }}
+        >
+          No Waiting
+        </Typography>
+      </Box>
 
       {/* Race Now Button */}
       <Button
@@ -44,20 +65,38 @@ const Booking = () => {
         RACE NOW
       </Button>
 
-      {/* Buy Gift Cards and Add to Cart Section */}
-      <Box sx={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
-        <Button
-          variant="contained"
-          sx={{ backgroundColor: '#000', color: '#fff', fontSize: '16px', padding: '10px 20px' }}
+      {/* Buy Gift Cards Strip */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          width: '100vw',
+          padding: '10px 20px',
+          marginTop: '20px',
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '20px',
+            maxWidth: '600px',
+            width: '100%',
+          }}
         >
-          Buy Gift Cards
-        </Button>
-        <Button
-          variant="contained"
-          sx={{ backgroundColor: '#FFC107', color: '#000', fontSize: '16px', padding: '10px 20px' }}
-        >
-          ADD TO CART
-        </Button>
+          <Typography variant="h6" sx={{ color: '#fff' }}>
+            Buy Gift Cards
+          </Typography>
+          <Button
+            variant="contained"
+            sx={{ backgroundColor: '#FFC107', color: '#000', fontSize: '16px', padding: '5px 15px' }}
+          >
+            Add to Cart
+          </Button>
+        </Box>
       </Box>
 
       {/* Navigation Buttons */}
@@ -67,6 +106,7 @@ const Booking = () => {
           gridTemplateColumns: '1fr 1fr',
           gap: '20px',
           marginTop: '30px',
+          padding: '20px',
           maxWidth: '600px',
           width: '100%',
         }}
@@ -77,10 +117,10 @@ const Booking = () => {
             backgroundColor: 'rgba(255, 255, 255, 0.6)', 
             color: '#000', 
             fontSize: '18px', 
-            height: '100px', // Set height for square shape
-            display: 'flex', // Center text
-            justifyContent: 'center', // Center text
-            alignItems: 'center' // Center text
+            height: '200px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center'
           }}
           onClick={() => handleNavigate('/racenights')}
         >
@@ -92,10 +132,10 @@ const Booking = () => {
             backgroundColor: 'rgba(255, 255, 255, 0.6)', 
             color: '#000', 
             fontSize: '18px', 
-            height: '100px', // Set height for square shape
-            display: 'flex', // Center text
-            justifyContent: 'center', // Center text
-            alignItems: 'center' // Center text
+            height: '200px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center'
           }}
           onClick={() => handleNavigate('/membership')}
         >
@@ -107,10 +147,10 @@ const Booking = () => {
             backgroundColor: 'rgba(255, 255, 255, 0.6)', 
             color: '#000', 
             fontSize: '18px', 
-            height: '100px', // Set height for square shape
-            display: 'flex', // Center text
-            justifyContent: 'center', // Center text
-            alignItems: 'center' // Center text
+            height: '200px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center'
           }}
           onClick={() => handleNavigate('/marketplace')}
         >
@@ -122,10 +162,10 @@ const Booking = () => {
             backgroundColor: 'rgba(255, 255, 255, 0.6)', 
             color: '#000', 
             fontSize: '18px', 
-            height: '100px', // Set height for square shape
-            display: 'flex', // Center text
-            justifyContent: 'center', // Center text
-            alignItems: 'center' // Center text
+            height: '200px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
           }}
           onClick={() => handleNavigate('/franchise')}
         >
