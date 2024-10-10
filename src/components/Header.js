@@ -58,7 +58,7 @@ const Header = () => {
               </IconButton>
 
               {/* Sign Up / Sign In */}
-              <Link href="/sign-up" passHref>
+              <Link href="/login" passHref>
                 <Button 
                   variant="contained" 
                   sx={{
@@ -72,7 +72,7 @@ const Header = () => {
                   Sign Up
                 </Button>
               </Link>
-              <Link href="/sign-in" passHref>
+              <Link href="/login" passHref>
                 <Button 
                   variant="outlined" 
                   sx={{
