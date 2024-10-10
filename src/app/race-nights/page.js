@@ -6,8 +6,8 @@ import { Box, Typography, Card, CardContent, CardMedia, Grid } from '@mui/materi
 import Image from 'next/image';
 
 const client = createClient({
-  space: process.env.CONTENTFUL_SPACE_ID,
-  accessToken: process.env.CONTENTFUL_ACCESS_TOKEN,
+  space: process.env.NEXT_PUBLIC_CONTENTFUL_SPACE_ID,
+  accessToken: process.env.NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN,
 });
 
 export default function NightlyEvents() {
