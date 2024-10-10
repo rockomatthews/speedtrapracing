@@ -4,7 +4,7 @@ const darkTheme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
-      main: '#ffcc03',
+      main: '#ffcc03', // Keep yellow as primary
     },
     background: {
       default: '#000000',
@@ -101,11 +101,6 @@ const darkTheme = createTheme({
           lineHeight: '20px',
           fontWeight: 500,
           transition: 'background 0.2s, color 0.2s, border-color 0.2s',
-          color: '#000000',
-          backgroundColor: '#ffcc03',
-          '&:hover': {
-            backgroundColor: 'var(--button-primary-hover)',
-          },
           '@media (max-width: 600px)': {
             fontSize: '14px',
             height: '40px',
@@ -113,6 +108,8 @@ const darkTheme = createTheme({
           },
         },
         contained: {
+          backgroundColor: '#ffcc03',
+          color: '#000000',
           '&:hover': {
             backgroundColor: 'var(--button-primary-hover)',
           },
@@ -142,6 +139,31 @@ const darkTheme = createTheme({
           '&:hover': {
             textDecoration: 'underline',
             textUnderlineOffset: '4px',
+          },
+        },
+      },
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          color: '#ededed',
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#ededed',
+          },
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#ffffff',
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#ffffff',
+          },
+          '& input': {
+            color: '#ededed',
           },
         },
       },
