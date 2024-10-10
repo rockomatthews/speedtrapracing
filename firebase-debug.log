@@ -1,0 +1,205 @@
+[debug] [2024-10-10T18:07:29.188Z] ----------------------------------------------------------------------
+[debug] [2024-10-10T18:07:29.190Z] Command:       /usr/local/bin/node /usr/local/bin/firebase deploy
+[debug] [2024-10-10T18:07:29.190Z] CLI Version:   13.3.0
+[debug] [2024-10-10T18:07:29.190Z] Platform:      darwin
+[debug] [2024-10-10T18:07:29.191Z] Node Version:  v18.20.4
+[debug] [2024-10-10T18:07:29.192Z] Time:          Thu Oct 10 2024 13:07:29 GMT-0500 (Central Daylight Time)
+[debug] [2024-10-10T18:07:29.192Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-10-10T18:07:29.253Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-10-10T18:07:29.253Z] > authorizing via signed-in user (davidpina14@gmail.com)
+[debug] [2024-10-10T18:07:29.253Z] [iam] checking project speedtrapracing-aa7c8 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-10-10T18:07:29.256Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions [none]
+[debug] [2024-10-10T18:07:29.256Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions x-goog-quota-user=projects/speedtrapracing-aa7c8
+[debug] [2024-10-10T18:07:29.256Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-10-10T18:07:29.559Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions 200
+[debug] [2024-10-10T18:07:29.559Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-10-10T18:07:29.560Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8 [none]
+[debug] [2024-10-10T18:07:29.758Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8 200
+[debug] [2024-10-10T18:07:29.759Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8 {"projectId":"speedtrapracing-aa7c8","projectNumber":"583692035652","displayName":"speedtrapracing","name":"projects/speedtrapracing-aa7c8","resources":{"hostingSite":"speedtrapracing-aa7c8"},"state":"ACTIVE","etag":"1_96d6b049-68a4-45b5-b1e9-764e198943ca"}
+[debug] [2024-10-10T18:07:31.587Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites pageToken=&pageSize=10
+[debug] [2024-10-10T18:07:32.055Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites 200
+[debug] [2024-10-10T18:07:32.055Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites {"sites":[{"name":"projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8","defaultUrl":"https://speedtrapracing-aa7c8.web.app","appId":"1:583692035652:web:7dd8e0e066a0db79763e11","type":"DEFAULT_SITE"}]}
+[debug] [2024-10-10T18:07:32.056Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:583692035652:web:7dd8e0e066a0db79763e11/config [none]
+[debug] [2024-10-10T18:07:32.341Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:583692035652:web:7dd8e0e066a0db79763e11/config 200
+[debug] [2024-10-10T18:07:32.342Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:583692035652:web:7dd8e0e066a0db79763e11/config {"projectId":"speedtrapracing-aa7c8","appId":"1:583692035652:web:7dd8e0e066a0db79763e11","storageBucket":"speedtrapracing-aa7c8.appspot.com","apiKey":"AIzaSyAs9Rl_ZO7avzPfBWgrRPzQ-fOLHFYVGl0","authDomain":"speedtrapracing-aa7c8.firebaseapp.com","messagingSenderId":"583692035652","measurementId":"G-TRL59427PM"}
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 14.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2024-10-10T18:07:35.974Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8 [none]
+[debug] [2024-10-10T18:07:36.241Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8 200
+[debug] [2024-10-10T18:07:36.241Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8 {"name":"projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8","defaultUrl":"https://speedtrapracing-aa7c8.web.app","appId":"1:583692035652:web:7dd8e0e066a0db79763e11","type":"DEFAULT_SITE"}
+[info]   ▲ Next.js 14.2.14
+
+[info] 
+
+[info]    Creating an optimized production build ...
+
+[info] Failed to compile.
+
+
+[info] ./src/app/race-nights/page.js
+Module not found: Can't resolve '@contentful/rich-text-react-renderer'
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[info] 
+
+[info] > Build failed because of webpack errors
+
+[debug] [2024-10-10T18:07:40.689Z] Error: ENOENT: no such file or directory, open '/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/middleware-manifest.json'
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-10-10T18:09:02.660Z] ----------------------------------------------------------------------
+[debug] [2024-10-10T18:09:02.662Z] Command:       /usr/local/bin/node /usr/local/bin/firebase deploy
+[debug] [2024-10-10T18:09:02.662Z] CLI Version:   13.3.0
+[debug] [2024-10-10T18:09:02.663Z] Platform:      darwin
+[debug] [2024-10-10T18:09:02.663Z] Node Version:  v18.20.4
+[debug] [2024-10-10T18:09:02.664Z] Time:          Thu Oct 10 2024 13:09:02 GMT-0500 (Central Daylight Time)
+[debug] [2024-10-10T18:09:02.664Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-10-10T18:09:02.722Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-10-10T18:09:02.722Z] > authorizing via signed-in user (davidpina14@gmail.com)
+[debug] [2024-10-10T18:09:02.722Z] [iam] checking project speedtrapracing-aa7c8 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-10-10T18:09:02.724Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions [none]
+[debug] [2024-10-10T18:09:02.724Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions x-goog-quota-user=projects/speedtrapracing-aa7c8
+[debug] [2024-10-10T18:09:02.724Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-10-10T18:09:02.993Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions 200
+[debug] [2024-10-10T18:09:02.994Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-10-10T18:09:02.995Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8 [none]
+[debug] [2024-10-10T18:09:03.275Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8 200
+[debug] [2024-10-10T18:09:03.275Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8 {"projectId":"speedtrapracing-aa7c8","projectNumber":"583692035652","displayName":"speedtrapracing","name":"projects/speedtrapracing-aa7c8","resources":{"hostingSite":"speedtrapracing-aa7c8"},"state":"ACTIVE","etag":"1_96d6b049-68a4-45b5-b1e9-764e198943ca"}
+[debug] [2024-10-10T18:09:05.046Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites pageToken=&pageSize=10
+[debug] [2024-10-10T18:09:05.357Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites 200
+[debug] [2024-10-10T18:09:05.357Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites {"sites":[{"name":"projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8","defaultUrl":"https://speedtrapracing-aa7c8.web.app","appId":"1:583692035652:web:7dd8e0e066a0db79763e11","type":"DEFAULT_SITE"}]}
+[debug] [2024-10-10T18:09:05.357Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:583692035652:web:7dd8e0e066a0db79763e11/config [none]
+[debug] [2024-10-10T18:09:05.875Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:583692035652:web:7dd8e0e066a0db79763e11/config 200
+[debug] [2024-10-10T18:09:05.875Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:583692035652:web:7dd8e0e066a0db79763e11/config {"projectId":"speedtrapracing-aa7c8","appId":"1:583692035652:web:7dd8e0e066a0db79763e11","storageBucket":"speedtrapracing-aa7c8.appspot.com","apiKey":"AIzaSyAs9Rl_ZO7avzPfBWgrRPzQ-fOLHFYVGl0","authDomain":"speedtrapracing-aa7c8.firebaseapp.com","messagingSenderId":"583692035652","measurementId":"G-TRL59427PM"}
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 14.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2024-10-10T18:09:09.411Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8 [none]
+[debug] [2024-10-10T18:09:09.660Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8 200
+[debug] [2024-10-10T18:09:09.661Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8 {"name":"projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8","defaultUrl":"https://speedtrapracing-aa7c8.web.app","appId":"1:583692035652:web:7dd8e0e066a0db79763e11","type":"DEFAULT_SITE"}
+[info]   ▲ Next.js 14.2.14
+
+[info] 
+
+[info]    Creating an optimized production build ...
+
+[info]  ✓ Compiled successfully
+
+[info]    Linting and checking validity of types ...
+
+[info]    Collecting page data ...
+
+[info]    Generating static pages (0/16) ...
+
+[info] TypeError: Expected parameter accessToken
+    at /Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/race-nights/page.js:7:8303
+    at 79011 (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/race-nights/page.js:7:13936)
+    at Object.t [as require] (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/webpack-runtime.js:1:127)
+    at require (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:18550)
+    at i (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:88294)
+    at /Users/jalapina/Desktop/projects/software/clients/speedtrapracing/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:98817
+    at /Users/jalapina/Desktop/projects/software/clients/speedtrapracing/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:98904
+    at t (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:99107) {
+  digest: '1849504337'
+}
+
+[info] 
+Error occurred prerendering page "/race-nights". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Expected parameter accessToken
+    at /Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/race-nights/page.js:7:8303
+    at 79011 (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/race-nights/page.js:7:13936)
+    at Object.t [as require] (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/webpack-runtime.js:1:127)
+    at require (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:18550)
+    at i (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:88294)
+    at /Users/jalapina/Desktop/projects/software/clients/speedtrapracing/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:98817
+    at /Users/jalapina/Desktop/projects/software/clients/speedtrapracing/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:98904
+    at t (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:99107)
+
+[info]    Generating static pages (4/16) 
+
+[info]    Generating static pages (8/16) 
+
+[info] [2024-10-10T18:09:30.879Z]  @firebase/analytics: Analytics: Firebase Analytics is not supported in this environment. Wrap initialization of analytics in analytics.isSupported() to prevent initialization in unsupported environments. Details: (1) Cookies are not available. (analytics/invalid-analytics-context).
+ReferenceError: window is not defined
+    at /Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/login/page.js:34:154866
+    at Ae.instanceFactory (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/login/page.js:34:155464)
+    at Ar.getOrInitializeService (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/login/page.js:34:124405)
+    at Ar.initialize (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/login/page.js:34:123780)
+    at /Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/login/page.js:34:211001
+    at /Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/login/page.js:34:211025
+    at 20583 (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/login/page.js:34:211029)
+    at Object.t [as require] (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/webpack-runtime.js:1:127)
+    at require (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:18550)
+    at i (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:88294) {
+  digest: '864781026'
+}
+
+Error occurred prerendering page "/login". Read more: https://nextjs.org/docs/messages/prerender-error
+
+ReferenceError: window is not defined
+    at /Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/login/page.js:34:154866
+    at Ae.instanceFactory (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/login/page.js:34:155464)
+    at Ar.getOrInitializeService (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/login/page.js:34:124405)
+    at Ar.initialize (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/login/page.js:34:123780)
+    at /Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/login/page.js:34:211001
+    at /Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/login/page.js:34:211025
+    at 20583 (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/app/login/page.js:34:211029)
+    at Object.t [as require] (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/server/webpack-runtime.js:1:127)
+    at require (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:18550)
+    at i (/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:88294)
+
+[info]    Generating static pages (12/16) 
+
+[info]  ✓ Generating static pages (16/16)
+
+[info] 
+
+[info] > Export encountered errors on following paths:
+	/login/page: /login
+	/race-nights/page: /race-nights
+
+[debug] [2024-10-10T18:09:31.170Z] Error: ENOENT: no such file or directory, open '/Users/jalapina/Desktop/projects/software/clients/speedtrapracing/.next/export-marker.json'
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-10-10T18:38:06.579Z] ----------------------------------------------------------------------
+[debug] [2024-10-10T18:38:06.580Z] Command:       /usr/local/bin/node /usr/local/bin/firebase deploy
+[debug] [2024-10-10T18:38:06.581Z] CLI Version:   13.3.0
+[debug] [2024-10-10T18:38:06.581Z] Platform:      darwin
+[debug] [2024-10-10T18:38:06.581Z] Node Version:  v18.20.4
+[debug] [2024-10-10T18:38:06.582Z] Time:          Thu Oct 10 2024 13:38:06 GMT-0500 (Central Daylight Time)
+[debug] [2024-10-10T18:38:06.583Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-10-10T18:38:06.641Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-10-10T18:38:06.641Z] > authorizing via signed-in user (davidpina14@gmail.com)
+[debug] [2024-10-10T18:38:06.641Z] [iam] checking project speedtrapracing-aa7c8 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-10-10T18:38:06.643Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions [none]
+[debug] [2024-10-10T18:38:06.643Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions x-goog-quota-user=projects/speedtrapracing-aa7c8
+[debug] [2024-10-10T18:38:06.643Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-10-10T18:38:06.885Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions 200
+[debug] [2024-10-10T18:38:06.886Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-10-10T18:38:06.887Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8 [none]
+[debug] [2024-10-10T18:38:07.106Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8 200
+[debug] [2024-10-10T18:38:07.106Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8 {"projectId":"speedtrapracing-aa7c8","projectNumber":"583692035652","displayName":"speedtrapracing","name":"projects/speedtrapracing-aa7c8","resources":{"hostingSite":"speedtrapracing-aa7c8"},"state":"ACTIVE","etag":"1_96d6b049-68a4-45b5-b1e9-764e198943ca"}
+[debug] [2024-10-10T18:38:08.815Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites pageToken=&pageSize=10

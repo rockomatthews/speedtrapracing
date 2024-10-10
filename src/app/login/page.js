@@ -5,7 +5,8 @@ import { Google as GoogleIcon, Facebook as FacebookIcon, Apple as AppleIcon } fr
 import SportsMotorsportsIcon from '@mui/icons-material/SportsMotorsports';
 import { useRouter } from 'next/navigation';
 import loginBackground from '../../public/loginBackground.png';
-import { auth } from '../../config/firebase';
+import dynamic from 'next/dynamic'; // Import dynamic for client-side only components
+const auth = dynamic(() => import('../../config/firebase'), { ssr: false });
 
 import { 
   signInWithPopup, 
