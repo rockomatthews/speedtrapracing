@@ -6,7 +6,6 @@ import SportsMotorsportsIcon from '@mui/icons-material/SportsMotorsports';
 import { useRouter } from 'next/navigation';
 import loginBackground from '../../public/loginBackground.png';
 import { auth } from '../../config/firebase';
-
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
@@ -14,7 +13,7 @@ import {
   signInWithEmailAndPassword
 } from "firebase/auth";
 
-const LoginPage = () => {
+const SignInPage = () => {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -175,4 +174,4 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage;
+export default SignInPage;

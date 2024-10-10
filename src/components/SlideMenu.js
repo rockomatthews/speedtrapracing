@@ -28,12 +28,12 @@ const SlideMenu = ({ open, onClose }) => {
         </IconButton>
         {/* Sign Up and Log In buttons */}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end'}}>
-          <Link href="/login" passHref>
+          <Link href="/sign-up" passHref>
             <Button variant="contained" color="primary" sx={{ marginRight: 1 }} onClick={onClose}>
               Sign Up
             </Button>
           </Link>
-          <Link href="/login" passHref>
+          <Link href="/sign-in" passHref>
             <Button 
               variant="outlined" 
               onClick={onClose}
@@ -47,7 +47,7 @@ const SlideMenu = ({ open, onClose }) => {
                 },
               }}
             >
-              Log In
+              Sign In
             </Button>
           </Link>
         </Box>
