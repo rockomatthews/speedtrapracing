@@ -1,24 +1,110 @@
-// src/app/login/page.js
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import { Box, Button, Typography, TextField, IconButton } from '@mui/material';
 import { Google as GoogleIcon, Facebook as FacebookIcon, Apple as AppleIcon } from '@mui/icons-material';
 import SportsMotorsportsIcon from '@mui/icons-material/SportsMotorsports';
 import { useRouter } from 'next/navigation';
 import loginBackground from '../../public/loginBackground.png';
+import { auth, db } from '../../config/firebase';
+
+import { 
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  FacebookAuthProvider
+} from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 const LoginPage = () => {
   const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isNewUser, setIsNewUser] = useState(false);
 
-  // Placeholder for actual authentication logic later
-  const handleSocialLogin = (provider) => {
-    console.log(`Logging in with ${provider}`);
-    // Placeholder logic for social login
+  const doesUserExist = async (user) => {
+    try {
+      const userDocRef = doc(db, 'Users', user.uid);
+      const userDocSnapshot = await getDoc(userDocRef);
+      let userData;
+      if (!userDocSnapshot.exists()) {
+        userData = {
+          email: user.email,
+          displayName: user.displayName || '',
+          photoURL: user.photoURL || '',
+          createdAt: new Date().toISOString(),
+          isInitiated: false,
+          tokens: 2,
+          isPremium: false,
+          lastReset: new Date().toISOString(),
+        };
+        await setDoc(userDocRef, userData);
+        setIsNewUser(true);
+      } else {
+        userData = userDocSnapshot.data();
+        setIsNewUser(false);
+      }
+      // Instead of AsyncStorage, you might want to use localStorage or a state management solution
+      localStorage.setItem('userSession', JSON.stringify(user));
+      return userData;
+    } catch (error) {
+      console.error('Error in doesUserExist function:', error);
+      throw error;
+    }
   };
 
-  const handleEmailLogin = () => {
-    console.log('Logging in with Email');
-    // Placeholder logic for email login
+  const handleSocialLogin = async (provider) => {
+    try {
+      let authProvider;
+      switch(provider) {
+        case 'Google':
+          authProvider = new GoogleAuthProvider();
+          break;
+        case 'Facebook':
+          authProvider = new FacebookAuthProvider();
+          break;
+        default:
+          console.error('Unsupported provider');
+          return;
+      }
+      
+      const result = await signInWithPopup(auth, authProvider);
+      const userData = await doesUserExist(result.user);
+      console.log(`Logged in with ${provider}`, userData);
+      router.push(isNewUser ? '/onboarding' : '/dashboard');
+    } catch (error) {
+      console.error(`${provider} login failed`, error);
+      setError(error.message);
+    }
+  };
+
+  const handleEmailAuth = async () => {
+    if (isNewUser && password !== confirmPassword) {
+      setError("Passwords don't match");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password should be at least 6 characters long");
+      return;
+    }
+
+    try {
+      let result;
+      if (isNewUser) {
+        result = await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        result = await signInWithEmailAndPassword(auth, email, password);
+      }
+      const userData = await doesUserExist(result.user);
+      console.log(isNewUser ? 'Signed up with email' : 'Logged in with email', userData);
+      router.push(isNewUser ? '/onboarding' : '/dashboard');
+    } catch (error) {
+      console.error('Email authentication failed', error);
+      setError(error.message);
+    }
   };
 
   return (
@@ -37,7 +123,7 @@ const LoginPage = () => {
     >
       <Box
         sx={{
-          backgroundColor: 'rgba(0, 0, 0, 0.8)', // Dark overlay for better text contrast
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
           padding: '30px',
           borderRadius: '10px',
           width: '100%',
@@ -45,13 +131,11 @@ const LoginPage = () => {
           textAlign: 'center',
         }}
       >
-        {/* Sign Up Header */}
         <Typography variant="h4" gutterBottom sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 5 }}>
           <SportsMotorsportsIcon alt="Helmet Icon" style={{ width: 50, height: 50, marginBottom: 30 }} />
-          Sign In
+          {isNewUser ? 'Sign Up' : 'Sign In'}
         </Typography>
 
-        {/* Social Login Options */}
         <Box sx={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}>
           <IconButton onClick={() => handleSocialLogin('Google')} sx={{ backgroundColor: '#4285F4', color: '#fff' }}>
             <GoogleIcon />
@@ -59,7 +143,7 @@ const LoginPage = () => {
           <IconButton onClick={() => handleSocialLogin('Facebook')} sx={{ backgroundColor: '#3b5998', color: '#fff' }}>
             <FacebookIcon />
           </IconButton>
-          <IconButton onClick={() => handleSocialLogin('Apple')} sx={{ backgroundColor: '#000', color: '#fff' }}>
+          <IconButton sx={{ backgroundColor: '#000', color: '#fff' }}>
             <AppleIcon />
           </IconButton>
         </Box>
@@ -68,30 +152,122 @@ const LoginPage = () => {
           or
         </Typography>
 
-        {/* Email and Password Fields */}
         <TextField
           label="Email"
           variant="outlined"
           fullWidth
-          sx={{ marginBottom: '15px', backgroundColor: '#fff', borderRadius: '5px' }}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          sx={{
+            marginBottom: '15px',
+            backgroundColor: '#fff',
+            borderRadius: '5px',
+            '& .MuiOutlinedInput-root': {
+              '& fieldset': {
+                borderColor: 'rgba(0, 0, 0, 0.23)',
+              },
+              '&:hover fieldset': {
+                borderColor: 'rgba(0, 0, 0, 0.5)',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#000',
+              },
+            },
+            '& .MuiInputBase-input': {
+              color: '#000',
+            },
+            '& .MuiInputLabel-root': {
+              color: 'rgba(0, 0, 0, 0.6)',
+            },
+          }}
         />
         <TextField
           label="Password"
           type="password"
           variant="outlined"
           fullWidth
-          sx={{ marginBottom: '15px', backgroundColor: '#fff', borderRadius: '5px' }}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          sx={{
+            marginBottom: '15px',
+            backgroundColor: '#fff',
+            borderRadius: '5px',
+            '& .MuiOutlinedInput-root': {
+              '& fieldset': {
+                borderColor: 'rgba(0, 0, 0, 0.23)',
+              },
+              '&:hover fieldset': {
+                borderColor: 'rgba(0, 0, 0, 0.5)',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#000',
+              },
+            },
+            '& .MuiInputBase-input': {
+              color: '#000',
+            },
+            '& .MuiInputLabel-root': {
+              color: 'rgba(0, 0, 0, 0.6)',
+            },
+          }}
         />
+        {isNewUser && (
+          <TextField
+            label="Confirm Password"
+            type="password"
+            variant="outlined"
+            fullWidth
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            sx={{
+              marginBottom: '15px',
+              backgroundColor: '#fff',
+              borderRadius: '5px',
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: 'rgba(0, 0, 0, 0.23)',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'rgba(0, 0, 0, 0.5)',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#000',
+                },
+              },
+              '& .MuiInputBase-input': {
+                color: '#000',
+              },
+              '& .MuiInputLabel-root': {
+                color: 'rgba(0, 0, 0, 0.6)',
+              },
+            }}
+          />
+        )}
 
-        {/* Login Button */}
+        {error && (
+          <Typography color="error" variant="body2" sx={{ marginBottom: '15px' }}>
+            {error}
+          </Typography>
+        )}
+
         <Button
           variant="contained"
           color="primary"
           fullWidth
           sx={{ marginTop: '15px', backgroundColor: '#FFC107', color: '#000' }}
-          onClick={handleEmailLogin}
+          onClick={handleEmailAuth}
         >
-          Next
+          {isNewUser ? 'Sign Up' : 'Sign In'}
+        </Button>
+
+        <Button
+          variant="text"
+          color="primary"
+          fullWidth
+          sx={{ marginTop: '10px' }}
+          onClick={() => setIsNewUser(!isNewUser)}
+        >
+          {isNewUser ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
         </Button>
       </Box>
     </Box>

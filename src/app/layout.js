@@ -1,12 +1,15 @@
-import './globals.css'; // Import global CSS styles
 import Header from '../components/Header';
 import localFont from "next/font/local";
+import ThemeRegistry from './ThemeRegistry';
+import { Box } from '@mui/material';
+import { customFont } from './fonts.js'
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
   weight: "100 900",
 });
+
 const geistMono = localFont({
   src: "./fonts/GeistMonoVF.woff",
   variable: "--font-geist-mono",
@@ -20,10 +23,14 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>
-        <Header />
-        {children}
+        <ThemeRegistry>
+          <Header />
+          <Box sx={{ marginTop: '64px' }}>
+            {children}
+          </Box>
+        </ThemeRegistry>
       </body>
     </html>
   );

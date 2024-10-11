@@ -1,186 +1,259 @@
 'use client'
 
-import React, { useState } from 'react';
-import { Box, Typography, Button, TextField, Grid, InputLabel, MenuItem, FormControl, Select } from '@mui/material';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Box, Typography, Button, Grid, FormControl, Select, MenuItem, Paper, Slide, useMediaQuery } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterLuxon } from '@mui/x-date-pickers/AdapterLuxon';
-import { DateTime } from 'luxon';
 import Image from 'next/image';
 import loginBackground from '../../public/loginBackground.png';
 
 const Schedule = () => {
-  const [selectedDate, setSelectedDate] = useState(DateTime.now());
-  const [availableSlots, setAvailableSlots] = useState([{
-    time: '4:00 PM', available: 8
-  }, {
-    time: '4:30 PM', available: 10
-  }, {
-    time: '5:00 PM', available: 10
-  }, {
-    time: '5:30 PM', available: 10
-  }, {
-    time: '6:00 PM', available: 10
-  }, {
-    time: '6:30 PM', available: 10
-  }, {
-    time: '7:00 PM', available: 10
-  }, {
-    time: '8:30 PM', available: 10
-  }, {
-    time: '9:00 PM', available: 10
-  }, {
-    time: '10:30 PM', available: 10
-  }]);
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
-  const [partySize, setPartySize] = useState(1);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState({});
+  const [groupSize, setGroupSize] = useState(1);
+  const [showTempBar, setShowTempBar] = useState(false);
+  const isMobile = useMediaQuery('(max-width:600px)');
 
-  const handleDateChange = (newDate) => {
-    if (newDate) {
-      setSelectedDate(newDate);
+  const timeSlots = useMemo(() => {
+    const slots = [];
+    for (let hour = 9; hour < 22; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        slots.push(time);
+      }
     }
+    return slots;
+  }, []);
+
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+    setSelectedTimeSlots({});
   };
 
-  const handleCheckout = () => {
-    // Handle reservation logic here
-    console.log('Start Time:', startTime);
-    console.log('End Time:', endTime);
-    console.log('Party Size:', partySize);
+  const handleTimeSlotToggle = (time) => {
+    setSelectedTimeSlots(prev => {
+      const newSlots = { ...prev };
+      if (newSlots[time]) {
+        delete newSlots[time];
+      } else {
+        newSlots[time] = true;
+      }
+      return newSlots;
+    });
   };
+
+  const calculateTotalPrice = () => {
+    const slotCount = Object.keys(selectedTimeSlots).length;
+    if (slotCount === 0) return 0;
+    return (30 + (slotCount - 1) * 20) * groupSize;
+  };
+
+  useEffect(() => {
+    setShowTempBar(Object.keys(selectedTimeSlots).length === 1);
+  }, [selectedTimeSlots]);
 
   return (
     <Box
       sx={{
-        height: '100vh',
-        position: 'relative',
+        flex: 1,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
+        position: 'relative',
         padding: '20px',
+        width: '100%',
+        maxWidth: '1200px',
+        margin: '0 auto',
+        minHeight: '100vh',
+        paddingBottom: '80px',
+        backgroundColor: isMobile ? 'transparent' : '#000000',
       }}
     >
-      <Image
-        src={loginBackground}
-        alt="Background"
-        layout="fill"
-        objectFit="cover"
-        style={{ zIndex: -1 }}
-      />
+      {isMobile && (
+        <Image
+          src={loginBackground}
+          alt="Background"
+          layout="fill"
+          objectFit="cover"
+          quality={100}
+          priority
+        />
+      )}
 
-      {/* Heading */}
-      <Typography
-        variant="h4"
-        sx={{
-          color: '#fff',
-          fontWeight: 'bold',
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          padding: '10px 20px',
-          borderRadius: '5px',
-          marginBottom: '20px',
-          zIndex: 1,
-        }}
-      >
-        Pick a day to race
-      </Typography>
-
-      {/* Date Picker */}
       <LocalizationProvider dateAdapter={AdapterLuxon}>
-        <DateTimePicker
+        <DatePicker
           label="Select Date"
           value={selectedDate}
           onChange={handleDateChange}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              sx={{
-                mb: 3,
-                backgroundColor: '#000',
-                input: { color: '#fff' },
-                label: { color: '#fff' },
-              }}
-            />
-          )}
+          onAccept={(date) => {
+            setSelectedDate(date);
+            setSelectedTimeSlots({});
+          }}
+          sx={{
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            borderRadius: '4px',
+            marginBottom: 2,
+            '& .MuiInputBase-root': {
+              color: '#ffffff',
+            },
+            '& .MuiInputLabel-root': {
+              color: '#ffffff',
+            },
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#ffffff',
+            },
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#ffffff',
+            },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#ffffff',
+            },
+            '& .MuiPickersDay-root': {
+              color: '#000000',
+              '&.Mui-selected': {
+                backgroundColor: '#ffcc03',
+                color: '#000000',
+                '&:hover': {
+                  backgroundColor: '#d9ad00',
+                },
+              },
+            },
+            '& .MuiPickersDay-today': {
+              borderColor: '#ffcc03',
+            },
+            '& .MuiPickersCalendarHeader-label': {
+              color: '#ffffff',
+            },
+            '& .MuiIconButton-root': {
+              color: '#ffffff',
+            },
+            '& .MuiPickersDay-daySelected': {
+              backgroundColor: '#ffcc03',
+              color: '#000000',
+            },
+            '& .MuiDialogActions-root .MuiButton-text': {
+              color: '#000000',
+            },
+          }}
         />
       </LocalizationProvider>
 
-      {/* Available Slots */}
-      <Box sx={{ width: '100%', maxHeight: '40vh', overflowY: 'auto', marginBottom: '20px', zIndex: 1 }}>
-        <Grid container spacing={2} sx={{ padding: '10px', backgroundColor: '#000', borderRadius: '5px' }}>
-          {availableSlots.map((slot, index) => (
-            <Grid item xs={6} key={index}>
-              <Box
-                sx={{
-                  backgroundColor: '#1a1a1a',
-                  color: '#fff',
-                  padding: '10px',
-                  textAlign: 'center',
-                  borderRadius: '5px',
-                  cursor: 'pointer',
-                  '&:hover': { backgroundColor: '#333' },
-                }}
-                onClick={() => setStartTime(slot.time)}
-              >
-                <Typography variant="h6">{slot.time}</Typography>
-                <Typography variant="body2">{slot.available} open</Typography>
-              </Box>
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
-
-      {/* Selection Section */}
-      <Box sx={{ width: '100%', maxWidth: '500px', backgroundColor: '#000', padding: '20px', borderRadius: '5px', zIndex: 1 }}>
-        <Typography variant="h6" sx={{ color: '#fff', marginBottom: '10px' }}>Select Start and End Time</Typography>
-        <FormControl fullWidth sx={{ marginBottom: '10px' }}>
-          <InputLabel sx={{ color: '#fff' }}>Start Time</InputLabel>
-          <Select
-            value={startTime}
-            label="Start Time"
-            onChange={(e) => setStartTime(e.target.value)}
-            sx={{ color: '#fff' }}
-          >
-            {availableSlots.map((slot, index) => (
-              <MenuItem key={index} value={slot.time}>{slot.time}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl fullWidth sx={{ marginBottom: '10px' }}>
-          <InputLabel sx={{ color: '#fff' }}>End Time</InputLabel>
-          <Select
-            value={endTime}
-            label="End Time"
-            onChange={(e) => setEndTime(e.target.value)}
-            sx={{ color: '#fff' }}
-          >
-            {availableSlots.map((slot, index) => (
-              <MenuItem key={index} value={slot.time}>{slot.time}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl fullWidth sx={{ marginBottom: '20px' }}>
-          <InputLabel sx={{ color: '#fff' }}>Party Size</InputLabel>
-          <Select
-            value={partySize}
-            label="Party Size"
-            onChange={(e) => setPartySize(e.target.value)}
-            sx={{ color: '#fff' }}
-          >
-            {[...Array(10).keys()].map((size) => (
-              <MenuItem key={size + 1} value={size + 1}>{size + 1} Sim{size > 0 ? 's' : ''}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <Button
-          variant="contained"
-          fullWidth
-          sx={{ backgroundColor: '#FFC107', color: '#000' }}
-          onClick={handleCheckout}
+      <Typography variant="h6" sx={{ color: '#ffffff', marginBottom: 1, alignSelf: 'flex-start' }}>
+        Group Size
+      </Typography>
+      <FormControl fullWidth sx={{ mb: 2 }}>
+        <Select
+          value={groupSize}
+          onChange={(e) => setGroupSize(e.target.value)}
+          displayEmpty
+          sx={{
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            color: '#ffffff',
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#ffffff',
+            },
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#ffffff',
+            },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#ffffff',
+            },
+            '& .MuiSelect-icon': {
+              color: '#ffffff',
+            },
+          }}
         >
-          Checkout
+          {[...Array(10)].map((_, i) => (
+            <MenuItem key={i} value={i + 1}>
+              {i + 1} {i === 0 ? 'Person' : 'People'}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      <Grid container spacing={2}>
+        {timeSlots.map((time) => {
+          const availableSlots = 10 - (selectedTimeSlots[time] ? groupSize : 0);
+          return (
+            <Grid item xs={4} sm={3} md={2} key={time}>
+              <Button
+                onClick={() => handleTimeSlotToggle(time)}
+                fullWidth
+                sx={{
+                  height: '80px',
+                  flexDirection: 'column',
+                  backgroundColor: selectedTimeSlots[time] ? '#ffcc03' : '#333333',
+                  color: selectedTimeSlots[time] ? '#000000' : '#ffffff',
+                  border: 'none',
+                  '&:hover': {
+                    backgroundColor: selectedTimeSlots[time] ? '#d9ad00' : '#444444',
+                  },
+                  '&.MuiButton-root': {
+                    border: 'none',
+                    outline: 'none',
+                  },
+                }}
+              >
+                <Typography variant="body2" sx={{ color: 'inherit' }}>{time}</Typography>
+                <Typography variant="caption" sx={{ color: 'inherit' }}>{availableSlots} sims open</Typography>
+              </Button>
+            </Grid>
+          );
+        })}
+      </Grid>
+
+      <Slide direction="up" in={showTempBar} mountOnEnter unmountOnExit>
+        <Paper
+          elevation={4}
+          sx={{
+            position: 'fixed',
+            bottom: '80px',
+            left: 0,
+            right: 0,
+            width: '100%',
+            backgroundColor: '#ffcc03',
+            color: '#000',
+            padding: '15px',
+            textAlign: 'center',
+            zIndex: 1001,
+          }}
+        >
+          <Typography variant="body1" fontWeight="bold">
+            Add extra half hours for $20 each!
+          </Typography>
+        </Paper>
+      </Slide>
+
+      <Paper
+        elevation={3}
+        sx={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '10px 20px',
+          backgroundColor: '#000',
+          color: '#fff',
+          zIndex: 1000,
+        }}
+      >
+        <Box>
+          <Typography variant="body2">
+            Selected: {Object.keys(selectedTimeSlots).join(', ')}
+          </Typography>
+          <Typography variant="body1">
+            Total: ${calculateTotalPrice()}
+          </Typography>
+        </Box>
+        <Button variant="contained" color="primary">
+          Next
         </Button>
-      </Box>
+      </Paper>
     </Box>
   );
 };

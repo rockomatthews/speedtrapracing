@@ -1,4 +1,3 @@
-// src/components/SlideMenu.js
 'use client';
 import React from 'react';
 import { Box, Drawer, IconButton, Button, List, ListItem, ListItemText } from '@mui/material';
@@ -11,29 +10,49 @@ import InstagramIcon from '@mui/icons-material/Instagram';
 
 const SlideMenu = ({ open, onClose }) => {
   return (
-    <Drawer anchor="left" open={open} onClose={onClose} PaperProps={{ sx: { width: '75%', backgroundColor:"#000" , color: "#fff"} }}>
-
+    <Drawer 
+      anchor="left" 
+      open={open} 
+      onClose={onClose} 
+      PaperProps={{ 
+        sx: { 
+          width: '75%', 
+          backgroundColor: "#000000",
+          color: "#fff"
+        } 
+      }}
+    >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', padding: '10px' }}>
         <IconButton onClick={onClose}>
           <CloseIcon color='primary' />
         </IconButton>
-              {/* Sign Up and Log In buttons */}
+        {/* Sign Up and Log In buttons */}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end'}}>
-            <Link href="/login" passHref>
+          <Link href="/login" passHref>
             <Button variant="contained" color="primary" sx={{ marginRight: 1 }} onClick={onClose}>
-                Sign Up
+              Sign Up
             </Button>
-            </Link>
-            <Link href="/login" passHref>
-            <Button variant="outlined" color="primary" onClick={onClose}>
-                Log In
+          </Link>
+          <Link href="/login" passHref>
+            <Button 
+              variant="outlined" 
+              onClick={onClose}
+              sx={{
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                color: '#ffcc03',
+                borderColor: '#ffcc03',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 204, 3, 0.2)',
+                  borderColor: '#ffcc03',
+                },
+              }}
+            >
+              Sign In
             </Button>
-            </Link>
+          </Link>
         </Box>
       </Box>
       
-
-
       {/* Navigation Links */}
       <List sx={{ marginTop: '20px' }}>
         <ListItem button component="a" href="/howitworks">
@@ -42,7 +61,7 @@ const SlideMenu = ({ open, onClose }) => {
         <ListItem button component="a" href="/race-nights">
           <ListItemText primary="Race Nights" />
         </ListItem>
-        <ListItem button component="a" href="/race-nights">
+        <ListItem button component="a" href="/pricing">
           <ListItemText primary="Pricing" />
         </ListItem>
         <ListItem button component="a" href="/members">
@@ -73,7 +92,6 @@ const SlideMenu = ({ open, onClose }) => {
           </IconButton>
         </Box>
       </Box>
-
     </Drawer>
   );
 };

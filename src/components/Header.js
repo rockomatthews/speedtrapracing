@@ -23,8 +23,8 @@ const Header = () => {
   return (
     <>
       {/* Header bar */}
-      <AppBar position="fixed" color="dark" sx={{ padding: '0 24px', backgroundColor: "#000" }}>
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
+      <AppBar position="fixed" sx={{ backgroundColor: theme.palette.background.default }}>
+        <Toolbar sx={{ justifyContent: 'space-between', padding: '0 24px' }}>
           {/* Left: Logo */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Link href="/">
@@ -36,44 +36,68 @@ const Header = () => {
           {!isMobile && (
             <Box sx={{ display: 'flex', gap: '20px' }}>
               <Link href="/race-nights" passHref>
-                <Button>Race Nights</Button>
+                <Button sx={{ backgroundColor: 'transparent', color: '#ffffff' }}>Race Nights</Button>
               </Link>
               <Link href="/members" passHref>
-                <Button>Members</Button>
+                <Button sx={{ backgroundColor: 'transparent', color: '#ffffff' }}>Members</Button>
               </Link>
               <Link href="/marketplace" passHref>
-                <Button>Apparel</Button>
+                <Button sx={{ backgroundColor: 'transparent', color: '#ffffff' }}>Apparel</Button>
               </Link>
               <Link href="/franchise" passHref>
-                <Button>Franchise</Button>
+                <Button sx={{ backgroundColor: 'transparent', color: '#ffffff' }}>Franchise</Button>
               </Link>
             </Box>
           )}
 
           {!isMobile && (
-
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
               {/* Cart Icon */}
-              <IconButton>
+              <IconButton sx={{ color: '#ffffff' }}>
                 <ShoppingCartIcon />
               </IconButton>
 
-              {/* Sign Up / Log In */}
+              {/* Sign Up / Sign In */}
               <Link href="/login" passHref>
-                <Button variant="contained" color="primary">
+                <Button 
+                  variant="contained" 
+                  sx={{
+                    backgroundColor: '#ffcc03',
+                    color: '#000000',
+                    '&:hover': {
+                      backgroundColor: '#d9ad00',
+                    },
+                  }}
+                >
                   Sign Up
                 </Button>
               </Link>
               <Link href="/login" passHref>
-                <Button variant="outlined" color="primary">
-                  Log In
+                <Button 
+                  variant="outlined" 
+                  sx={{
+                    backgroundColor: 'transparent',
+                    border: '2px solid #ffcc03',
+                    color: '#ffcc03',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 204, 3, 0.1)',
+                      border: '2px solid #ffcc03',
+                    },
+                  }}
+                >
+                  Sign In
                 </Button>
               </Link>
             </Box>
           )}
 
           {isMobile && (
-            <IconButton edge="end" color="inherit" aria-label="menu" onClick={toggleMenu}>
+            <IconButton 
+              edge="end" 
+              aria-label="menu" 
+              onClick={toggleMenu}
+              sx={{ color: '#ffffff' }}
+            >
               <MenuIcon />
             </IconButton>
           )}
