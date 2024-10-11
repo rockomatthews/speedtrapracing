@@ -58,7 +58,7 @@ const Header = () => {
               </IconButton>
 
               {/* Sign Up / Sign In */}
-              <Link href="/signup" passHref>
+              <Link href="/login" passHref>
                 <Button 
                   variant="contained" 
                   sx={{

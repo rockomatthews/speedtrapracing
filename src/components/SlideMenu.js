@@ -47,7 +47,7 @@ const SlideMenu = ({ open, onClose }) => {
                 },
               }}
             >
-              Log In
+              Sign In
             </Button>
           </Link>
         </Box>

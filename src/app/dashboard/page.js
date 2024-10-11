@@ -1,6 +1,5 @@
 // src/app/admin-dashboard/page.js
 'use client';
-
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton } from '@mui/material';
 import { db } from '../../config/firebase'; // Your Firebase config
