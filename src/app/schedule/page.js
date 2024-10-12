@@ -5,8 +5,6 @@ import { Box, Typography, Button, Grid, FormControl, Select, MenuItem, Paper, Sl
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterLuxon } from '@mui/x-date-pickers/AdapterLuxon';
-import Image from 'next/image';
-import loginBackground from '../../public/loginBackground.png';
 
 const Schedule = () => {
   const [selectedDate, setSelectedDate] = useState(null);
@@ -19,8 +17,8 @@ const Schedule = () => {
     const slots = [];
     for (let hour = 9; hour < 22; hour++) {
       for (let minute = 0; minute < 60; minute += 30) {
-        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        slots.push(time);
+        const time = new Date(2023, 0, 1, hour, minute);
+        slots.push(time.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }));
       }
     }
     return slots;
@@ -68,121 +66,122 @@ const Schedule = () => {
         margin: '0 auto',
         minHeight: '100vh',
         paddingBottom: '80px',
-        backgroundColor: isMobile ? 'transparent' : '#000000',
+        backgroundColor: '#000000',
       }}
     >
-      {isMobile && (
-        <Image
-          src={loginBackground}
-          alt="Background"
-          layout="fill"
-          objectFit="cover"
-          quality={100}
-          priority
-        />
-      )}
-
-      <LocalizationProvider dateAdapter={AdapterLuxon}>
-        <DatePicker
-          label="Select Date"
-          value={selectedDate}
-          onChange={handleDateChange}
-          onAccept={(date) => {
-            setSelectedDate(date);
-            setSelectedTimeSlots({});
-          }}
-          sx={{
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            borderRadius: '4px',
-            marginBottom: 2,
-            '& .MuiInputBase-root': {
-              color: '#ffffff',
-            },
-            '& .MuiInputLabel-root': {
-              color: '#ffffff',
-            },
-            '& .MuiOutlinedInput-notchedOutline': {
-              borderColor: '#ffffff',
-            },
-            '&:hover .MuiOutlinedInput-notchedOutline': {
-              borderColor: '#ffffff',
-            },
-            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-              borderColor: '#ffffff',
-            },
-            '& .MuiPickersDay-root': {
-              color: '#000000',
-              '&.Mui-selected': {
-                backgroundColor: '#ffcc03',
+      <Box sx={{ width: '100%', zIndex: 1, position: 'relative' }}>
+        <LocalizationProvider dateAdapter={AdapterLuxon}>
+          <DatePicker
+            label="Select Date"
+            value={selectedDate}
+            onChange={handleDateChange}
+            onAccept={(date) => {
+              setSelectedDate(date);
+              setSelectedTimeSlots({});
+            }}
+            sx={{
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '4px',
+              marginBottom: 2,
+              width: '100%',
+              '& .MuiInputBase-root': {
+                color: '#ffffff',
+              },
+              '& .MuiInputLabel-root': {
+                color: '#ffffff',
+              },
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#ffffff',
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#ffffff',
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#ffffff',
+              },
+              '& .MuiPickersDay-root': {
                 color: '#000000',
-                '&:hover': {
-                  backgroundColor: '#d9ad00',
+                '&.Mui-selected': {
+                  backgroundColor: '#ffcc03',
+                  color: '#000000',
+                  '&:hover': {
+                    backgroundColor: '#d9ad00',
+                  },
                 },
               },
-            },
-            '& .MuiPickersDay-today': {
-              borderColor: '#ffcc03',
-            },
-            '& .MuiPickersCalendarHeader-label': {
-              color: '#ffffff',
-            },
-            '& .MuiIconButton-root': {
-              color: '#ffffff',
-            },
-            '& .MuiPickersDay-daySelected': {
-              backgroundColor: '#ffcc03',
-              color: '#000000',
-            },
-            '& .MuiDialogActions-root .MuiButton-text': {
-              color: '#000000',
-            },
-          }}
-        />
-      </LocalizationProvider>
+              '& .MuiPickersDay-today': {
+                borderColor: '#ffcc03',
+              },
+              '& .MuiPickersCalendarHeader-label': {
+                color: '#ffffff',
+              },
+              '& .MuiIconButton-root': {
+                color: '#ffffff',
+              },
+              '& .MuiPickersDay-daySelected': {
+                backgroundColor: '#ffcc03',
+                color: '#000000',
+              },
+              '& .MuiDialogActions-root .MuiButton-text': {
+                color: '#000000',
+              },
+            }}
+          />
+        </LocalizationProvider>
 
-      <Typography variant="h6" sx={{ color: '#ffffff', marginBottom: 1, alignSelf: 'flex-start' }}>
-        Group Size
-      </Typography>
-      <FormControl fullWidth sx={{ mb: 2 }}>
-        <Select
-          value={groupSize}
-          onChange={(e) => setGroupSize(e.target.value)}
-          displayEmpty
-          sx={{
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            color: '#ffffff',
-            '& .MuiOutlinedInput-notchedOutline': {
-              borderColor: '#ffffff',
-            },
-            '&:hover .MuiOutlinedInput-notchedOutline': {
-              borderColor: '#ffffff',
-            },
-            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-              borderColor: '#ffffff',
-            },
-            '& .MuiSelect-icon': {
-              color: '#ffffff',
-            },
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            color: '#ffffff', 
+            marginBottom: 1, 
+            marginTop: 2,
+            padding: '8px',
+            borderRadius: '4px',
           }}
         >
-          {[...Array(10)].map((_, i) => (
-            <MenuItem key={i} value={i + 1}>
-              {i + 1} {i === 0 ? 'Person' : 'People'}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+          Group Size
+        </Typography>
+        <FormControl fullWidth sx={{ mb: 2 }}>
+          <Select
+            value={groupSize}
+            onChange={(e) => setGroupSize(e.target.value)}
+            displayEmpty
+            sx={{
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              color: '#ffffff',
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#ffffff',
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#ffffff',
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#ffffff',
+              },
+              '& .MuiSelect-icon': {
+                color: '#ffffff',
+              },
+            }}
+          >
+            {[...Array(10)].map((_, i) => (
+              <MenuItem key={i} value={i + 1}>
+                {i + 1} {i === 0 ? 'Person' : 'People'}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
 
       <Grid container spacing={2}>
         {timeSlots.map((time) => {
           const availableSlots = 10 - (selectedTimeSlots[time] ? groupSize : 0);
           return (
-            <Grid item xs={4} sm={3} md={2} key={time}>
+            <Grid item xs={6} sm={4} md={3} key={time}>
               <Button
                 onClick={() => handleTimeSlotToggle(time)}
                 fullWidth
                 sx={{
-                  height: '80px',
+                  height: { xs: '100px', sm: '80px' },
                   flexDirection: 'column',
                   backgroundColor: selectedTimeSlots[time] ? '#ffcc03' : '#333333',
                   color: selectedTimeSlots[time] ? '#000000' : '#ffffff',
@@ -196,8 +195,8 @@ const Schedule = () => {
                   },
                 }}
               >
-                <Typography variant="body2" sx={{ color: 'inherit' }}>{time}</Typography>
-                <Typography variant="caption" sx={{ color: 'inherit' }}>{availableSlots} sims open</Typography>
+                <Typography variant="body2" sx={{ color: 'inherit', fontSize: { xs: '1rem', sm: '0.875rem' } }}>{time}</Typography>
+                <Typography variant="caption" sx={{ color: 'inherit', fontSize: { xs: '0.875rem', sm: '0.75rem' } }}>{availableSlots} sims open</Typography>
               </Button>
             </Grid>
           );
