@@ -116,7 +116,7 @@ const LoginPage = () => {
   };
 
   const handleSuccessfulAuth = () => {
-    router.push(isNewUser ? '/onboarding' : '/dashboard');
+    router.push(isNewUser ? '/book' : '/dashboard');
   };
 
   const getErrorMessage = (error) => {
