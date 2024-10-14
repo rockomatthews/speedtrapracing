@@ -4,8 +4,8 @@ import { Box, Button, Typography, TextField, IconButton, CircularProgress } from
 import { Google as GoogleIcon, Facebook as FacebookIcon, Apple as AppleIcon } from '@mui/icons-material';
 import SportsMotorsportsIcon from '@mui/icons-material/SportsMotorsports';
 import { useRouter } from 'next/navigation';
-import loginBackground from '../../../public/loginBackground.png';
-import { auth, db } from '../../../config/firebase';
+import loginBackground from '../../public/loginBackground.png';
+import { auth, db } from '../../config/firebase';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
