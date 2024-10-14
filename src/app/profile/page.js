@@ -1,25 +1,55 @@
-// src/app/profile/page.js
 'use client';
 
-import React from 'react';
-import { Box, Button, Typography, Avatar, IconButton } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Button, Typography, Avatar, IconButton, TextField, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import EditIcon from '@mui/icons-material/Edit';
+import { auth } from '../../config/firebase';
+import { getUserProfile, updateUserProfile } from '../../utils/User';
 
 const Profile = () => {
   const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [editName, setEditName] = useState('');
 
-  // Placeholder data for the user's profile (replace with real data as needed)
-  const user = {
-    name: 'John Fishburne',
-    email: 'J.Fish@gmail.com',
-    profileImage: '/profileImage.png', // Replace this with actual user profile image
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
+      if (authUser) {
+        const userProfile = await getUserProfile(authUser.uid);
+        setUser({ ...authUser, ...userProfile });
+      } else {
+        router.push('/login');
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+  const handleEditClick = () => {
+    setEditName(user.displayName || '');
+    setOpenDialog(true);
   };
 
-  // Handle navigation to booking path
+  const handleSave = async () => {
+    await updateUserProfile(user.uid, { displayName: editName });
+    setUser({ ...user, displayName: editName });
+    setOpenDialog(false);
+  };
+
   const handleRaceClick = () => {
     router.push('/booking');
   };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    return <div>No user found</div>;
+  }
 
   return (
     <Box
@@ -29,12 +59,11 @@ const Profile = () => {
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#000', // Black background
+        backgroundColor: '#000',
         padding: '20px',
-        position: 'relative', // Position relative to enable absolute positioning for Edit button
+        position: 'relative',
       }}
     >
-      {/* Edit Button */}
       <IconButton
         sx={{
           position: 'absolute',
@@ -46,14 +75,13 @@ const Profile = () => {
             backgroundColor: '#FFA000',
           },
         }}
-        onClick={() => console.log('Edit profile')}
+        onClick={handleEditClick}
       >
         <EditIcon />
       </IconButton>
 
-      {/* Profile Image */}
       <Avatar
-        src={user.profileImage}
+        src={user.photoURL || '/profileImage.png'}
         alt="Profile Image"
         sx={{
           width: '120px',
@@ -63,7 +91,6 @@ const Profile = () => {
         }}
       />
 
-      {/* Name Field */}
       <Box
         sx={{
           backgroundColor: '#000',
@@ -78,11 +105,10 @@ const Profile = () => {
           Name
         </Typography>
         <Typography variant="h4" sx={{ color: '#fff', fontWeight: 'bold' }}>
-          {user.name}
+          {user.displayName || 'No name set'}
         </Typography>
       </Box>
 
-      {/* Email Field */}
       <Box
         sx={{
           backgroundColor: '#000',
@@ -101,7 +127,6 @@ const Profile = () => {
         </Typography>
       </Box>
 
-      {/* Race Button */}
       <Button
         variant="contained"
         sx={{
@@ -117,6 +142,25 @@ const Profile = () => {
       >
         Race
       </Button>
+
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <DialogTitle>Edit Profile</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Name"
+            type="text"
+            fullWidth
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={handleSave}>Save</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

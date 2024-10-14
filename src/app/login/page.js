@@ -1,12 +1,11 @@
 'use client';
 import React, { useState } from 'react';
-import { Box, Button, Typography, TextField, IconButton } from '@mui/material';
+import { Box, Button, Typography, TextField, IconButton, CircularProgress } from '@mui/material';
 import { Google as GoogleIcon, Facebook as FacebookIcon, Apple as AppleIcon } from '@mui/icons-material';
 import SportsMotorsportsIcon from '@mui/icons-material/SportsMotorsports';
 import { useRouter } from 'next/navigation';
-import loginBackground from '../../public/loginBackground.png';
-import { auth, db } from '../../config/firebase';
-
+import loginBackground from '../../../public/loginBackground.png';
+import { auth, db } from '../../../config/firebase';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -23,6 +22,7 @@ const LoginPage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isNewUser, setIsNewUser] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const doesUserExist = async (user) => {
     try {
@@ -46,7 +46,6 @@ const LoginPage = () => {
         userData = userDocSnapshot.data();
         setIsNewUser(false);
       }
-      // Instead of AsyncStorage, you might want to use localStorage or a state management solution
       localStorage.setItem('userSession', JSON.stringify(user));
       return userData;
     } catch (error) {
@@ -56,6 +55,8 @@ const LoginPage = () => {
   };
 
   const handleSocialLogin = async (provider) => {
+    setLoading(true);
+    setError('');
     try {
       let authProvider;
       switch(provider) {
@@ -66,28 +67,33 @@ const LoginPage = () => {
           authProvider = new FacebookAuthProvider();
           break;
         default:
-          console.error('Unsupported provider');
-          return;
+          throw new Error('Unsupported provider');
       }
       
       const result = await signInWithPopup(auth, authProvider);
       const userData = await doesUserExist(result.user);
       console.log(`Logged in with ${provider}`, userData);
-      router.push(isNewUser ? '/onboarding' : '/dashboard');
+      handleSuccessfulAuth();
     } catch (error) {
       console.error(`${provider} login failed`, error);
-      setError(error.message);
+      setError(getErrorMessage(error));
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleEmailAuth = async () => {
+    setLoading(true);
+    setError('');
     if (isNewUser && password !== confirmPassword) {
       setError("Passwords don't match");
+      setLoading(false);
       return;
     }
 
     if (password.length < 6) {
       setError("Password should be at least 6 characters long");
+      setLoading(false);
       return;
     }
 
@@ -100,10 +106,29 @@ const LoginPage = () => {
       }
       const userData = await doesUserExist(result.user);
       console.log(isNewUser ? 'Signed up with email' : 'Logged in with email', userData);
-      router.push(isNewUser ? '/onboarding' : '/dashboard');
+      handleSuccessfulAuth();
     } catch (error) {
       console.error('Email authentication failed', error);
-      setError(error.message);
+      setError(getErrorMessage(error));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSuccessfulAuth = () => {
+    router.push(isNewUser ? '/onboarding' : '/dashboard');
+  };
+
+  const getErrorMessage = (error) => {
+    switch (error.code) {
+      case 'auth/user-not-found':
+        return 'No user found with this email address.';
+      case 'auth/wrong-password':
+        return 'Incorrect password. Please try again.';
+      case 'auth/email-already-in-use':
+        return 'An account with this email already exists.';
+      default:
+        return error.message;
     }
   };
 
@@ -256,8 +281,9 @@ const LoginPage = () => {
           fullWidth
           sx={{ marginTop: '15px', backgroundColor: '#FFC107', color: '#000' }}
           onClick={handleEmailAuth}
+          disabled={loading}
         >
-          {isNewUser ? 'Sign Up' : 'Sign In'}
+          {loading ? <CircularProgress size={24} /> : (isNewUser ? 'Sign Up' : 'Sign In')}
         </Button>
 
         <Button
@@ -266,6 +292,7 @@ const LoginPage = () => {
           fullWidth
           sx={{ marginTop: '10px' }}
           onClick={() => setIsNewUser(!isNewUser)}
+          disabled={loading}
         >
           {isNewUser ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
         </Button>

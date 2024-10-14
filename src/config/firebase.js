@@ -12,17 +12,24 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-let app; let db; let auth;
+let app;
+let db;
+let auth;
+let analytics;
 
 if (firebaseConfig?.projectId) {
   // Initialize Firebase
-   app = initializeApp(firebaseConfig);
+  app = initializeApp(firebaseConfig);
 
   if (app.name && typeof window !== 'undefined') {
-    db = getFirestore();
+    db = getFirestore(app);
     auth = getAuth(app);
+    
+    // Only initialize analytics if window is defined (client-side)
+    if ('measurementId' in firebaseConfig) {
+      analytics = getAnalytics(app);
+    }
   }
-
 }
 
-export {auth, db};
+export { app, auth, db, analytics };

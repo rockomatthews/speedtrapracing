@@ -1,54 +1,57 @@
-// src/app/marketplace/page.js
 'use client';
 
-import React, { useState } from 'react';
-import { Box, Typography, Button, Grid } from '@mui/material';
-import Slider from 'react-slick';
-import 'slick-carousel/slick/slick.css';
-import 'slick-carousel/slick/slick-theme.css';
-import loginBackground from '../../public/loginBackground.png'; // Background image
-import hatImage from '../../public/hat.jpg'
-import shirtImage from '../../public/shirt.jpg'
-import shirtTwoImage from '../../public/hat.jpg'
-
-import './marketplace.css'; // Import custom CSS
-const dummyData = [
-  { id: 1, name: "Champion's Hat", price: 34.99, image: hatImage },
-  { id: 2, name: 'T-Shirt', price: 20.99, image: shirtImage },
-  { id: 3, name: 'White T-Shirt', price: 25.99, image: shirtTwoImage },
-  { id: 4, name: 'Coat', price: 59.99, image: shirtImage },
-];
+import React, { useState, useEffect } from 'react';
+import { Box, Typography, Button, Grid, CircularProgress } from '@mui/material';
+import Image from 'next/image';
+import { fetchShopifyProducts } from '../../../lib/contentful';
+import loginBackground from '../../public/loginBackground.png';
 
 const Marketplace = () => {
-  // Carousel settings
-  const carouselSettings = {
-    dots: true,
-    infinite: true,
-    speed: 500,
-    slidesToShow: 4,
-    slidesToScroll: 1,
-    arrows: false,
-    responsive: [
-      {
-        breakpoint: 1024,
-        settings: {
-          slidesToShow: 3,
-        },
-      },
-      {
-        breakpoint: 600,
-        settings: {
-          slidesToShow: 2,
-        },
-      },
-      {
-        breakpoint: 480,
-        settings: {
-          slidesToShow: 1,
-        },
-      },
-    ],
-  };
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [categories, setCategories] = useState(['All']);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        console.log('Fetching products...');
+        const fetchedProducts = await fetchShopifyProducts();
+        console.log('Fetched products:', fetchedProducts);
+        setProducts(fetchedProducts);
+        const uniqueCategories = ['All', ...new Set(fetchedProducts.map(product => product.category))];
+        setCategories(uniqueCategories);
+      } catch (err) {
+        console.error('Error loading products:', err);
+        setError('Failed to load products. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProducts();
+  }, []);
+
+  const filteredProducts = selectedCategory === 'All'
+    ? products
+    : products.filter(product => product.category === selectedCategory);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#000' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#000' }}>
+        <Typography color="error">{error}</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ padding: '20px', backgroundColor: '#000', minHeight: '100vh' }}>
@@ -84,64 +87,31 @@ const Marketplace = () => {
         </Button>
       </Box>
 
-      {/* Carousel for Categories */}
-      <Box sx={{ marginBottom: '30px' }}>
-        <Slider {...carouselSettings}>
+      {/* Category Buttons */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '30px' }}>
+        {categories.map((category) => (
           <Button
+            key={category}
+            onClick={() => setSelectedCategory(category)}
             sx={{
-              backgroundColor: '#ff0000',
-              color: '#fff',
+              backgroundColor: selectedCategory === category ? '#FFC107' : '#ff0000',
+              color: selectedCategory === category ? '#000' : '#fff',
               fontWeight: 'bold',
               padding: '10px 20px',
-              margin: '10px',
-              textTransform: 'none',
+              '&:hover': {
+                backgroundColor: selectedCategory === category ? '#FFC107' : '#cc0000',
+              },
             }}
           >
-            Hats
+            {category}
           </Button>
-          <Button
-            sx={{
-              backgroundColor: '#ff0000',
-              color: '#fff',
-              fontWeight: 'bold',
-              padding: '10px 20px',
-              margin: '10px',
-              textTransform: 'none',
-            }}
-          >
-            Shirts
-          </Button>
-          <Button
-            sx={{
-              backgroundColor: '#ff0000',
-              color: '#fff',
-              fontWeight: 'bold',
-              padding: '10px 20px',
-              margin: '10px',
-              textTransform: 'none',
-            }}
-          >
-            Coats
-          </Button>
-          <Button
-            sx={{
-              backgroundColor: '#ff0000',
-              color: '#fff',
-              fontWeight: 'bold',
-              padding: '10px 20px',
-              margin: '10px',
-              textTransform: 'none',
-            }}
-          >
-            Gloves
-          </Button>
-        </Slider>
+        ))}
       </Box>
 
       {/* Grid for Merchandise */}
       <Grid container spacing={4}>
-        {dummyData.map((item) => (
-          <Grid item xs={12} sm={6} md={3} key={item.id} className="grid-item">
+        {filteredProducts.map((item) => (
+          <Grid item xs={12} sm={6} md={3} key={item.id}>
             <Box
               sx={{
                 backgroundColor: '#fff',
@@ -150,23 +120,34 @@ const Marketplace = () => {
                 textAlign: 'center',
               }}
             >
-              <img src={item.image.src} alt={item.name} style={{ width: '100%', height: '250px', objectFit: 'cover' }} />
-
+              {item.image && (
+                <Image
+                  src={item.image}
+                  alt={item.name}
+                  width={250}
+                  height={250}
+                  style={{ objectFit: 'cover' }}
+                />
+              )}
               <Typography
                 variant="h6"
                 sx={{ fontWeight: 'bold', marginTop: '10px', marginBottom: '5px' }}
               >
                 {item.name}
               </Typography>
-
               <Typography variant="body1" sx={{ fontWeight: 'bold', color: '#000', marginBottom: '15px' }}>
                 ${item.price.toFixed(2)}
               </Typography>
-
             </Box>
           </Grid>
         ))}
       </Grid>
+
+      {filteredProducts.length === 0 && (
+        <Typography variant="h6" sx={{ color: '#fff', textAlign: 'center', marginTop: '50px' }}>
+          No products available in this category.
+        </Typography>
+      )}
     </Box>
   );
 };
