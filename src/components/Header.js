@@ -11,7 +11,7 @@ import Image from 'next/image';
 import logo from '../public/logoBlack.svg';
 import SlideMenu from './SlideMenu';
 import { auth } from '../config/firebase';
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
 const Header = () => {
   const theme = useTheme();
@@ -29,6 +29,14 @@ const Header = () => {
 
   const toggleMenu = () => {
     setMenuOpen((prev) => !prev);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
   };
 
   return (
@@ -65,15 +73,23 @@ const Header = () => {
               </IconButton>
 
               {user ? (
-                <Link href="/profile" passHref>
-                  <IconButton>
-                    <Avatar 
-                      src={user.photoURL} 
-                      alt={user.displayName || user.email}
-                      sx={{ width: 40, height: 40 }}
-                    />
-                  </IconButton>
-                </Link>
+                <>
+                  <Button
+                    onClick={handleLogout}
+                    sx={{ color: '#ffffff', textTransform: 'none' }}
+                  >
+                    Logout
+                  </Button>
+                  <Link href="/profile" passHref>
+                    <IconButton>
+                      <Avatar 
+                        src={user.photoURL} 
+                        alt={user.displayName || user.email}
+                        sx={{ width: 40, height: 40 }}
+                      />
+                    </IconButton>
+                  </Link>
+                </>
               ) : (
                 <>
                   <Link href="/login" passHref>
@@ -124,7 +140,7 @@ const Header = () => {
         </Toolbar>
       </AppBar>
 
-      <SlideMenu open={menuOpen} onClose={toggleMenu} user={user} />
+      <SlideMenu open={menuOpen} onClose={toggleMenu} user={user} onLogout={handleLogout} />
     </>
   );
 };

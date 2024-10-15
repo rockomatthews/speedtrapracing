@@ -10,7 +10,7 @@ import InstagramIcon from '@mui/icons-material/Instagram';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import { customFont } from '../app/fonts';
 
-const SlideMenu = ({ open, onClose, user }) => {
+const SlideMenu = ({ open, onClose, user, onLogout }) => {
   return (
     <Drawer 
       anchor="left" 
@@ -99,6 +99,25 @@ const SlideMenu = ({ open, onClose, user }) => {
 
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <Box sx={{ flexGrow: 1 }} />
+        {user && (
+          <Button
+            onClick={() => {
+              onLogout();
+              onClose();
+            }}
+            sx={{
+              color: '#ffffff',
+              textTransform: 'none',
+              justifyContent: 'center',
+              padding: '10px',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              },
+            }}
+          >
+            Logout
+          </Button>
+        )}
         <Box sx={{ display: 'flex', justifyContent: 'center', padding: '10px' }}>
           <IconButton component="a" href="https://www.youtube.com" target="_blank">
             <YouTubeIcon sx={{ color: '#ffffff' }} />

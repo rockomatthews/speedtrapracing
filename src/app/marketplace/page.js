@@ -6,37 +6,48 @@ import Image from 'next/image';
 import { fetchShopifyProducts } from '../../../lib/contentful';
 import loginBackground from '../../public/loginBackground.png';
 
-const Marketplace = () => {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+const Marketplace = ({ initialProducts = [] }) => {
+  // Setting up state variables for products, loading state, error state, categories, and selected category.
+  const [products, setProducts] = useState(initialProducts);
+  const [loading, setLoading] = useState(initialProducts.length === 0);
   const [error, setError] = useState(null);
   const [categories, setCategories] = useState(['All']);
   const [selectedCategory, setSelectedCategory] = useState('All');
 
+  // useEffect hook to load products when the component is first mounted.
   useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        console.log('Fetching products...');
-        const fetchedProducts = await fetchShopifyProducts();
-        console.log('Fetched products:', fetchedProducts);
-        setProducts(fetchedProducts);
-        const uniqueCategories = ['All', ...new Set(fetchedProducts.map(product => product.category))];
-        setCategories(uniqueCategories);
-      } catch (err) {
-        console.error('Error loading products:', err);
-        setError('Failed to load products. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Load products only if initialProducts is empty, otherwise, they are already provided.
+    if (initialProducts.length === 0) {
+      const loadProducts = async () => {
+        try {
+          console.log('Fetching products from Shopify through Contentful integration...');
+          const fetchedProducts = await fetchShopifyProducts();
+          console.log('Fetched products:', fetchedProducts);
+          setProducts(fetchedProducts);
+          const uniqueCategories = ['All', ...new Set(fetchedProducts.map(product => product.category))];
+          setCategories(uniqueCategories);
+        } catch (err) {
+          console.error('Error loading products:', err);
+          setError('Failed to load products. Please try again later.');
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadProducts();
+    } else {
+      // If products are already provided, categorize them.
+      const uniqueCategories = ['All', ...new Set(initialProducts.map(product => product.category))];
+      setCategories(uniqueCategories);
+      setLoading(false);
+    }
+  }, [initialProducts]);
 
-    loadProducts();
-  }, []);
-
+  // Functionality to filter products based on the selected category.
   const filteredProducts = selectedCategory === 'All'
     ? products
     : products.filter(product => product.category === selectedCategory);
 
+  // If the component is still loading data, display a loading spinner.
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#000' }}>
@@ -45,6 +56,7 @@ const Marketplace = () => {
     );
   }
 
+  // If there was an error loading the products, display an error message.
   if (error) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#000' }}>
@@ -53,6 +65,7 @@ const Marketplace = () => {
     );
   }
 
+  // Rendering the main marketplace interface.
   return (
     <Box sx={{ padding: '20px', backgroundColor: '#000', minHeight: '100vh' }}>
       {/* Header Section with Background */}
@@ -143,6 +156,7 @@ const Marketplace = () => {
         ))}
       </Grid>
 
+      {/* Message for Empty Categories */}
       {filteredProducts.length === 0 && (
         <Typography variant="h6" sx={{ color: '#fff', textAlign: 'center', marginTop: '50px' }}>
           No products available in this category.
