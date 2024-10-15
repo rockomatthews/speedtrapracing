@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -16,6 +17,7 @@ let app;
 let db;
 let auth;
 let analytics;
+let storage;
 
 if (firebaseConfig?.projectId) {
   // Initialize Firebase
@@ -24,6 +26,7 @@ if (firebaseConfig?.projectId) {
   if (app.name && typeof window !== 'undefined') {
     db = getFirestore(app);
     auth = getAuth(app);
+    storage = getStorage(app);
     
     // Only initialize analytics if window is defined (client-side)
     if ('measurementId' in firebaseConfig) {
@@ -32,4 +35,4 @@ if (firebaseConfig?.projectId) {
   }
 }
 
-export { app, auth, db, analytics };
+export { app, auth, db, analytics, storage };

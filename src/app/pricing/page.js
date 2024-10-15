@@ -1,7 +1,12 @@
+'use client';
+
 import React from 'react';
 import { Box, Typography, Button, Container, Grid, Card, CardContent, CardActions, CardHeader } from '@mui/material';
+import { useRouter } from 'next/navigation';
 
 const Pricing = () => {
+  const router = useRouter();
+
   const pricingData = [
     {
       title: 'Standard',
@@ -9,7 +14,7 @@ const Pricing = () => {
       description: '30 minutes',
       features: ['1 Race Session', 'Up to 10 players', 'Basic track selection'],
       buttonText: 'Book Now',
-      buttonVariant: 'outlined',
+      buttonVariant: 'contained',
     },
     {
       title: 'Premium',
@@ -28,6 +33,10 @@ const Pricing = () => {
       buttonVariant: 'contained',
     },
   ];
+
+  const handleBookNow = () => {
+    router.push('/schedule');
+  };
 
   return (
     <Container maxWidth="lg">
@@ -48,7 +57,8 @@ const Pricing = () => {
                   titleTypographyProps={{ align: 'center' }}
                   subheaderTypographyProps={{ align: 'center' }}
                   sx={{
-                    backgroundColor: '#f5f5f5',
+                    backgroundColor: 'primary.main',
+                    color: 'text.secondary',
                   }}
                 />
                 <CardContent>
@@ -76,7 +86,11 @@ const Pricing = () => {
                   </ul>
                 </CardContent>
                 <CardActions>
-                  <Button fullWidth variant={tier.buttonVariant}>
+                  <Button 
+                    fullWidth 
+                    variant={tier.buttonVariant}
+                    onClick={tier.buttonText === 'Book Now' ? handleBookNow : undefined}
+                  >
                     {tier.buttonText}
                   </Button>
                 </CardActions>

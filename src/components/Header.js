@@ -37,7 +37,7 @@ const Header = () => {
         <Toolbar sx={{ justifyContent: 'space-between', padding: '0 24px' }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Link href="/">
-              <Image src={logo} alt="Speed Trap Racing Logo" width={150} height={50} />
+              <Image src={logo} alt="Speed Trap Racing Logo" width={150} height={50} priority />
             </Link>
           </Box>
 

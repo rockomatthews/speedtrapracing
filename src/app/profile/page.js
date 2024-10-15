@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Box, Button, Typography, Avatar, IconButton, TextField, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
+import { Box, Button, Typography, Avatar, IconButton, TextField, Dialog, DialogActions, DialogContent, DialogTitle, Input } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import EditIcon from '@mui/icons-material/Edit';
-import { auth } from '../../config/firebase';
-import { getUserProfile, updateUserProfile } from '../../utils/User';
+import { auth, db, storage } from '../../config/firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const Profile = () => {
   const router = useRouter();
@@ -13,12 +14,30 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editName, setEditName] = useState('');
+  const [editIRacingName, setEditIRacingName] = useState('');
+  const [editPhoto, setEditPhoto] = useState(null);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
       if (authUser) {
-        const userProfile = await getUserProfile(authUser.uid);
-        setUser({ ...authUser, ...userProfile });
+        const userDocRef = doc(db, 'Users', authUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (!userDoc.exists()) {
+          // Create a new user document if it doesn't exist
+          await updateDoc(userDocRef, {
+            displayName: authUser.displayName || '',
+            email: authUser.email,
+            photoURL: authUser.photoURL || '',
+            iRacingName: '',
+            isMember: false,
+          });
+        }
+        
+        const userData = userDoc.data();
+        setUser({ ...authUser, ...userData });
+        setEditName(authUser.displayName || '');
+        setEditIRacingName(userData?.iRacingName || '');
       } else {
         router.push('/login');
       }
@@ -29,18 +48,44 @@ const Profile = () => {
   }, [router]);
 
   const handleEditClick = () => {
-    setEditName(user.displayName || '');
     setOpenDialog(true);
   };
 
+  const handlePhotoChange = (event) => {
+    if (event.target.files && event.target.files[0]) {
+      setEditPhoto(event.target.files[0]);
+    }
+  };
+
   const handleSave = async () => {
-    await updateUserProfile(user.uid, { displayName: editName });
-    setUser({ ...user, displayName: editName });
-    setOpenDialog(false);
+    if (user) {
+      try {
+        const userDocRef = doc(db, 'Users', user.uid);
+        let updateData = { 
+          displayName: editName,
+          iRacingName: editIRacingName
+        };
+
+        if (editPhoto) {
+          const storageRef = ref(storage, `profilePhotos/${user.uid}`);
+          await uploadBytes(storageRef, editPhoto);
+          const photoURL = await getDownloadURL(storageRef);
+          updateData.photoURL = photoURL;
+        }
+
+        await updateDoc(userDocRef, updateData);
+        setUser({ ...user, ...updateData });
+        setOpenDialog(false);
+        setEditPhoto(null);
+      } catch (error) {
+        console.error("Error updating profile:", error);
+        // You can also set an error state here to display to the user
+      }
+    }
   };
 
   const handleRaceClick = () => {
-    router.push('/booking');
+    router.push('/book');
   };
 
   if (loading) {
@@ -116,7 +161,7 @@ const Profile = () => {
           borderRadius: '10px',
           border: '2px solid #fff',
           textAlign: 'center',
-          marginBottom: '30px',
+          marginBottom: '10px',
         }}
       >
         <Typography variant="body1" sx={{ color: '#fff', fontWeight: 'bold', marginBottom: '5px' }}>
@@ -124,6 +169,24 @@ const Profile = () => {
         </Typography>
         <Typography variant="h6" sx={{ color: '#fff' }}>
           {user.email}
+        </Typography>
+      </Box>
+
+      <Box
+        sx={{
+          backgroundColor: '#000',
+          padding: '10px 20px',
+          borderRadius: '10px',
+          border: '2px solid #fff',
+          textAlign: 'center',
+          marginBottom: '30px',
+        }}
+      >
+        <Typography variant="body1" sx={{ color: '#fff', fontWeight: 'bold', marginBottom: '5px' }}>
+          iRacing Name
+        </Typography>
+        <Typography variant="h6" sx={{ color: '#fff' }}>
+          {user.iRacingName || 'Not set'}
         </Typography>
       </Box>
 
@@ -140,7 +203,7 @@ const Profile = () => {
         }}
         onClick={handleRaceClick}
       >
-        Race
+        Race Now
       </Button>
 
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
@@ -155,6 +218,24 @@ const Profile = () => {
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
           />
+          <TextField
+            margin="dense"
+            label="iRacing Name"
+            type="text"
+            fullWidth
+            value={editIRacingName}
+            onChange={(e) => setEditIRacingName(e.target.value)}
+          />
+          <Input
+            type="file"
+            onChange={handlePhotoChange}
+            sx={{ marginTop: '20px' }}
+          />
+          {editPhoto && (
+            <Typography variant="body2" sx={{ marginTop: '10px' }}>
+              New photo selected: {editPhoto.name}
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>

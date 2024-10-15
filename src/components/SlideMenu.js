@@ -28,7 +28,6 @@ const SlideMenu = ({ open, onClose, user }) => {
         <IconButton onClick={onClose}>
           <CloseIcon sx={{ color: '#ffffff' }} />
         </IconButton>
-        {/* User profile, shopping cart, or Sign Up and Log In buttons */}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px'}}>
           {user ? (
             <>
@@ -74,7 +73,6 @@ const SlideMenu = ({ open, onClose, user }) => {
         </Box>
       </Box>
       
-      {/* Navigation Links */}
       <List sx={{ marginTop: '20px' }}>
         {[
           { text: 'How it works', href: '/howitworks' },
@@ -100,7 +98,7 @@ const SlideMenu = ({ open, onClose, user }) => {
       </List>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <Box sx={{ flexGrow: 1 }} /> {/* This pushes the icons to the bottom */}
+        <Box sx={{ flexGrow: 1 }} />
         <Box sx={{ display: 'flex', justifyContent: 'center', padding: '10px' }}>
           <IconButton component="a" href="https://www.youtube.com" target="_blank">
             <YouTubeIcon sx={{ color: '#ffffff' }} />

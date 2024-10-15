@@ -22,7 +22,7 @@ const steps = [
   },
   {
     icon: <SportsMotorsportsIcon sx={{ fontSize: '60px', color: '#FFC107' }} />,
-    title: '3. Suit Up & Get Ready',
+    title: '3. Get Ready',
     description: 'Put on your racing gear, take your seat in the immersive racing rig, and get ready for an adrenaline rush.',
   },
   {
