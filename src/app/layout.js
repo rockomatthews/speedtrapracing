@@ -2,7 +2,7 @@ import Header from '../components/Header';
 import localFont from "next/font/local";
 import ThemeRegistry from './ThemeRegistry';
 import { Box } from '@mui/material';
-import { customFont } from './fonts.js'
+import { customFont } from './fonts.js';
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -27,7 +27,7 @@ export default function RootLayout({ children }) {
       <body>
         <ThemeRegistry>
           <Header />
-          <Box sx={{ marginTop: '64px' }}>
+          <Box component="main" sx={{ marginTop: '64px' }}>
             {children}
           </Box>
         </ThemeRegistry>

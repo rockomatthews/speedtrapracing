@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@contentful/rich-text-react-renderer": "^15.22.11",
+    "@emotion/cache": "latest",
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
     "@mui/icons-material": "^6.1.2",

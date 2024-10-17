@@ -81,7 +81,7 @@ export default function ShoppingCart({ cart, setCart }) {
         variant="outlined"
         startIcon={<ShoppingCartIcon />}
         onClick={toggleDrawer(true)}
-        sx={{ position: 'fixed', top: 20, right: 20, zIndex: 1000 }}
+        sx={{ position: 'fixed', top: 80, right: 20, zIndex: 1000 }} /* Increased top margin to 80px */
       >
         Cart ({totalItems})
       </Button>
