@@ -1,17 +1,34 @@
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Box, Typography, Button, Grid, FormControl, Select, MenuItem, Paper, Slide, useMediaQuery } from '@mui/material';
+import { 
+  Box, 
+  Typography, 
+  Button, 
+  Grid, 
+  FormControl, 
+  Select, 
+  MenuItem, 
+  Paper, 
+  Slide, 
+  useMediaQuery,
+  Snackbar,
+  Alert
+} from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterLuxon } from '@mui/x-date-pickers/AdapterLuxon';
+import { useRouter } from 'next/navigation';
+import { DateTime } from 'luxon';
 
 const Schedule = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTimeSlots, setSelectedTimeSlots] = useState({});
   const [groupSize, setGroupSize] = useState(1);
   const [showTempBar, setShowTempBar] = useState(false);
+  const [error, setError] = useState(null);
   const isMobile = useMediaQuery('(max-width:600px)');
+  const router = useRouter();
 
   const timeSlots = useMemo(() => {
     const slots = [];
@@ -30,8 +47,8 @@ const Schedule = () => {
   };
 
   const handleTimeSlotToggle = (time) => {
-    setSelectedTimeSlots(prev => {
-      const newSlots = { ...prev };
+    setSelectedTimeSlots(prevSlots => {
+      const newSlots = { ...prevSlots };
       if (newSlots[time]) {
         delete newSlots[time];
       } else {
@@ -50,6 +67,26 @@ const Schedule = () => {
   useEffect(() => {
     setShowTempBar(Object.keys(selectedTimeSlots).length === 1);
   }, [selectedTimeSlots]);
+
+  const handleNextClick = () => {
+    if (!selectedDate) {
+      setError("Please select a date");
+      return;
+    }
+    if (Object.keys(selectedTimeSlots).length === 0) {
+      setError("Please select at least one time slot");
+      return;
+    }
+    const bookingDetails = {
+      date: selectedDate.toISO().split('T')[0],
+      timeSlots: Object.keys(selectedTimeSlots),
+      groupSize: groupSize,
+      totalPrice: calculateTotalPrice(),
+    };
+    
+    localStorage.setItem('bookingDetails', JSON.stringify(bookingDetails));
+    router.push('/payment');
+  };
 
   return (
     <Box
@@ -249,10 +286,16 @@ const Schedule = () => {
             Total: ${calculateTotalPrice()}
           </Typography>
         </Box>
-        <Button variant="contained" color="primary">
+        <Button variant="contained" color="primary" onClick={handleNextClick}>
           Next
         </Button>
       </Paper>
+
+      <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError(null)}>
+        <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
+          {error}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

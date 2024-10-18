@@ -1,36 +1,101 @@
-// src/app/payment/page.js
 'use client';
 
-import React, { useState } from 'react';
-import { Box, Typography, Button, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { 
+  Box, 
+  Typography, 
+  Button, 
+  CircularProgress,
+  Snackbar,
+  Alert
+} from '@mui/material';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import AppleIcon from '@mui/icons-material/Apple';
-import PayPalIcon from '@mui/icons-material/AccountBalanceWallet'; // Simulating PayPal with wallet icon
-import VenmoIcon from '@mui/icons-material/AccountBalance'; // Simulating Venmo with account balance icon
-import loginBackground from '../../public/loginBackground.png'; // Background image
+import PayPalIcon from '@mui/icons-material/AccountBalanceWallet';
+import VenmoIcon from '@mui/icons-material/AccountBalance';
+import { useRouter } from 'next/navigation';
+import { loadStripe } from '@stripe/stripe-js';
+import Image from 'next/image';
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
 const Payment = () => {
-  const [selectedOption, setSelectedOption] = useState('Personal'); // Handle toggle state
-  const [selectedMethod, setSelectedMethod] = useState(''); // Handle payment method
+  const [selectedMethod, setSelectedMethod] = useState('');
+  const [bookingDetails, setBookingDetails] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const router = useRouter();
 
-  // Handle toggle for personal/group
-  const handleToggle = (event, newOption) => {
-    if (newOption !== null) {
-      setSelectedOption(newOption);
+  useEffect(() => {
+    const storedBookingDetails = localStorage.getItem('bookingDetails');
+    if (storedBookingDetails) {
+      setBookingDetails(JSON.parse(storedBookingDetails));
+    } else {
+      setError("No booking details found. Please start your booking process again.");
+    }
+  }, []);
+
+  const handleMethodClick = async (method) => {
+    setSelectedMethod(method);
+    setLoading(true);
+    setError(null);
+
+    try {
+      if (method === 'Debit/Credit' || method === 'Apple Pay') {
+        await handleStripeCheckout(method);
+      } else if (method === 'PayPal') {
+        console.log('PayPal checkout not implemented yet');
+        setError('PayPal checkout is not implemented yet');
+      } else if (method === 'Venmo') {
+        console.log('Venmo checkout not implemented yet');
+        setError('Venmo checkout is not implemented yet');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred during checkout');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Handle payment method click
-  const handleMethodClick = (method) => {
-    setSelectedMethod(method);
-    console.log(`Selected Payment Method: ${method}`);
+  const handleStripeCheckout = async (paymentMethod) => {
+    if (!bookingDetails) {
+      throw new Error('Booking details not available');
+    }
+
+    const stripe = await stripePromise;
+    
+    const response = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...bookingDetails,
+        paymentMethod,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to create checkout session');
+    }
+
+    const session = await response.json();
+
+    const result = await stripe.redirectToCheckout({
+      sessionId: session.sessionId,
+    });
+
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
   };
 
   return (
     <Box
       sx={{
         height: '100vh',
-        backgroundImage: `url(${loginBackground})`,
+        backgroundImage: `url('/loginBackground.png')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         display: 'flex',
@@ -40,7 +105,6 @@ const Payment = () => {
         padding: '20px',
       }}
     >
-      {/* Heading */}
       <Typography
         variant="h4"
         sx={{
@@ -55,28 +119,12 @@ const Payment = () => {
         Select Payment Method
       </Typography>
 
-      {/* Total Amount */}
-      <Typography variant="h5" sx={{ color: '#fff', marginBottom: '10px' }}>
-        TOTAL: $100.00
-      </Typography>
+      {bookingDetails && (
+        <Typography variant="h5" sx={{ color: '#fff', marginBottom: '10px' }}>
+          TOTAL: ${bookingDetails.totalPrice.toFixed(2)}
+        </Typography>
+      )}
 
-      {/* Personal/Group Toggle */}
-      <ToggleButtonGroup
-        color="standard"
-        value={selectedOption}
-        exclusive
-        onChange={handleToggle}
-        sx={{ marginBottom: '20px' }}
-      >
-        <ToggleButton value="Personal" sx={{ backgroundColor: '#FFC107', fontWeight: 'bold' }}>
-          Personal
-        </ToggleButton>
-        <ToggleButton value="Group" sx={{ backgroundColor: '#fff', fontWeight: 'bold' }}>
-          Group
-        </ToggleButton>
-      </ToggleButtonGroup>
-
-      {/* Payment Method Buttons */}
       <Button
         onClick={() => handleMethodClick('Debit/Credit')}
         startIcon={<CreditCardIcon />}
@@ -144,6 +192,16 @@ const Payment = () => {
       >
         Buy with Apple Pay
       </Button>
+
+      {loading && (
+        <CircularProgress sx={{ color: '#fff', marginTop: '20px' }} />
+      )}
+
+      <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError(null)}>
+        <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
+          {error}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
