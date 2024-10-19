@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import ThemeRegistry from './ThemeRegistry';
 import { Box } from '@mui/material';
 import { customFont } from './fonts.js';
+import ClientLayout from './ClientLayout';
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -26,10 +27,12 @@ export default function RootLayout({ children }) {
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>
         <ThemeRegistry>
-          <Header />
-          <Box component="main" sx={{ marginTop: '64px' }}>
-            {children}
-          </Box>
+          <ClientLayout>
+            <Header />
+            <Box component="main" sx={{ marginTop: '64px' }}>
+              {children}
+            </Box>
+          </ClientLayout>
         </ThemeRegistry>
       </body>
     </html>
