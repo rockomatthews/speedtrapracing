@@ -2,12 +2,16 @@
   "name": "speedtrapracing",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "node server.js",
-  "lint": "next lint"
-},
+    "dev": "next dev",
+    "build": "next build",
+    "start": "node server.js",
+    "lint": "next lint",
+    "deploy": "next build && firebase deploy --only hosting"
+  },  
   "dependencies": {
     "@contentful/rich-text-react-renderer": "^15.22.11",
     "@emotion/cache": "latest",
