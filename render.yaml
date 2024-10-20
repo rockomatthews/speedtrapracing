@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: speed-trap-racing-backend
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://your-firebase-app-url.web.app
+      - key: IRACING_EMAIL
+        sync: false
+      - key: IRACING_PASSWORD
+        sync: false
