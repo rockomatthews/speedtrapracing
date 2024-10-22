@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Snackbar from '@mui/material/Snackbar';
 import SnackbarContent from '@mui/material/SnackbarContent';
+import Box from '@mui/material/Box';
 import ShoppingCart from './ShoppingCart';
 
 export default function ProductList({ products, error }) {
@@ -48,7 +49,7 @@ export default function ProductList({ products, error }) {
 
   return (
     <Container maxWidth="lg" sx={{ py: 8 }}>
-      <Typography variant="h2" component="h1" gutterBottom align="center"> {/* Centered the header */}
+      <Typography variant="h2" component="h1" gutterBottom align="center">
         Storefront
       </Typography>
       <ShoppingCart cart={cart} setCart={setCart} />
@@ -60,19 +61,22 @@ export default function ProductList({ products, error }) {
         <Grid container spacing={4}>
           {products.map((product) => (
             <Grid item key={product.id} xs={12} sm={6} md={4}>
-              <Card>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 {product.image ? (
                   <CardMedia
                     component="img"
-                    height="140"
+                    sx={{
+                      aspectRatio: '4/3',
+                      objectFit: 'cover',
+                    }}
                     image={product.image}
                     alt={product.imageAlt || product.title}
                   />
                 ) : (
                   <CardMedia
                     component="div"
-                    height="140"
                     sx={{
+                      aspectRatio: '4/3',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -83,14 +87,16 @@ export default function ProductList({ products, error }) {
                     No image available
                   </CardMedia>
                 )}
-                <CardContent>
-                  <Typography gutterBottom variant="h5" component="div">
-                    {product.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Price: {product.currency} {product.price}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1 }}>
+                    <Typography variant="h6" component="div" sx={{ flexGrow: 1, mr: 1 }}>
+                      {product.title}
+                    </Typography>
+                    <Typography variant="subtitle1" sx={{ whiteSpace: 'nowrap', color: '#ffffff' }}>
+                      {product.currency} {parseFloat(product.price).toFixed(2)}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="#ffffff">
                     Category: {product.category}
                   </Typography>
                   <Button
