@@ -36,7 +36,9 @@ export default function ClientSideNightlyEvents({ events }) {
                     src={`https:${event.fields.heroImage.fields.file.url}`}
                     alt={event.fields.title}
                     fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     style={{ objectFit: 'cover' }}
+                    priority
                   />
                 </CardMedia>
               )}
@@ -87,7 +89,9 @@ export default function ClientSideNightlyEvents({ events }) {
                     src={`https:${selectedEvent.fields.heroImage.fields.file.url}`}
                     alt={selectedEvent.fields.title}
                     fill
+                    sizes="100vw"
                     style={{ objectFit: 'cover' }}
+                    priority
                   />
                 </Box>
               )}
