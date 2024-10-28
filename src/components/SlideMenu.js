@@ -7,7 +7,7 @@ import YouTubeIcon from '@mui/icons-material/YouTube';
 import XIcon from '@mui/icons-material/X';
 import ShareIcon from '@mui/icons-material/Share';
 import InstagramIcon from '@mui/icons-material/Instagram';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import SportsScoreIcon from '@mui/icons-material/SportsScore';
 import { customFont } from '../app/fonts';
 
 const SlideMenu = ({ open, onClose, user, onLogout }) => {
@@ -31,9 +31,11 @@ const SlideMenu = ({ open, onClose, user, onLogout }) => {
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px'}}>
           {user ? (
             <>
-              <IconButton sx={{ color: '#ffffff' }} onClick={onClose}>
-                <ShoppingCartIcon />
-              </IconButton>
+              <Link href="/" passHref>
+                <IconButton sx={{ color: '#ffffff' }} onClick={onClose}>
+                  <SportsScoreIcon />
+                </IconButton>
+              </Link>
               <Link href="/profile" passHref>
                 <IconButton onClick={onClose}>
                   <Avatar 
@@ -75,12 +77,10 @@ const SlideMenu = ({ open, onClose, user, onLogout }) => {
       
       <List sx={{ marginTop: '20px' }}>
         {[
-          { text: 'How it works', href: '/howitworks' },
-          { text: 'Race Nights', href: '/race-nights' },
+          { text: 'How It Works', href: '/howitworks' },
           { text: 'Pricing', href: '/pricing' },
-          { text: 'Member Pass', href: '/members' },
           { text: 'Apparel', href: '/marketplace' },
-          { text: 'Franchise', href: '/franchise' },
+          { text: 'Race Radar', href: '/race-nights' },
         ].map((item) => (
           <ListItem button component="a" href={item.href} onClick={onClose} key={item.text}>
             <ListItemText 

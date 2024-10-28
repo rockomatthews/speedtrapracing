@@ -5,7 +5,7 @@ import { AppBar, Toolbar, IconButton, Box, Button, Avatar } from '@mui/material'
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import MenuIcon from '@mui/icons-material/Menu';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import SportsScoreIcon from '@mui/icons-material/SportsScore';
 import Link from 'next/link';
 import Image from 'next/image';
 import logo from '../public/logoBlack.svg';
@@ -51,26 +51,28 @@ const Header = () => {
 
           {!isMobile && (
             <Box sx={{ display: 'flex', gap: '20px' }}>
-              <Link href="/race-nights" passHref>
-                <Button sx={{ backgroundColor: 'transparent', color: '#ffffff' }}>Race Nights</Button>
+              <Link href="/howitworks" passHref>
+                <Button sx={{ backgroundColor: 'transparent', color: '#ffffff' }}>How It Works</Button>
               </Link>
-              <Link href="/members" passHref>
-                <Button sx={{ backgroundColor: 'transparent', color: '#ffffff' }}>Members</Button>
+              <Link href="/pricing" passHref>
+                <Button sx={{ backgroundColor: 'transparent', color: '#ffffff' }}>Pricing</Button>
               </Link>
               <Link href="/marketplace" passHref>
                 <Button sx={{ backgroundColor: 'transparent', color: '#ffffff' }}>Apparel</Button>
               </Link>
-              <Link href="/franchise" passHref>
-                <Button sx={{ backgroundColor: 'transparent', color: '#ffffff' }}>Franchise</Button>
+              <Link href="/race-nights" passHref>
+                <Button sx={{ backgroundColor: 'transparent', color: '#ffffff' }}>Race Radar</Button>
               </Link>
             </Box>
           )}
 
           {!isMobile && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <IconButton sx={{ color: '#ffffff' }}>
-                <ShoppingCartIcon />
-              </IconButton>
+              <Link href="/" passHref>
+                <IconButton sx={{ color: '#ffffff' }}>
+                  <SportsScoreIcon />
+                </IconButton>
+              </Link>
 
               {user ? (
                 <>
