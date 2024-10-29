@@ -50,7 +50,7 @@ export default function Home() {
     <Box
       sx={{
         width: '100%',
-        height: '100vh',
+        height: '110vh',
         backgroundImage: `url(${comingSoon.src})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -126,7 +126,7 @@ export default function Home() {
             textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
           }}
         >
-          RACE START IN
+         🏁 RACE STARTS IN 🏁
         </Typography>
         <Typography
           variant="h4"
