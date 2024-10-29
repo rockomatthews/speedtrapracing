@@ -1,4 +1,4 @@
-'use client';
+'use client'
 
 import React, { useState } from 'react';
 import Container from '@mui/material/Container';
@@ -19,17 +19,16 @@ import IconButton from '@mui/material/IconButton';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import { useTheme } from '@mui/material/styles';
 import ShoppingCart from './ShoppingCart';
-import { useShoppingCart } from '../app/hooks/useShoppingCart';
+import { useShoppingCart } from '@/app/hooks/useShoppingCart';
 
 export default function ProductList({ products, error }) {
-  const { cart, addToCart } = useShoppingCart();
+  const { addToCart } = useShoppingCart();
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [zoomedImage, setZoomedImage] = useState(null);
   const theme = useTheme();
 
   const handleAddToCart = (product) => {
-    console.log('Adding to cart:', product);
     addToCart(product);
     setSnackbarOpen(true);
   };
@@ -70,7 +69,7 @@ export default function ProductList({ products, error }) {
       <Typography variant="h2" component="h1" gutterBottom align="center">
         Storefront
       </Typography>
-      <ShoppingCart cart={cart} />
+      <ShoppingCart />
       {error ? (
         <Typography color="error" align="center">
           {error}

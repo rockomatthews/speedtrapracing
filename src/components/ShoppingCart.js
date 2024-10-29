@@ -1,3 +1,5 @@
+'use client'
+
 import React from 'react';
 import {
   Drawer,
@@ -14,7 +16,7 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import { useShoppingCart } from '@/app/hooks/useShoppingCart';
 
 export default function ShoppingCart() {
-  const { cart, setCart } = useShoppingCart();
+  const { cart, removeFromCart, updateQuantity } = useShoppingCart();
   const [open, setOpen] = React.useState(false);
 
   const toggleDrawer = (isOpen) => (event) => {
@@ -22,18 +24,6 @@ export default function ShoppingCart() {
       return;
     }
     setOpen(isOpen);
-  };
-
-  const removeFromCart = (productId) => {
-    setCart((prevCart) => prevCart.filter((item) => item.id !== productId));
-  };
-
-  const updateQuantity = (productId, newQuantity) => {
-    setCart((prevCart) =>
-      prevCart.map((item) =>
-        item.id === productId ? { ...item, quantity: newQuantity } : item
-      )
-    );
   };
 
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -68,7 +58,6 @@ export default function ShoppingCart() {
       }
     } catch (error) {
       console.error('Checkout error:', error);
-      // Handle error (e.g., show an error message to the user)
     }
   };
 
