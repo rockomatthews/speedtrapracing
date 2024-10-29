@@ -1,0 +1,119 @@
+[debug] [2024-10-29T01:02:39.691Z] ----------------------------------------------------------------------
+[debug] [2024-10-29T01:02:39.693Z] Command:       /usr/local/bin/node /usr/local/bin/firebase deploy --only hosting
+[debug] [2024-10-29T01:02:39.694Z] CLI Version:   13.3.0
+[debug] [2024-10-29T01:02:39.694Z] Platform:      darwin
+[debug] [2024-10-29T01:02:39.694Z] Node Version:  v18.20.4
+[debug] [2024-10-29T01:02:39.695Z] Time:          Mon Oct 28 2024 20:02:39 GMT-0500 (Central Daylight Time)
+[debug] [2024-10-29T01:02:39.695Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-10-29T01:02:39.761Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-10-29T01:02:39.761Z] > authorizing via signed-in user (davidpina14@gmail.com)
+[debug] [2024-10-29T01:02:39.761Z] [iam] checking project speedtrapracing-aa7c8 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-10-29T01:02:39.763Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions [none]
+[debug] [2024-10-29T01:02:39.763Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions x-goog-quota-user=projects/speedtrapracing-aa7c8
+[debug] [2024-10-29T01:02:39.764Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-10-29T01:02:40.087Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions 200
+[debug] [2024-10-29T01:02:40.088Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/speedtrapracing-aa7c8:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-10-29T01:02:40.089Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8 [none]
+[debug] [2024-10-29T01:02:40.308Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8 200
+[debug] [2024-10-29T01:02:40.308Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8 {"projectId":"speedtrapracing-aa7c8","projectNumber":"583692035652","displayName":"speedtrapracing","name":"projects/speedtrapracing-aa7c8","resources":{"hostingSite":"speedtrapracing-aa7c8","storageBucket":"speedtrapracing-aa7c8.appspot.com","locationId":"us-central"},"state":"ACTIVE","etag":"1_09550de6-181e-43fb-84df-b7c9e82adcce"}
+[debug] [2024-10-29T01:02:42.142Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites pageToken=&pageSize=10
+[debug] [2024-10-29T01:02:42.518Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites 200
+[debug] [2024-10-29T01:02:42.518Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites {"sites":[{"name":"projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8","defaultUrl":"https://speedtrapracing-aa7c8.web.app","appId":"1:583692035652:web:7dd8e0e066a0db79763e11","type":"DEFAULT_SITE"}]}
+[debug] [2024-10-29T01:02:42.518Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:583692035652:web:7dd8e0e066a0db79763e11/config [none]
+[debug] [2024-10-29T01:02:43.000Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:583692035652:web:7dd8e0e066a0db79763e11/config 200
+[debug] [2024-10-29T01:02:43.000Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:583692035652:web:7dd8e0e066a0db79763e11/config {"projectId":"speedtrapracing-aa7c8","appId":"1:583692035652:web:7dd8e0e066a0db79763e11","storageBucket":"speedtrapracing-aa7c8.appspot.com","locationId":"us-central","apiKey":"AIzaSyAs9Rl_ZO7avzPfBWgrRPzQ-fOLHFYVGl0","authDomain":"speedtrapracing-aa7c8.firebaseapp.com","messagingSenderId":"583692035652","measurementId":"G-TRL59427PM"}
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 14.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2024-10-29T01:02:46.704Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8 [none]
+[debug] [2024-10-29T01:02:47.049Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8 200
+[debug] [2024-10-29T01:02:47.050Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8 {"name":"projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8","defaultUrl":"https://speedtrapracing-aa7c8.web.app","appId":"1:583692035652:web:7dd8e0e066a0db79763e11","type":"DEFAULT_SITE"}
+[info]   ▲ Next.js 14.2.14
+
+[info]   - Environments: .env.local
+
+
+[info]    Creating an optimized production build ...
+
+[info]  ✓ Compiled successfully
+
+[info]    Linting and checking validity of types ...
+
+[info]    Collecting page data ...
+
+[info]    Generating static pages (0/18) ...
+
+[info]    Generating static pages (4/18) 
+
+[info]    Generating static pages (8/18) 
+
+[info] Environment variables:
+NEXT_PUBLIC_SHOPIFY_STOREFRONT_DOMAIN: speedtrapracing.myshopify.com
+NEXT_PUBLIC_SHOPIFY_STOREFRONT_ACCESS_TOKEN: Set
+
+[info]    Generating static pages (13/18) 
+
+[info] Environment variables:
+NEXT_PUBLIC_SHOPIFY_STOREFRONT_DOMAIN: speedtrapracing.myshopify.com
+NEXT_PUBLIC_SHOPIFY_STOREFRONT_ACCESS_TOKEN: Set
+
+[info]  ✓ Generating static pages (18/18)
+
+[info]    Finalizing page optimization ...
+
+[info]    Collecting build traces ...
+
+[info] 
+
+[info] Route (app)                               Size     First Load JS
+┌ ○ /                                     1.6 kB          129 kB
+├ ○ /_not-found                           876 B          88.3 kB
+├ ƒ /api/create-checkout-session          0 B                0 B
+├ ○ /book                                 3.49 kB         131 kB
+├ ○ /booking                              2.41 kB         135 kB
+├ ○ /checkin                              1.15 kB         116 kB
+├ ○ /dashboard                            3.41 kB         247 kB
+├ ○ /howitworks                           1.09 kB         129 kB
+├ ○ /login                                4.82 kB         276 kB
+├ ○ /marketplace                          6.13 kB         152 kB
+├ ○ /payment                              6.68 kB         142 kB
+├ ○ /pricing                              3.8 kB          129 kB
+├ ○ /profile                              3.64 kB         277 kB
+├ ○ /race-nights                          43.2 kB         192 kB
+└ ○ /schedule                             79.1 kB         239 kB
++ First Load JS shared by all             87.4 kB
+  ├ chunks/117-a1a22ac536c8ff58.js        31.8 kB
+  ├ chunks/fd9d1056-9f03eb3d85afc356.js   53.6 kB
+  └ other shared chunks (total)           1.99 kB
+
+Route (pages)                             Size     First Load JS
+┌ ƒ /api/create-checkout                  0 B            79.2 kB
+└ ƒ /api/shopify-proxy                    0 B            79.2 kB
++ First Load JS shared by all             79.2 kB
+  ├ chunks/framework-00a8ba1a63cfdc9e.js  44.9 kB
+  ├ chunks/main-8216bb8f4fa93b60.js       32.4 kB
+  └ other shared chunks (total)           1.97 kB
+
+
+[info] ○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+[info] Building a Cloud Function to run this application. This is needed due to:
+[info]  • non-static route /api/create-checkout
+[info]  • non-static route /api/shopify-proxy
+[info]  • non-static component /_not-found/page
+[info]  • non-static component /api/create-checkout-session/route
+[info] 
+[debug] [2024-10-29T01:03:07.536Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8 [none]
+[debug] [2024-10-29T01:03:07.804Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8 200
+[debug] [2024-10-29T01:03:07.805Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8 {"name":"projects/speedtrapracing-aa7c8/sites/speedtrapracing-aa7c8","defaultUrl":"https://speedtrapracing-aa7c8.web.app","appId":"1:583692035652:web:7dd8e0e066a0db79763e11","type":"DEFAULT_SITE"}
