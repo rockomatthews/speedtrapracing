@@ -19,25 +19,18 @@ import IconButton from '@mui/material/IconButton';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import { useTheme } from '@mui/material/styles';
 import ShoppingCart from './ShoppingCart';
+import { useShoppingCart } from '../app/hooks/useShoppingCart';
 
 export default function ProductList({ products, error }) {
-  const [cart, setCart] = useState([]);
+  const { cart, addToCart } = useShoppingCart();
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [zoomedImage, setZoomedImage] = useState(null);
   const theme = useTheme();
 
-  const addToCart = (product) => {
+  const handleAddToCart = (product) => {
     console.log('Adding to cart:', product);
-    setCart((prevCart) => {
-      const existingItem = prevCart.find((item) => item.id === product.id);
-      if (existingItem) {
-        return prevCart.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      }
-      return [...prevCart, { ...product, quantity: 1 }];
-    });
+    addToCart(product);
     setSnackbarOpen(true);
   };
 
@@ -77,7 +70,7 @@ export default function ProductList({ products, error }) {
       <Typography variant="h2" component="h1" gutterBottom align="center">
         Storefront
       </Typography>
-      <ShoppingCart cart={cart} setCart={setCart} />
+      <ShoppingCart cart={cart} />
       {error ? (
         <Typography color="error" align="center">
           {error}
@@ -144,7 +137,7 @@ export default function ProductList({ products, error }) {
                     sx={{ mt: 2 }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      addToCart(product);
+                      handleAddToCart(product);
                     }}
                   >
                     Add to Cart
@@ -236,7 +229,7 @@ export default function ProductList({ products, error }) {
                 variant="contained" 
                 color="primary"
                 onClick={() => {
-                  addToCart(selectedProduct);
+                  handleAddToCart(selectedProduct);
                   handleCloseDialog();
                 }}
               >
