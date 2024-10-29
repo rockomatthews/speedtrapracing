@@ -50,7 +50,8 @@ export default function Home() {
     <Box
       sx={{
         width: '100%',
-        height: '110vh',
+        minHeight: '100vh', // Use min-height as fallback
+        padding: '5px',
         backgroundImage: `url(${comingSoon.src})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -89,7 +90,7 @@ export default function Home() {
             marginTop: '25px'
           }}
         >
-          Main Site Under Construction
+          Website Under Construction
         </Typography>
         
         <Button
@@ -126,7 +127,7 @@ export default function Home() {
             textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
           }}
         >
-         🏁 RACE STARTS IN 🏁
+         🏁 RACES START IN 🏁
         </Typography>
         <Typography
           variant="h4"
@@ -137,6 +138,7 @@ export default function Home() {
             textAlign: 'center',
             fontWeight: 'bold',
             marginTop: '10px',
+            marginBottom: '10px',
             textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
           }}
         >
@@ -145,7 +147,7 @@ export default function Home() {
       </Box>
 
       <Box sx={{ margin: "auto" }}>
-        <Image src={underConstructionIcon} alt="under construction icon" width={350} height={350} />
+        <Image src={underConstructionIcon} alt="under construction icon" width={300} height={300} />
       </Box>
     </Box>
   );
