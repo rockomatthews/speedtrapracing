@@ -11,8 +11,10 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import { useShoppingCart } from '@/app/hooks/useShoppingCart';
 
-export default function ShoppingCart({ cart, setCart }) {
+export default function ShoppingCart() {
+  const { cart, setCart } = useShoppingCart();
   const [open, setOpen] = React.useState(false);
 
   const toggleDrawer = (isOpen) => (event) => {
@@ -81,7 +83,7 @@ export default function ShoppingCart({ cart, setCart }) {
         variant="outlined"
         startIcon={<ShoppingCartIcon />}
         onClick={toggleDrawer(true)}
-        sx={{ position: 'fixed', top: 80, right: 20, zIndex: 1000 }} /* Increased top margin to 80px */
+        sx={{ position: 'fixed', top: 80, right: 20, zIndex: 1000 }}
       >
         Cart ({totalItems})
       </Button>
