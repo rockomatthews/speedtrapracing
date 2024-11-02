@@ -16,6 +16,8 @@ import VenmoIcon from '@mui/icons-material/AccountBalance';
 import { useRouter } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import Image from 'next/image';
+import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../../config/firebase';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
@@ -26,6 +28,7 @@ const Payment = () => {
   const [error, setError] = useState(null);
   const router = useRouter();
 
+
   useEffect(() => {
     const storedBookingDetails = localStorage.getItem('bookingDetails');
     if (storedBookingDetails) {
@@ -33,27 +36,36 @@ const Payment = () => {
     } else {
       setError("No booking details found. Please start your booking process again.");
     }
+
   }, []);
 
   const handleMethodClick = async (method) => {
     setSelectedMethod(method);
     setLoading(true);
     setError(null);
+    
+    // Generate a unique ID for the new booking document
+    const newBookingId = `booking_${new Date().toISOString().slice(0, 10)}`; // Using ISO date format (YYYY-MM-DD)
+    const userDocRef = doc(db, 'bookings', newBookingId);
 
     try {
-      if (method === 'Debit/Credit' || method === 'Apple Pay') {
-        await handleStripeCheckout(method);
-      } else if (method === 'PayPal') {
-        console.log('PayPal checkout not implemented yet');
-        setError('PayPal checkout is not implemented yet');
-      } else if (method === 'Venmo') {
-        console.log('Venmo checkout not implemented yet');
-        setError('Venmo checkout is not implemented yet');
-      }
+        // Always create a new document
+
+        if (method === 'Debit/Credit' || method === 'Apple Pay') {
+            await handleStripeCheckout(method);
+        } else if (method === 'PayPal') {
+            console.log('PayPal checkout not implemented yet');
+            setError('PayPal checkout is not implemented yet');
+        } else if (method === 'Venmo') {
+            console.log('Venmo checkout not implemented yet');
+            setError('Venmo checkout is not implemented yet');
+        } else if (method === 'test') {
+            await setDoc(userDocRef, bookingDetails);
+        }
     } catch (err) {
-      setError(err.message || 'An error occurred during checkout');
+        setError(err.message || 'An error occurred during checkout');
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
@@ -191,6 +203,22 @@ const Payment = () => {
         }}
       >
         Buy with Apple Pay
+      </Button>
+
+      <Button
+        onClick={() => handleMethodClick('test')}
+        fullWidth
+        sx={{
+          backgroundColor: '#000',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: '10px 20px',
+          marginBottom: '15px',
+          maxWidth: '350px',
+          textTransform: 'none',
+        }}
+      >
+        test pay
       </Button>
 
       {loading && (
