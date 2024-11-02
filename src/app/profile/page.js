@@ -1,11 +1,10 @@
 'use client';
-
 import React, { useState, useEffect } from 'react';
-import { Box, Button, Typography, Avatar, IconButton, TextField, Dialog, DialogActions, DialogContent, DialogTitle, Input } from '@mui/material';
+import { Box, Button, Typography, Avatar, IconButton, TextField, Dialog, DialogActions, DialogContent, DialogTitle, Input, Paper } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import EditIcon from '@mui/icons-material/Edit';
 import { auth, db, storage } from '../../config/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const Profile = () => {
@@ -16,25 +15,31 @@ const Profile = () => {
   const [editName, setEditName] = useState('');
   const [editIRacingName, setEditIRacingName] = useState('');
   const [editPhoto, setEditPhoto] = useState(null);
+  const [userBookings, setUserBookings] = useState([]);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
       if (authUser) {
         const userDocRef = doc(db, 'Users', authUser.uid);
         const userDoc = await getDoc(userDocRef);
+        console.log("authUser: ",authUser.uid)
         
-        if (!userDoc.exists()) {
-          // Create a new user document if it doesn't exist
-          await updateDoc(userDocRef, {
-            displayName: authUser.displayName || '',
-            email: authUser.email,
-            photoURL: authUser.photoURL || '',
-            iRacingName: '',
-            isMember: false,
-          });
+        try {
+          const bookingsRef = collection(db, 'bookings');
+          const q = query(bookingsRef, where('user', '==', authUser.uid));
+          const querySnapshot = await getDocs(q);
+          const bookingsList = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          setUserBookings(bookingsList);
+          console.log("userBookings: ",userBookings)
+        } catch (error) {
+          console.error('Error fetching user bookings:', error);
         }
         
         const userData = userDoc.data();
+        console.log("userData: ",userData)
         setUser({ ...authUser, ...userData });
         setEditName(authUser.displayName || '');
         setEditIRacingName(userData?.iRacingName || '');
@@ -99,7 +104,6 @@ const Profile = () => {
   return (
     <Box
       sx={{
-        height: '100vh',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
@@ -107,6 +111,7 @@ const Profile = () => {
         backgroundColor: '#000',
         padding: '20px',
         position: 'relative',
+        marginTop: '70px'
       }}
     >
       <IconButton
@@ -188,6 +193,62 @@ const Profile = () => {
         <Typography variant="h6" sx={{ color: '#fff' }}>
           {user.iRacingName || 'Not set'}
         </Typography>
+      </Box>
+
+      <Box
+        sx={{
+          backgroundColor: '#000',
+          padding: '10px 20px',
+          borderRadius: '10px',
+          border: '2px solid #fff',
+          textAlign: 'center',
+          marginBottom: '30px'
+        }}
+      >
+        <Typography variant="body1" sx={{ color: '#fff', fontWeight: 'bold', marginBottom: '5px' }}>
+          Your Races:
+        </Typography>
+
+        {userBookings.length === 0 ? (
+          <p>No bookings found.</p>
+        ) : (
+          <Box>
+          {userBookings.map((booking) => (
+            <Paper
+              key={booking.id}
+              sx={{
+                marginBottom: 2,
+                padding: 2,
+                backgroundColor: '#1c1c1c',
+                color: '#fff',
+              }}
+            >
+              <Typography>Date: {booking.date}</Typography>
+              <Typography>Time Slots:     
+                {booking.timeSlots.map((slot, index) => (
+                  <Box
+                  key={index}
+                  sx={{
+                    display: 'inline-block',
+                    backgroundColor: '#3f51b5', // Change to your desired color
+                    color: '#fff',
+                    padding: '5px 5px',
+                    borderRadius: '5px',
+                    margin: '5px',
+                  }}
+                  >
+                        {slot}
+                      </Box>
+                    ))}
+              </Typography>
+              
+              <Typography>Group Size / Sims: {booking.groupSize}</Typography>
+              
+            </Paper>
+          ))}
+        </Box>
+        )}
+
       </Box>
 
       <Button

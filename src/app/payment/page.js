@@ -16,7 +16,7 @@ import VenmoIcon from '@mui/icons-material/AccountBalance';
 import { useRouter } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import Image from 'next/image';
-import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, addDoc, collection } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
@@ -43,10 +43,6 @@ const Payment = () => {
     setSelectedMethod(method);
     setLoading(true);
     setError(null);
-    
-    // Generate a unique ID for the new booking document
-    const newBookingId = `booking_${new Date().toISOString().slice(0, 10)}`; // Using ISO date format (YYYY-MM-DD)
-    const userDocRef = doc(db, 'bookings', newBookingId);
 
     try {
         // Always create a new document
@@ -60,7 +56,8 @@ const Payment = () => {
             console.log('Venmo checkout not implemented yet');
             setError('Venmo checkout is not implemented yet');
         } else if (method === 'test') {
-            await setDoc(userDocRef, bookingDetails);
+          const bookingsCollectionRef = collection(db, 'bookings');
+          await addDoc(bookingsCollectionRef, bookingDetails);
         }
     } catch (err) {
         setError(err.message || 'An error occurred during checkout');

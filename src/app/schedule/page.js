@@ -80,8 +80,6 @@ const Schedule = () => {
     }
   };
 
-  console.log("bookings: ",bookings)
-
   const timeSlots = useMemo(() => {
     const slots = [];
     for (let hour = 9; hour < 22; hour++) {
