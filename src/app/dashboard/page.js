@@ -12,16 +12,44 @@ import {
   Paper,
   IconButton,
   useMediaQuery,
+  CircularProgress
 } from '@mui/material';
 import { db } from '../../config/firebase'; // Your Firebase config
-import { collection, getDocs, deleteDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, getDoc, where, query } from 'firebase/firestore';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../../context/AuthContext';
 
 const AdminDashboard = () => {
+  const { user, loading } = useAuth();
   const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const isMobile = useMediaQuery('(max-width:600px)'); // Add media query
+  const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (user) {
+        // Check if the user is in the AdminUsers collection
+        const adminRef = doc(db, 'Users', user.uid);
+        const adminSnap = await getDoc(adminRef);
+        const userData = adminSnap.data()
+        if (userData.isAdmin) {
+          setIsAdmin(true); // User is an admin
+        } else {
+          router.push('/'); // Redirect non-admin users
+        }
+      } else if (!loading) {
+        router.push('/login'); // Redirect unauthenticated users to login
+      }
+      setCheckingAdmin(false);
+    };
+
+    checkAdmin();
+  }, [user, loading, router]);
 
   // Fetch bookings from Firestore
   const fetchBookings = async () => {
@@ -50,10 +78,10 @@ const AdminDashboard = () => {
       );
 
       setBookings(bookingsWithUserNames);
-      setLoading(false);
+      setIsLoading(false);
     } catch (error) {
       console.error('Error fetching bookings:', error);
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -64,13 +92,31 @@ const AdminDashboard = () => {
   // Delete booking function
   const handleDelete = async (id) => {
     try {
-      await deleteDoc(doc(db, 'bookings', id));
+      // await deleteDoc(doc(db, 'bookings', id));
       // Refresh bookings list
       fetchBookings();
     } catch (error) {
       console.error('Error deleting booking:', error);
     }
   };
+
+  if (loading || checkingAdmin) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#000', color: '#fff' }}>
+        <Typography variant="h1" sx={{ fontWeight: 'bold' }}>
+          Hmm? 
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ padding: '20px', backgroundColor: '#000', minHeight: '100vh' }}>
@@ -81,7 +127,7 @@ const AdminDashboard = () => {
         Admin Dashboard - Bookings
       </Typography>
 
-      {loading ? (
+      {isLoading ? (
         <Typography sx={{ color: '#fff' }}>Loading...</Typography>
       ) : isMobile ? (
         // Mobile layout
