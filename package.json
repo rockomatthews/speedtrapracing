@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@braintree/browser-detection": "^2.0.1",
     "@contentful/rich-text-react-renderer": "^15.22.11",
     "@emotion/cache": "latest",
     "@emotion/react": "^11.13.3",
@@ -19,6 +20,7 @@
     "@mui/x-date-pickers-pro": "^7.19.0",
     "@stripe/stripe-js": "^4.8.0",
     "axios": "^1.7.7",
+    "braintree-web": "^3.112.0",
     "contentful": "^11.0.3",
     "date-fns": "^4.1.0",
     "firebase": "^10.14.0",
