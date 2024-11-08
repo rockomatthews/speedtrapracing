@@ -32,7 +32,7 @@ yarn-error.log*
 .next
 # vercel
 .vercel
-.serviceAccount
+serviceAccount.json
 
 # typescript
 *.tsbuildinfo
