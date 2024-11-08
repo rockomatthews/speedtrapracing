@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "add-hat": "node src/scripts/addHat.js"
   },
   "dependencies": {
     "@braintree/browser-detection": "^2.0.1",
@@ -25,7 +26,9 @@
     "braintree-web-drop-in": "^1.43.0",
     "contentful": "^11.0.3",
     "date-fns": "^4.1.0",
-    "firebase": "^10.14.0",
+    "dotenv": "^16.4.5",
+    "firebase": "^10.14.1",
+    "firebase-admin": "^12.7.0",
     "graphql": "^16.9.0",
     "graphql-request": "^7.1.0",
     "luxon": "^3.5.0",

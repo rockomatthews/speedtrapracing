@@ -10,7 +10,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import logo from '../public/logoBlack.svg';
 import SlideMenu from './SlideMenu';
-import { auth } from '../config/firebase';
+import { auth } from '../lib/firebase';
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
 const Header = () => {

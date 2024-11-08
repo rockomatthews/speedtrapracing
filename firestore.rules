@@ -1,0 +1,137 @@
+rules_version = '2';
+
+// Firestore rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection
+    match /Users/{userId} {
+      // Allow read and write if the user is authenticated and the user ID matches
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow creation of new user documents
+      allow create: if request.auth != null && request.auth.uid == userId && request.resource.data.keys().hasAll(['email', 'displayName', 'createdAt']);
+      
+      // Prevent users from modifying sensitive fields
+      allow update: if request.auth != null && request.auth.uid == userId
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isAdmin', 'createdAt']);
+    }
+
+    // Products collection (updated to match our product structure)
+    match /products/{productId} {
+      // Allow read for all users
+      allow read: if true;
+      
+      // TEMPORARY: Allow all writes to products collection for testing
+      allow write: if true;
+      
+      // Original product validation rules (commented out temporarily)
+      // allow create, update: if request.auth != null 
+      //                      && request.resource.data.keys().hasAll([
+      //                        'title',
+      //                        'description',
+      //                        'price',
+      //                        'currency',
+      //                        'category',
+      //                        'images',
+      //                        'inventory',
+      //                        'size'
+      //                      ])
+      //                      && request.resource.data.title is string
+      //                      && request.resource.data.description is string
+      //                      && request.resource.data.price is string
+      //                      && request.resource.data.currency is string
+      //                      && request.resource.data.category is string
+      //                      && request.resource.data.inventory is string
+      //                      && request.resource.data.size is string
+      //                      && request.resource.data.images is list;
+    }
+    
+    match /bookings/{productId} {
+      // Allow read for all users, but only allow write for authenticated admin users
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Orders collection
+    match /orders/{orderId} {
+      // Allow users to read and create their own orders
+      allow read, create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // Allow users to update or delete only their own orders
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      // Ensure order documents have required fields
+      allow create: if request.auth != null 
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.keys().hasAll(['userId', 'items', 'totalAmount', 'createdAt']);
+      
+      // Prevent modification of certain fields after order creation
+      allow update: if request.auth != null 
+                    && resource.data.userId == request.auth.uid
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'createdAt']);
+    }
+
+    // New Cart Collection Rules
+    match /carts/{cartId} {
+      // Allow users to read and write their own carts
+      allow read, write: if request.auth != null 
+                        && (request.auth.uid == resource.data.userId 
+                        || !exists(/databases/$(database)/documents/carts/$(cartId)));
+      
+      // Ensure cart documents have required fields
+      allow create: if request.auth != null 
+                   && request.resource.data.keys().hasAll(['userId', 'items', 'status', 'createdAt'])
+                   && request.resource.data.userId == request.auth.uid;
+      
+      // Allow updates to cart items and status
+      allow update: if request.auth != null 
+                   && resource.data.userId == request.auth.uid
+                   && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'createdAt']);
+    }
+
+    // New Payment Sessions Collection Rules
+    match /paymentSessions/{sessionId} {
+      // Allow users to read and create their own payment sessions
+      allow read, create: if request.auth != null 
+                         && request.resource.data.userId == request.auth.uid;
+      
+      // Allow updates to payment session status
+      allow update: if request.auth != null 
+                   && resource.data.userId == request.auth.uid
+                   && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'createdAt']);
+    }
+
+    // Deny access to any other collections by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// Storage rules
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow read access to all files
+    match /{allPaths=**} {
+      allow read: if true;
+    }
+    
+    // Allow write access to profile photos only for authenticated users
+    match /profilePhotos/{userId} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+      
+      // Limit file size and type for profile photos
+      allow write: if request.auth != null 
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024 // 5MB
+                   && request.resource.contentType.matches('image/.*');
+    }
+    
+    // Allow write access to product images only for admin users
+    match /productImages/{imageId} {
+      allow write: if request.auth != null 
+                   && get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.isAdmin == true
+                   && request.resource.size < 10 * 1024 * 1024 // 10MB
+                   && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

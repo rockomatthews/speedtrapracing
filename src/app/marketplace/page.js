@@ -1,6 +1,6 @@
 // src/app/marketplace/page.js
 import React from 'react';
-import medusaClient from '../../../lib/medusa';
+import medusaClient from '../../lib/medusa';
 import ProductList from '../../components/ProductList';
 
 export default async function Marketplace() {
