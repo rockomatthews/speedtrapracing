@@ -8,37 +8,71 @@ export default async function Marketplace() {
   let error = null;
 
   try {
-    // Get products from Medusa
-    const { products: medusaProducts } = await medusaClient.products.list({
+    // Fetch all products from the database
+    const response = await medusaClient.products.list({
       limit: 100,
-      fields: ['title', 'description', 'variants', 'thumbnail', 'handle', 'collection'],
-      expand: ['variants', 'variants.prices', 'collection']
+      fields: [
+        'title',
+        'description',
+        'variants',
+        'thumbnail',
+        'handle',
+        'collection',
+        'images',
+        'category',
+        'inventory',
+        'size',
+        'price',
+        'currency'
+      ],
+      expand: [
+        'variants',
+        'variants.prices',
+        'collection'
+      ]
     });
 
-    // Transform Medusa products to match your existing structure
-    products = medusaProducts.map(product => ({
-      id: product.id,
-      title: product.title,
-      description: product.description,
-      price: product.variants[0]?.prices[0]?.amount / 100 || 0, // Medusa stores prices in cents
-      currency: product.variants[0]?.prices[0]?.currency_code?.toUpperCase() || 'USD',
-      images: [{
-        src: product.thumbnail,
-        alt: product.title
-      }],
-      category: product.collection?.title || 'Uncategorized',
-      variants: product.variants.map(variant => ({
-        id: variant.id,
-        title: variant.title,
-        price: variant.prices[0]?.amount / 100 || 0,
-        currency: variant.prices[0]?.currency_code?.toUpperCase() || 'USD',
-        inventory_quantity: variant.inventory_quantity
-      }))
-    }));
-  } catch (err) {
-    console.error('Error fetching products:', err);
+    // Log raw response to debug
+    console.log('Raw database response:', response);
+
+    // Transform each product to match the exact structure needed by ProductList
+    if (response && response.products) {
+      products = response.products.map(product => {
+        return {
+          id: product.id,
+          title: product.title || '',
+          description: product.description || '',
+          price: product.price || '0',
+          currency: product.currency || 'USD',
+          category: product.category || 'Uncategorized',
+          size: product.size || '',
+          inventory: product.inventory || '0',
+          images: product.images || [{
+            src: product.thumbnail || 'https://placehold.co/400x300?text=No+Image',
+            alt: product.title || 'Product Image'
+          }],
+          thumbnail: product.thumbnail || 'https://placehold.co/400x300?text=No+Image',
+          handle: product.handle || '',
+          variants: product.variants || [],
+          createdAt: product.createdAt || new Date().toISOString(),
+          updatedAt: product.updatedAt || new Date().toISOString()
+        };
+      });
+    }
+
+    // Log transformed products to debug
+    console.log('Transformed products:', products);
+
+  } catch (error) {
+    console.error('Error fetching products:', error);
     error = 'Failed to load products. Please try again later.';
   }
 
-  return <ProductList products={products} error={error} />;
+  // Return the ProductList component with products or error
+  return (
+    <ProductList 
+      products={products} 
+      error={error} 
+    />
+  );
 }
