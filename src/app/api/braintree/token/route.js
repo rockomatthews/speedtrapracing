@@ -10,17 +10,8 @@ export async function GET(request) {
       clientToken,
       config: {
         environment: 'production',
-        merchantId: process.env.NEXT_PUBLIC_BRAINTREE_MERCHANT_ID,
-        paypalEnabled: true,
-        cardEnabled: true,
-        venmoEnabled: false
+        merchantId: process.env.NEXT_PUBLIC_BRAINTREE_MERCHANT_ID
       }
-    }, {
-      status: 200,
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-        'Content-Type': 'application/json',
-      },
     });
 
   } catch (error) {
@@ -31,12 +22,6 @@ export async function GET(request) {
       error: process.env.NODE_ENV === 'development' 
         ? error.message 
         : 'Failed to generate payment token'
-    }, {
-      status: 500,
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-        'Content-Type': 'application/json',
-      }
-    });
+    }, { status: 500 });
   }
 }

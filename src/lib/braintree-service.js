@@ -14,13 +14,6 @@ class BraintreeService {
         publicKey: process.env.BRAINTREE_PUBLIC_KEY,
         privateKey: process.env.BRAINTREE_PRIVATE_KEY
       });
-
-      console.log('Gateway initialized with credentials:', {
-        environment: 'production',
-        merchantId: process.env.BRAINTREE_MERCHANT_ID,
-        hasPublicKey: Boolean(process.env.BRAINTREE_PUBLIC_KEY),
-        hasPrivateKey: Boolean(process.env.BRAINTREE_PRIVATE_KEY)
-      });
     }
     return this.gateway;
   }
@@ -31,12 +24,10 @@ class BraintreeService {
         this.initialize();
       }
 
-      // Simplest possible token generation
+      // Get basic client token for PayPal
       const result = await this.gateway.clientToken.generate({
         merchantAccountId: process.env.BRAINTREE_MERCHANT_ACCOUNT_ID
       });
-      
-      console.log('Raw Braintree Response:', result);
 
       if (!result || !result.clientToken) {
         throw new Error('Failed to generate client token');
@@ -49,23 +40,16 @@ class BraintreeService {
     }
   }
 
-  async createTransaction(paymentMethodNonce, amount, options = {}) {
-    if (!this.gateway) {
-      this.initialize();
-    }
-
-    const transactionRequest = {
-      amount,
-      paymentMethodNonce,
-      merchantAccountId: process.env.BRAINTREE_MERCHANT_ACCOUNT_ID,
-      options: {
-        submitForSettlement: true,
-        ...options
-      }
-    };
-
+  async createTransaction(paymentMethodNonce, amount) {
     try {
-      const result = await this.gateway.transaction.sale(transactionRequest);
+      const result = await this.gateway.transaction.sale({
+        amount,
+        paymentMethodNonce,
+        merchantAccountId: process.env.BRAINTREE_MERCHANT_ACCOUNT_ID,
+        options: {
+          submitForSettlement: true
+        }
+      });
       return result;
     } catch (error) {
       console.error('Transaction creation error:', error);

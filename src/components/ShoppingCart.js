@@ -47,38 +47,71 @@ function ShoppingCart() {
   // Initialize Braintree when cart opens
   const initializeBraintreePayments = async () => {
     try {
-      if (!braintreeLoaded) {
-        throw new Error('Braintree not loaded');
-      }
-
       // Clean up any existing instance
       if (braintreeInstance) {
         await braintreeInstance.teardown();
         setBraintreeInstance(null);
       }
-
+  
+      console.log('Fetching client token...');
       const tokenResponse = await fetch('/api/braintree/token');
       if (!tokenResponse.ok) {
         throw new Error(`Failed to fetch token: ${tokenResponse.status}`);
       }
-
+  
       const tokenData = await tokenResponse.json();
-
+      if (!tokenData.success || !tokenData.clientToken) {
+        throw new Error('Invalid token response');
+      }
+  
+      console.log('Creating dropin with PayPal configuration...');
       const dropinInstance = await window.braintree.dropin.create({
         authorization: tokenData.clientToken,
         container: '#braintree-payment-container',
+        
+        // Enable PayPal Checkout
         paypal: {
           flow: 'checkout',
           amount: calculateCartTotal().toFixed(2),
-          currency: 'USD'
-        }
+          currency: 'USD',
+          intent: 'capture',
+          displayName: 'Speed Trap Racing',
+          buttonStyle: {
+            color: 'gold',
+            shape: 'rect',
+            size: 'responsive',
+            label: 'pay'
+          }
+        },
+  
+        // Explicitly disable other payment methods
+        card: false,
+        venmo: false,
+        applePay: false,
+        googlePay: false,
+  
+        // Only show PayPal
+        paymentOptionPriority: ['paypal']
       });
-
+  
+      console.log('Dropin instance created');
+  
+      dropinInstance.on('paymentMethodRequestable', (event) => {
+        console.log('Payment method is requestable:', event);
+      });
+  
+      dropinInstance.on('noPaymentMethodRequestable', () => {
+        console.log('No payment method is requestable');
+      });
+  
       setBraintreeInstance(dropinInstance);
-
+      setErrorMessage(null);
+  
     } catch (error) {
       console.error('Checkout initialization error:', error);
-      setErrorMessage(error.message);
+      setErrorMessage(
+        `Failed to initialize payment system: ${error.message}. Please try again.`
+      );
     }
   };
 
@@ -396,27 +429,30 @@ function ShoppingCart() {
   
             {/* Braintree Payment Container */}
             <Box 
-              id="braintree-payment-container" 
-              sx={{ 
-                marginBottom: 2,
-                minHeight: '300px',
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 1,
-                p: 2,
-                '& iframe': {
-                  width: '100% !important',
-                  minHeight: '200px'
-                },
-                '& .braintree-option': {
-                  borderColor: 'divider'
-                },
-                '& .braintree-upper-container': {
-                  borderBottom: '1px solid',
-                  borderColor: 'divider'
-                }
-              }} 
-            />
+  id="braintree-payment-container" 
+  sx={{ 
+    marginBottom: 2,
+    minHeight: '350px',  // Increased height
+    height: 'auto',
+    border: '1px solid',
+    borderColor: 'divider',
+    borderRadius: 1,
+    p: 2,
+    '& iframe': {
+      width: '100% !important',
+      minHeight: '300px'  // Increased iframe height
+    },
+    '& .braintree-heading': {
+      marginBottom: '1rem'
+    },
+    '& .braintree-sheet': {
+      borderRadius: '4px'
+    },
+    '& .braintree-sheet__content--form': {
+      padding: '1rem'
+    }
+  }} 
+/>
           </Box>
         )}
       </DialogContent>
