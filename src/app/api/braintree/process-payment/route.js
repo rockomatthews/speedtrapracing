@@ -2,9 +2,29 @@
 import braintree from 'braintree';
 import { NextResponse } from 'next/server';
 
-// Initialize Braintree gateway
+// Validate environment variables
+const REQUIRED_ENV_VARS = {
+  BRAINTREE_MERCHANT_ID: process.env.BRAINTREE_MERCHANT_ID,
+  BRAINTREE_PUBLIC_KEY: process.env.BRAINTREE_PUBLIC_KEY,
+  BRAINTREE_PRIVATE_KEY: process.env.BRAINTREE_PRIVATE_KEY,
+  BRAINTREE_ENVIRONMENT: process.env.BRAINTREE_ENVIRONMENT
+};
+
+// Check for missing environment variables
+const missingVars = Object.entries(REQUIRED_ENV_VARS)
+  .filter(([_, value]) => !value)
+  .map(([key]) => key);
+
+if (missingVars.length > 0) {
+  console.error('Missing required environment variables:', missingVars);
+  throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+}
+
+// Initialize Braintree gateway with explicit environment handling
 const gateway = new braintree.BraintreeGateway({
-  environment: braintree.Environment.Sandbox, // Change to Production for live
+  environment: process.env.BRAINTREE_ENVIRONMENT === 'production'
+    ? braintree.Environment.Production
+    : braintree.Environment.Sandbox,
   merchantId: process.env.BRAINTREE_MERCHANT_ID,
   publicKey: process.env.BRAINTREE_PUBLIC_KEY,
   privateKey: process.env.BRAINTREE_PRIVATE_KEY
@@ -18,11 +38,18 @@ export async function POST(request) {
       paymentMethodNonce, 
       amount, 
       items,
-      // You might also want to accept:
-      // customerId,
-      // shippingAddress,
-      // billingAddress,
+      customerId
     } = body;
+
+    // Log transaction attempt in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Processing payment:', {
+        amount,
+        itemCount: items?.length,
+        environment: process.env.BRAINTREE_ENVIRONMENT,
+        merchantAccountId: process.env.BRAINTREE_MERCHANT_ACCOUNT_ID || 'Not Set'
+      });
+    }
 
     // Validate required fields
     if (!paymentMethodNonce || !amount) {
@@ -32,59 +59,42 @@ export async function POST(request) {
       );
     }
 
-    // Create the transaction
-    const result = await gateway.transaction.sale({
+    // Prepare transaction options
+    const transactionOptions = {
       amount: amount.toString(),
       paymentMethodNonce,
-      // Optional: store the payment method in the vault
+      merchantAccountId: process.env.BRAINTREE_MERCHANT_ACCOUNT_ID || undefined,
       options: {
         submitForSettlement: true,
-        storeInVaultOnSuccess: true,
+        storeInVaultOnSuccess: Boolean(customerId),
         threeDSecure: {
-          required: true // Enable 3D Secure when possible
+          required: true
         }
       },
-      // Optional: include order details
       orderId: `ORDER-${Date.now()}`,
-      // Optional: include customer and line items
-      customer: {
-        // firstName: customer.firstName,
-        // lastName: customer.lastName,
-        // email: customer.email,
-      },
-      // Include line items for PayPal/records
-      lineItems: items.map(item => ({
+      lineItems: items?.map(item => ({
         name: item.title,
         quantity: item.quantity,
         unitAmount: item.price,
         totalAmount: (item.quantity * parseFloat(item.price)).toFixed(2)
-      })),
-      // Optional: include shipping/billing addresses
-      // billing: {
-      //   firstName: billingAddress.firstName,
-      //   lastName: billingAddress.lastName,
-      //   streetAddress: billingAddress.street,
-      //   locality: billingAddress.city,
-      //   region: billingAddress.state,
-      //   postalCode: billingAddress.zip,
-      //   countryCodeAlpha2: billingAddress.country
-      // },
-      // shipping: {
-      //   firstName: shippingAddress.firstName,
-      //   lastName: shippingAddress.lastName,
-      //   streetAddress: shippingAddress.street,
-      //   locality: shippingAddress.city,
-      //   region: shippingAddress.state,
-      //   postalCode: shippingAddress.zip,
-      //   countryCodeAlpha2: shippingAddress.country
-      // }
-    });
+      }))
+    };
+
+    // Add customer information if available
+    if (customerId) {
+      transactionOptions.customerId = customerId;
+    }
+
+    // Log transaction options in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Transaction options:', JSON.stringify(transactionOptions, null, 2));
+    }
+
+    // Create the transaction
+    const result = await gateway.transaction.sale(transactionOptions);
 
     // Handle the result
     if (result.success) {
-      // You might want to store the order in your database here
-      // await db.orders.create({...})
-
       return NextResponse.json({
         success: true,
         transaction: {
@@ -93,7 +103,10 @@ export async function POST(request) {
           amount: result.transaction.amount,
           currencyIsoCode: result.transaction.currencyIsoCode,
           paymentInstrumentType: result.transaction.paymentInstrumentType,
-          // Include additional transaction details as needed
+          merchantAccountId: result.transaction.merchantAccountId,
+          processorResponseCode: result.transaction.processorResponseCode,
+          processorResponseText: result.transaction.processorResponseText,
+          environment: process.env.BRAINTREE_ENVIRONMENT
         }
       }, { status: 200 });
     } else {
@@ -104,6 +117,7 @@ export async function POST(request) {
       console.error('Transaction failed:', {
         message: errorMessage,
         processorResponse,
+        environment: process.env.BRAINTREE_ENVIRONMENT,
         result
       });
 
@@ -111,26 +125,32 @@ export async function POST(request) {
         success: false,
         error: errorMessage,
         processorResponse,
-        code: result.transaction?.processorResponseCode
+        code: result.transaction?.processorResponseCode,
+        environment: process.env.BRAINTREE_ENVIRONMENT
       }, { status: 422 });
     }
 
   } catch (error) {
     // Handle unexpected errors
-    console.error('Payment processing error:', error);
+    console.error('Payment processing error:', {
+      error,
+      environment: process.env.BRAINTREE_ENVIRONMENT
+    });
 
     return NextResponse.json(
       {
         success: false,
         error: 'An unexpected error occurred while processing your payment',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        details: process.env.NODE_ENV === 'development' ? {
+          message: error.message,
+          environment: process.env.BRAINTREE_ENVIRONMENT
+        } : undefined
       },
       { status: 500 }
     );
   }
 }
 
-// Optional: Add additional route handlers for other payment operations
 export async function OPTIONS(request) {
   // Handle CORS preflight requests
   return new NextResponse(null, {

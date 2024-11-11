@@ -1,5 +1,5 @@
 require('./config');
-const medusaClient = require('../lib/medusa');
+const medusaClient = require('../lib/firebase-commerce');
 
 const addHat = async () => {
   try {

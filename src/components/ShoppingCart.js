@@ -1,214 +1,163 @@
-'use client'
+// src/components/ShoppingCart.js
+'use client';
 
 import React, { useState, useEffect } from 'react';
-import dropin from 'braintree-web-drop-in';
-import medusaClient from '@/lib/medusa';
-import {
-  Drawer,
-  List,
-  ListItem,
-  ListItemText,
-  Typography,
-  IconButton,
+import { 
+  Box, 
   Button,
-  Box,
+  Typography,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Alert,
   CircularProgress,
+  Alert,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Badge,
+  Paper
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import CloseIcon from '@mui/icons-material/Close';
+import { 
+  Delete as DeleteIcon,
+  ShoppingCart as ShoppingCartIcon,
+  Close as CloseIcon,
+  ArrowBack as ArrowBackIcon,
+  ArrowForward as ArrowForwardIcon
+} from '@mui/icons-material';
 import { useShoppingCart } from '@/app/hooks/useShoppingCart';
+import { useAuth } from '@/context/AuthContext';  // Add this import
+import dropin from 'braintree-web-drop-in';
+import { useBraintree } from '@/context/BraintreeProvider';
 
-export default function ShoppingCart() {
-  const { cart, removeFromCart, updateQuantity, clearCart } = useShoppingCart();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+function ShoppingCart() {
+  // State management
+  const { braintreeLoaded } = useBraintree();
+  const { user, loading: authLoading } = useAuth(); // Add auth context
+  const { items, removeFromCart, clearCart } = useShoppingCart();
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [braintreeInstance, setBraintreeInstance] = useState(null);
-  const [paymentError, setPaymentError] = useState(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [medusaCartId, setMedusaCartId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
 
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = cart.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0);
-
-  const toggleDrawer = (isOpen) => (event) => {
-    if (event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) {
-      return;
-    }
-    setDrawerOpen(isOpen);
-  };
-
-  const createMedusaCart = async () => {
+  // Initialize Braintree when cart opens
+  const initializeBraintreePayments = async () => {
     try {
-      // Create a new cart in Medusa
-      const response = await medusaClient.carts.create({
-        items: cart.map(item => ({
-          variant_id: item.id,
-          quantity: item.quantity
-        }))
-      });
-
-      if (response.cart) {
-        setMedusaCartId(response.cart.id);
-        return response.cart;
-      } else {
-        throw new Error('Failed to create cart in Medusa');
-      }
-    } catch (error) {
-      console.error('Medusa cart creation error:', error);
-      setPaymentError('Failed to initialize cart. Please try again.');
-      return null;
-    }
-  };
-
-  const setupPaymentSession = async (cartId) => {
-    try {
-      // Create payment sessions for the cart
-      const response = await medusaClient.carts.createPaymentSessions(cartId);
-      
-      if (!response.cart) {
-        throw new Error('Failed to create payment session');
+      if (!braintreeLoaded) {
+        throw new Error('Braintree not loaded');
       }
 
-      // Select Braintree payment provider
-      await medusaClient.carts.setPaymentSession(cartId, {
-        provider_id: 'braintree'
-      });
+      // Clean up any existing instance
+      if (braintreeInstance) {
+        await braintreeInstance.teardown();
+        setBraintreeInstance(null);
+      }
 
-      return response.cart;
-    } catch (error) {
-      console.error('Payment session setup error:', error);
-      setPaymentError('Failed to setup payment. Please try again.');
-      return null;
-    }
-  };
-
-  const initializeBraintree = async () => {
-    try {
-      setPaymentError(null);
-      
-      // First create Medusa cart and setup payment
-      const medusaCart = await createMedusaCart();
-      if (!medusaCart) return;
-
-      const cartWithPayment = await setupPaymentSession(medusaCart.id);
-      if (!cartWithPayment) return;
-
-      // Get Braintree client token
       const tokenResponse = await fetch('/api/braintree/token');
       if (!tokenResponse.ok) {
-        throw new Error('Failed to get payment authorization');
+        throw new Error(`Failed to fetch token: ${tokenResponse.status}`);
       }
-      
-      const { clientToken } = await tokenResponse.json();
 
-      // Initialize Braintree Drop-in UI
-      const instance = await dropin.create({
-        authorization: clientToken,
-        container: '#braintree-drop-in-container',
+      const tokenData = await tokenResponse.json();
+
+      const dropinInstance = await window.braintree.dropin.create({
+        authorization: tokenData.clientToken,
+        container: '#braintree-payment-container',
         paypal: {
           flow: 'checkout',
-          amount: totalPrice.toFixed(2),
-          currency: cart[0]?.currency || 'USD',
-          buttonStyle: {
-            color: 'blue',
-            shape: 'rect',
-            size: 'responsive'
-          }
-        },
-        venmo: {
-          allowNewBrowserTab: false,
-          paymentMethodUsage: 'single_use',
-          allowDesktop: true
-        },
-        applePay: {
-          displayName: 'Your Store Name',
-          paymentRequest: {
-            total: {
-              label: 'Total Amount',
-              amount: totalPrice.toFixed(2)
-            },
-            requiredBillingContactFields: ['postalAddress']
-          }
-        },
-        googlePay: {
-          googlePayVersion: 2,
-          merchantId: process.env.NEXT_PUBLIC_GOOGLE_MERCHANT_ID,
-          transactionInfo: {
-            totalPriceStatus: 'FINAL',
-            totalPrice: totalPrice.toFixed(2),
-            currencyCode: cart[0]?.currency || 'USD'
-          },
-          cardRequirements: {
-            billingAddressRequired: true
-          }
-        },
-        card: {
-          vault: {
-            allowVaulting: true
-          }
+          amount: calculateCartTotal().toFixed(2),
+          currency: 'USD'
         }
       });
 
-      setBraintreeInstance(instance);
+      setBraintreeInstance(dropinInstance);
+
     } catch (error) {
-      console.error('Braintree initialization error:', error);
-      setPaymentError('Failed to initialize payment system. Please try again.');
+      console.error('Checkout initialization error:', error);
+      setErrorMessage(error.message);
     }
   };
 
-  const handleCheckout = async () => {
-    if (!braintreeInstance || !medusaCartId) {
-      setPaymentDialogOpen(true);
+  // Calculate total cart value
+  const calculateCartTotal = () => {
+    return items.reduce((total, item) => {
+      return total + (parseFloat(item.price) * item.quantity);
+    }, 0);
+  };
+
+  // Handle opening the cart
+  const handleOpenCart = () => {
+    setIsCartOpen(true);
+    if (items.length > 0) {
+      initializeBraintreePayments();
+    }
+  };
+
+  // Handle closing the cart
+  const handleCloseCart = () => {
+    setIsCartOpen(false);
+    setErrorMessage(null);
+  };
+
+  // Handle removing items
+  const handleRemoveItem = (itemId) => {
+    removeFromCart(itemId);
+    if (items.length === 1) { // If this is the last item
+      handleCloseCart();
+    }
+  };
+
+  // Handle checkout process
+  const handleCheckoutSubmit = async (event) => {
+    if (!braintreeInstance) {
+      setErrorMessage('Payment system not initialized');
       return;
     }
-
+  
+    setIsLoading(true);
+    setErrorMessage(null);
+  
     try {
-      setIsProcessing(true);
-      setPaymentError(null);
-
-      // Get payment method nonce from Braintree
       const { nonce } = await braintreeInstance.requestPaymentMethod();
-
-      // Update cart payment session with nonce
-      await medusaClient.carts.updatePaymentSession(medusaCartId, 'braintree', {
-        nonce: nonce
-      });
-
-      // Complete the cart/order in Medusa
-      const { cart: completedCart } = await medusaClient.carts.complete(medusaCartId);
-
-      if (completedCart.payment_status !== 'captured') {
-        throw new Error('Payment not captured');
-      }
-
-      // Handle successful payment
-      setPaymentSuccess(true);
-      clearCart();
       
-      // Create order record in Medusa
-      await medusaClient.orders.retrieve(completedCart.id);
-
-      setTimeout(() => {
-        setPaymentDialogOpen(false);
-        setDrawerOpen(false);
-      }, 2000);
-
+      const response = await fetch('/api/braintree/process-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paymentMethodNonce: nonce,
+          amount: calculateCartTotal().toFixed(2),
+          items: items.map(item => ({
+            title: item.title,
+            quantity: item.quantity,
+            price: item.price
+          }))
+        }),
+      });
+  
+      const result = await response.json();
+  
+      if (result.success) {
+        clearCart();
+        handleCloseCart();
+        window.location.href = '/checkout/success';
+      } else {
+        throw new Error(result.error || 'Payment processing failed');
+      }
     } catch (error) {
-      console.error('Payment processing error:', error);
-      setPaymentError(error.message || 'Payment failed. Please try again.');
+      console.error('Checkout error:', error);
+      setErrorMessage(error.message);
     } finally {
-      setIsProcessing(false);
+      setIsLoading(false);
     }
   };
 
-  // Cleanup function
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (braintreeInstance) {
@@ -217,157 +166,316 @@ export default function ShoppingCart() {
     };
   }, [braintreeInstance]);
 
-  // Initialize when payment dialog opens
-  useEffect(() => {
-    if (paymentDialogOpen) {
-      initializeBraintree();
-    }
-  }, [paymentDialogOpen]);
+  // Render cart icon with badge
+  const CartIcon = () => (
+    <Box sx={{ position: 'fixed', right: '20px', top: '20px', zIndex: 1200 }}>
+      <IconButton 
+        onClick={handleOpenCart}
+        sx={{
+          backgroundColor: 'white',
+          boxShadow: 3,
+          '&:hover': {
+            backgroundColor: 'white',
+            boxShadow: 6,
+          }
+        }}
+      >
+        <Badge badgeContent={items.length} color="primary">
+          <ShoppingCartIcon />
+        </Badge>
+      </IconButton>
+    </Box>
+  );
+
+  // Render cart dialog
+  const CartDialog = () => (
+    <Dialog 
+      open={isCartOpen}
+      onClose={handleCloseCart}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          position: 'fixed',
+          right: 0,
+          margin: 0,
+          height: '100%',
+          maxHeight: '100vh',
+          borderRadius: '0',
+          width: {
+            xs: '100%',
+            sm: '500px'
+          },
+          overflow: 'hidden' // Prevent double scrollbars
+        }
+      }}
+    >
+      {/* Dialog Header */}
+      <DialogTitle 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          padding: 2,
+          borderBottom: '1px solid',
+          borderColor: 'divider'
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography 
+            variant="h6" 
+            component="div"
+            sx={{ 
+              fontSize: '1.25rem', 
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            Shopping Cart
+            {items.length > 0 && (
+              <Typography 
+                component="span" 
+                variant="subtitle2" 
+                sx={{ 
+                  ml: 1, 
+                  color: 'text.secondary',
+                  display: 'inline-flex',
+                  alignItems: 'center' 
+                }}
+              >
+                ({items.length} {items.length === 1 ? 'item' : 'items'})
+              </Typography>
+            )}
+          </Typography>
+        </Box>
+        <IconButton 
+          onClick={handleCloseCart} 
+          size="small"
+          aria-label="close cart"
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+  
+      {/* Dialog Content */}
+      <DialogContent sx={{ p: 2, overflowY: 'auto' }}>
+        {/* Loading State */}
+        {isLoading && (
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              p: 4 
+            }}
+          >
+            <CircularProgress />
+            <Typography sx={{ ml: 2 }}>
+              Preparing checkout...
+            </Typography>
+          </Box>
+        )}
+  
+        {/* Error Messages */}
+        {errorMessage && (
+          <Alert 
+            severity="error" 
+            sx={{ 
+              marginBottom: 2,
+              '& .MuiAlert-message': {
+                width: '100%'
+              }
+            }}
+            action={
+              <Button 
+                color="inherit" 
+                size="small" 
+                onClick={() => initializeBraintreePayments()}
+              >
+                Retry
+              </Button>
+            }
+          >
+            {errorMessage}
+          </Alert>
+        )}
+  
+        {/* Empty Cart State */}
+        {items.length === 0 ? (
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              py: 4
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2 }}>Your cart is empty</Typography>
+            <Button 
+              variant="contained" 
+              onClick={handleCloseCart}
+              startIcon={<ShoppingCartIcon />}
+            >
+              Continue Shopping
+            </Button>
+          </Box>
+        ) : (
+          <Box>
+            {/* Cart Items Table */}
+            <TableContainer 
+              component={Paper} 
+              sx={{ 
+                marginBottom: 2,
+                boxShadow: 'none',
+                border: '1px solid',
+                borderColor: 'divider'
+              }}
+            >
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Item</TableCell>
+                    <TableCell align="right">Price</TableCell>
+                    <TableCell align="right">Qty</TableCell>
+                    <TableCell align="right">Total</TableCell>
+                    <TableCell padding="checkbox"></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <Typography variant="body2">{item.title}</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        ${parseFloat(item.price).toFixed(2)}
+                      </TableCell>
+                      <TableCell align="right">
+                        {item.quantity}
+                      </TableCell>
+                      <TableCell align="right">
+                        ${(parseFloat(item.price) * item.quantity).toFixed(2)}
+                      </TableCell>
+                      <TableCell padding="checkbox">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleRemoveItem(item.id)}
+                          aria-label={`Remove ${item.title} from cart`}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell 
+                      colSpan={3} 
+                      align="right"
+                      sx={{ 
+                        borderBottom: 'none',
+                        typography: 'subtitle1'
+                      }}
+                    >
+                      <strong>Total:</strong>
+                    </TableCell>
+                    <TableCell 
+                      align="right" 
+                      colSpan={2}
+                      sx={{ 
+                        borderBottom: 'none',
+                        typography: 'h6'
+                      }}
+                    >
+                      <strong>${calculateCartTotal().toFixed(2)}</strong>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+  
+            {/* Braintree Payment Container */}
+            <Box 
+              id="braintree-payment-container" 
+              sx={{ 
+                marginBottom: 2,
+                minHeight: '300px',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1,
+                p: 2,
+                '& iframe': {
+                  width: '100% !important',
+                  minHeight: '200px'
+                },
+                '& .braintree-option': {
+                  borderColor: 'divider'
+                },
+                '& .braintree-upper-container': {
+                  borderBottom: '1px solid',
+                  borderColor: 'divider'
+                }
+              }} 
+            />
+          </Box>
+        )}
+      </DialogContent>
+  
+      {/* Dialog Actions */}
+      <DialogActions 
+        sx={{ 
+          padding: 2,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          justifyContent: 'space-between'
+        }}
+      >
+        <Button 
+          onClick={handleCloseCart}
+          startIcon={<ArrowBackIcon />}
+        >
+          Continue Shopping
+        </Button>
+        {items.length > 0 && (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleCheckoutSubmit}
+            disabled={isLoading || !braintreeInstance}
+            endIcon={!isLoading && <ArrowForwardIcon />}
+            sx={{ 
+              minWidth: 150,
+              position: 'relative'
+            }}
+          >
+            {isLoading ? (
+              <>
+                <CircularProgress 
+                  size={24} 
+                  color="inherit" 
+                  sx={{ 
+                    position: 'absolute',
+                    left: '50%',
+                    marginLeft: '-12px'
+                  }}
+                />
+                <span style={{ visibility: 'hidden' }}>Processing</span>
+              </>
+            ) : (
+              `Checkout ($${calculateCartTotal().toFixed(2)})`
+            )}
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
+  );
 
   return (
     <>
-      <Button
-        variant="outlined"
-        startIcon={<ShoppingCartIcon />}
-        onClick={toggleDrawer(true)}
-        sx={{ position: 'fixed', top: 80, right: 20, zIndex: 1000 }}
-      >
-        Cart ({totalItems})
-      </Button>
-
-      <Drawer 
-        anchor="right" 
-        open={drawerOpen} 
-        onClose={toggleDrawer(false)}
-      >
-        <Box sx={{ width: 300, p: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            Shopping Cart
-          </Typography>
-          
-          <List>
-            {cart.map((item) => (
-              <ListItem
-                key={item.id}
-                secondaryAction={
-                  <IconButton 
-                    edge="end" 
-                    aria-label="delete" 
-                    onClick={() => removeFromCart(item.id)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                }
-              >
-                <ListItemText
-                  primary={item.title}
-                  secondary={`${item.currency} ${item.price} x ${item.quantity}`}
-                />
-                <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
-                  <Button 
-                    size="small" 
-                    onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                  >
-                    -
-                  </Button>
-                  <Typography sx={{ mx: 1 }}>{item.quantity}</Typography>
-                  <Button 
-                    size="small" 
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                  >
-                    +
-                  </Button>
-                </Box>
-              </ListItem>
-            ))}
-          </List>
-
-          <Typography variant="subtitle1" sx={{ mt: 2 }}>
-            Total: {cart[0]?.currency} {totalPrice.toFixed(2)}
-          </Typography>
-
-          <Button
-            variant="contained"
-            color="primary"
-            fullWidth
-            sx={{ mt: 2 }}
-            disabled={cart.length === 0}
-            onClick={() => setPaymentDialogOpen(true)}
-          >
-            Proceed to Checkout
-          </Button>
-        </Box>
-      </Drawer>
-
-      <Dialog
-        open={paymentDialogOpen}
-        onClose={() => !isProcessing && setPaymentDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            Complete Your Purchase
-            {!isProcessing && (
-              <IconButton 
-                onClick={() => setPaymentDialogOpen(false)}
-                size="small"
-              >
-                <CloseIcon />
-              </IconButton>
-            )}
-          </Box>
-        </DialogTitle>
-
-        <DialogContent>
-          {paymentError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {paymentError}
-            </Alert>
-          )}
-
-          {paymentSuccess && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Payment successful! Thank you for your purchase.
-            </Alert>
-          )}
-
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Order Summary
-            </Typography>
-            {cart.map((item) => (
-              <Typography key={item.id} variant="body2">
-                {item.title} x {item.quantity} - {item.currency} {(item.price * item.quantity).toFixed(2)}
-              </Typography>
-            ))}
-            <Typography variant="subtitle1" sx={{ mt: 1 }}>
-              Total: {cart[0]?.currency} {totalPrice.toFixed(2)}
-            </Typography>
-          </Box>
-
-          <div id="braintree-drop-in-container" />
-        </DialogContent>
-
-        <DialogActions sx={{ p: 2 }}>
-          <Button
-            variant="contained"
-            color="primary"
-            fullWidth
-            onClick={handleCheckout}
-            disabled={isProcessing || !braintreeInstance || paymentSuccess}
-          >
-            {isProcessing ? (
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <CircularProgress size={24} sx={{ mr: 1 }} />
-                Processing...
-              </Box>
-            ) : (
-              `Pay ${cart[0]?.currency} ${totalPrice.toFixed(2)}`
-            )}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <CartIcon />
+      <CartDialog />
     </>
   );
 }
+
+export default ShoppingCart;

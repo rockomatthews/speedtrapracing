@@ -1,19 +1,6 @@
-const { initializeApp } = require("firebase/app");
-const { getFirestore, doc, setDoc, collection, query, getDocs, orderBy } = require('firebase/firestore');
-
-// Complete Firebase configuration
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
-};
-
-// Initialize Firebase application
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// src/lib/firebase-commerce.js
+import { db } from './firebase';  // Import db from centralized Firebase initialization
+import { collection, doc, setDoc, query, getDocs, orderBy } from 'firebase/firestore';
 
 // Complete ecommerce object with all methods
 const ecommerce = {
@@ -29,26 +16,30 @@ const ecommerce = {
           id: newProductRef.id,
           title: productData.title,
           description: productData.description,
-          price: (productData.variants[0].prices[0].amount / 100).toString(),
-          currency: productData.variants[0].prices[0].currency_code,
-          category: productData.categories ? productData.categories[0] : "Uncategorized",
-          inventory: productData.variants[0].inventory_quantity.toString(),
-          size: productData.options[0].values[0],
+          price: productData.variants?.[0]?.prices?.[0]?.amount 
+            ? (productData.variants[0].prices[0].amount / 100).toString()
+            : '0',
+          currency: productData.variants?.[0]?.prices?.[0]?.currency_code || 'USD',
+          category: productData.categories?.[0] || "Uncategorized",
+          inventory: productData.variants?.[0]?.inventory_quantity?.toString() || '0',
+          size: productData.options?.[0]?.values?.[0] || '',
           images: [
             {
-              src: productData.images[0],
-              alt: productData.title
+              src: productData.images?.[0] || '',
+              alt: productData.title || ''
             }
           ],
-          thumbnail: productData.thumbnail,
-          handle: productData.handle,
+          thumbnail: productData.thumbnail || '',
+          handle: productData.handle || '',
           variants: [
             {
               id: `${newProductRef.id}-default`,
-              title: productData.variants[0].title,
-              price: (productData.variants[0].prices[0].amount / 100).toString(),
-              currency: productData.variants[0].prices[0].currency_code,
-              inventory_quantity: productData.variants[0].inventory_quantity
+              title: productData.variants?.[0]?.title || '',
+              price: productData.variants?.[0]?.prices?.[0]?.amount 
+                ? (productData.variants[0].prices[0].amount / 100).toString()
+                : '0',
+              currency: productData.variants?.[0]?.prices?.[0]?.currency_code || 'USD',
+              inventory_quantity: productData.variants?.[0]?.inventory_quantity || 0
             }
           ],
           createdAt: new Date().toISOString(),
@@ -116,8 +107,33 @@ const ecommerce = {
         throw error;
       }
     }
+  },
+  
+  // Add cart functionality
+  carts: {
+    create: async (cartData) => {
+      try {
+        const cartsRef = collection(db, 'carts');
+        const newCartRef = doc(cartsRef);
+
+        const firebaseCart = {
+          id: newCartRef.id,
+          items: cartData.items || [],
+          total: cartData.total || 0,
+          status: 'created',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        await setDoc(newCartRef, firebaseCart);
+
+        return { cart: firebaseCart };
+      } catch (error) {
+        console.error('Error creating cart:', error);
+        throw error;
+      }
+    }
   }
 };
 
-// Export the ecommerce object
-module.exports = ecommerce;
+export default ecommerce;

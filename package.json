@@ -16,17 +16,17 @@
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
     "@medusajs/medusa-js": "^6.1.9",
-    "@mui/icons-material": "^6.1.2",
+    "@mui/icons-material": "^6.1.6",
     "@mui/lab": "^6.0.0-beta.10",
-    "@mui/material": "^6.1.2",
+    "@mui/material": "^6.1.6",
     "@mui/x-date-pickers-pro": "^7.19.0",
     "@stripe/stripe-js": "^4.8.0",
     "axios": "^1.7.7",
+    "braintree": "^3.26.0",
     "braintree-web": "^3.112.0",
     "braintree-web-drop-in": "^1.43.0",
     "contentful": "^11.0.3",
     "date-fns": "^4.1.0",
-    "dotenv": "^16.4.5",
     "firebase": "^10.14.1",
     "firebase-admin": "^12.7.0",
     "graphql": "^16.9.0",
@@ -41,5 +41,8 @@
     "slick-carousel": "^1.8.1",
     "stripe": "^17.2.0",
     "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.5"
   }
 }

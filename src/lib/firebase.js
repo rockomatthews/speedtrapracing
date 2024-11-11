@@ -1,8 +1,8 @@
-const { initializeApp, getApps } = require("firebase/app");
-const { getAnalytics } = require("firebase/analytics");
-const { getFirestore } = require('firebase/firestore');
-const { getAuth } = require("firebase/auth");
-const { getStorage } = require("firebase/storage");
+// src/lib/firebase.js
+import { initializeApp } from "firebase/app";
+import { getFirestore } from 'firebase/firestore';
+import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,25 +13,12 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-let app;
-let db;
-let auth;
-let analytics;
-let storage;
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 
-if (!getApps().length && firebaseConfig?.projectId) {
-  try {
-    app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    auth = getAuth(app);
-    storage = getStorage(app);
-    
-    if (typeof window !== 'undefined' && 'measurementId' in firebaseConfig) {
-      analytics = getAnalytics(app);
-    }
-  } catch (error) {
-    console.error('Firebase initialization error:', error);
-  }
-}
+// Initialize services
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
 
-module.exports = { app, auth, db, analytics, storage };
+export { app, auth, db, storage };
