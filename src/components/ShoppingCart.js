@@ -40,6 +40,7 @@ import { useBraintree } from '@/context/BraintreeProvider';
 
 function ShoppingCart() {
   // Core state management
+  const { tokenData, getToken } = useBraintree();
   const { items, removeFromCart, clearCart } = useShoppingCart();
   const { user } = useAuth();
 
@@ -53,7 +54,8 @@ function ShoppingCart() {
   // State for Braintree
   const [clientToken, setClientToken] = useState(null);
   const [braintreeInstance, setBraintreeInstance] = useState(null);
-  
+  const containerRef = useRef(null);
+
   // Refs for tracking initialization
   const tokenFetchInProgress = useRef(false);
   const dropinInitInProgress = useRef(false);
@@ -111,72 +113,54 @@ function ShoppingCart() {
   };
 
   // Braintree initialization function
-  const initializeBraintree = async (token) => {
-    if (dropinInitInProgress.current || !window.braintree) return;
-    
+  const initializeBraintree = async () => {
     try {
-      dropinInitInProgress.current = true;
-      const dropinInstance = await window.braintree.dropin.create({
-        authorization: token,
+      // Wait a bit for the container to be ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Check if container exists
+      const container = document.getElementById('braintree-payment-container');
+      if (!container) {
+        throw new Error('Payment container not found');
+      }
+
+      const instance = await window.braintree.dropin.create({
+        authorization: tokenData.clientToken,
         container: '#braintree-payment-container',
-        card: {
-          overrides: {
-            styles: {
-              input: {
-                'font-size': '16px',
-                'font-family': 'inherit'
-              }
-            }
-          }
-        },
-        paypal: false,
-        venmo: false,
-        applePay: false,
-        googlePay: false
+        card: true,
+        paypal: false
       });
 
-      if (!isComponentMounted.current) {
-        await dropinInstance.teardown();
-        return;
-      }
-
-      setBraintreeInstance(dropinInstance);
-      setErrorMessage(null);
+      setBraintreeInstance(instance);
     } catch (error) {
-      console.error('Dropin creation error:', error);
-      if (isComponentMounted.current) {
-        setErrorMessage('Failed to load payment form');
-      }
-    } finally {
-      dropinInitInProgress.current = false;
+      console.error('Braintree initialization error:', error);
+      setErrorMessage(error.message);
     }
   };
 
   // Cart open handler
   const handleOpenCart = async () => {
-    setIsCartOpen(true);
-    setIsLoading(true);
-
     try {
-      // Get token if we don't have one
-      const token = clientToken || await fetchClientToken();
-      if (!token) {
-        throw new Error('Could not get payment token');
+      setIsLoading(true);
+      setIsCartOpen(true);
+
+      if (!tokenData) {
+        await getToken();
       }
 
-      // Initialize dropin if we don't have an instance
-      if (!braintreeInstance) {
-        await initializeBraintree(token);
-      }
     } catch (error) {
-      console.error('Cart opening error:', error);
+      console.error('Cart initialization error:', error);
       setErrorMessage(error.message);
     } finally {
-      if (isComponentMounted.current) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isCartOpen && tokenData?.clientToken && !braintreeInstance) {
+      initializeBraintree();
+    }
+  }, [isCartOpen, tokenData]);
 
   // Cart close handler
   const handleCloseCart = async () => {
@@ -427,7 +411,7 @@ function ShoppingCart() {
   const CartDialog = useCallback(() => (
     <Dialog 
       open={isCartOpen}
-      onClose={isLoading ? undefined : handleCloseCart}
+      onClose={handleCloseCart}
       maxWidth="md"
       fullWidth
       PaperProps={{
@@ -481,7 +465,7 @@ function ShoppingCart() {
           <CloseIcon />
         </IconButton>
       </DialogTitle>
-
+  
       <DialogContent sx={{ p: 2 }}>
         {/* Loading Overlay */}
         {isLoading && (
@@ -502,11 +486,11 @@ function ShoppingCart() {
           >
             <CircularProgress />
             <Typography sx={{ mt: 2 }}>
-              {!clientToken ? 'Initializing payment...' : 'Processing...'}
+              {!tokenData ? 'Initializing payment...' : 'Processing...'}
             </Typography>
           </Box>
         )}
-
+  
         {/* Error Message */}
         {errorMessage && (
           <Alert 
@@ -518,8 +502,8 @@ function ShoppingCart() {
                 size="small"
                 onClick={() => {
                   setErrorMessage(null);
-                  if (!clientToken) {
-                    fetchClientToken();
+                  if (!tokenData) {
+                    getToken();
                   }
                 }}
                 disabled={isLoading}
@@ -531,11 +515,143 @@ function ShoppingCart() {
             {errorMessage}
           </Alert>
         )}
-
-        <CartContent />
+  
+        {/* Cart Content */}
+        {items.length === 0 ? (
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            alignItems: 'center',
+            py: 4,
+            gap: 2
+          }}>
+            <ShoppingCartIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
+            <Typography variant="h6">Your cart is empty</Typography>
+            <Button 
+              variant="contained" 
+              onClick={handleCloseCart}
+              startIcon={<ArrowBackIcon />}
+            >
+              Continue Shopping
+            </Button>
+          </Box>
+        ) : (
+          <>
+            {/* Cart Items Table */}
+            <TableContainer 
+              component={Paper} 
+              sx={{ 
+                boxShadow: 'none',
+                border: '1px solid',
+                borderColor: 'divider',
+                mb: 2
+              }}
+            >
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Item</TableCell>
+                    <TableCell align="right">Price</TableCell>
+                    <TableCell align="right">Qty</TableCell>
+                    <TableCell align="right">Total</TableCell>
+                    <TableCell padding="checkbox" />
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.title}</TableCell>
+                      <TableCell align="right">${parseFloat(item.price).toFixed(2)}</TableCell>
+                      <TableCell align="right">{item.quantity}</TableCell>
+                      <TableCell align="right">
+                        ${(parseFloat(item.price) * item.quantity).toFixed(2)}
+                      </TableCell>
+                      <TableCell padding="checkbox">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleRemoveItem(item.id)}
+                          disabled={isLoading}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell colSpan={3} align="right" sx={{ fontWeight: 'bold' }}>
+                      Total:
+                    </TableCell>
+                    <TableCell align="right" colSpan={2} sx={{ fontWeight: 'bold' }}>
+                      ${calculateCartTotal().toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+  
+            {/* Braintree Payment Container */}
+            <Box 
+              id="braintree-payment-container" 
+              ref={containerRef}
+              sx={{ 
+                minHeight: '250px',
+                width: '100%',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1,
+                p: 2,
+                mb: 2,
+                bgcolor: 'background.paper',
+                '& iframe': {
+                  width: '100% !important'
+                }
+              }} 
+            />
+  
+            {/* Cart Actions */}
+            <DialogActions sx={{ 
+              pt: 2,
+              borderTop: '1px solid',
+              borderColor: 'divider'
+            }}>
+              <Button 
+                onClick={handleCloseCart}
+                startIcon={<ArrowBackIcon />}
+                disabled={isLoading}
+              >
+                Continue Shopping
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleCheckoutSubmit}
+                disabled={isLoading || !braintreeInstance}
+                endIcon={!isLoading && <ArrowForwardIcon />}
+              >
+                {isLoading ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : (
+                  `Pay $${calculateCartTotal().toFixed(2)}`
+                )}
+              </Button>
+            </DialogActions>
+          </>
+        )}
       </DialogContent>
     </Dialog>
-  ), [isCartOpen, isLoading, items.length, errorMessage, clientToken]);
+  ), [
+    isCartOpen,
+    isLoading,
+    items,
+    errorMessage,
+    tokenData,
+    braintreeInstance,
+    handleCloseCart,
+    handleRemoveItem,
+    handleCheckoutSubmit,
+    calculateCartTotal,
+    containerRef
+  ]);
 
   // Main render
   return (

@@ -1,31 +1,29 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
-import Script from 'next/script';
+import { createContext, useContext, useState } from 'react';
 
 const BraintreeContext = createContext();
 
 export function BraintreeProvider({ children }) {
-  const [braintreeLoaded, setBraintreeLoaded] = useState(false);
+  const [tokenData, setTokenData] = useState(null);
 
-  useEffect(() => {
-    // Check if Braintree script is loaded
-    if (window.braintree) {
-      setBraintreeLoaded(true);
+  const getToken = async () => {
+    // Only fetch if we don't have it
+    if (!tokenData) {
+      const response = await fetch('/api/braintree/token');
+      const data = await response.json();
+      setTokenData(data);
     }
-  }, []);
+    return tokenData;
+  };
 
   return (
-    <BraintreeContext.Provider value={{ braintreeLoaded }}>
+    <BraintreeContext.Provider value={{ tokenData, getToken }}>
       {children}
     </BraintreeContext.Provider>
   );
 }
 
 export function useBraintree() {
-  const context = useContext(BraintreeContext);
-  if (context === undefined) {
-    throw new Error('useBraintree must be used within a BraintreeProvider');
-  }
-  return context;
+  return useContext(BraintreeContext);
 }
