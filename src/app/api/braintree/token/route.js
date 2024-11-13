@@ -1,27 +1,26 @@
+// src/app/api/braintree/token/route.js
 import { NextResponse } from 'next/server';
-import { braintreeService } from '../../../../lib/braintree-service';
+import braintree from 'braintree';
 
-export async function GET(request) {
+const gateway = new braintree.BraintreeGateway({
+  environment: braintree.Environment.Production,
+  merchantId: process.env.BRAINTREE_MERCHANT_ID,
+  publicKey: process.env.BRAINTREE_PUBLIC_KEY,
+  privateKey: process.env.BRAINTREE_PRIVATE_KEY
+});
+
+export async function GET() {
   try {
-    const clientToken = await braintreeService.generateToken();
-
+    const response = await gateway.clientToken.generate();
     return NextResponse.json({
       success: true,
-      clientToken,
-      config: {
-        environment: 'production',
-        merchantId: process.env.NEXT_PUBLIC_BRAINTREE_MERCHANT_ID
-      }
+      clientToken: response.clientToken
     });
-
-  } catch (error) {
-    console.error('Token Generation Error:', error);
-
-    return NextResponse.json({
-      success: false,
-      error: process.env.NODE_ENV === 'development' 
-        ? error.message 
-        : 'Failed to generate payment token'
+  } catch (err) {
+    console.error('Token generation error:', err);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Failed to generate client token' 
     }, { status: 500 });
   }
 }
