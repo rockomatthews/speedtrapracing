@@ -5,6 +5,7 @@ import ThemeRegistry from './ThemeRegistry';
 import { Box } from '@mui/material';
 import { customFont } from './fonts.js';
 import { AuthProvider } from '../context/AuthContext';
+import Script from 'next/script';
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -29,6 +30,14 @@ export default function RootLayout({ children }) {
       lang="en" 
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
+      <head>
+        {/* Braintree Client SDK */}
+        <Script 
+          src="https://js.braintreegateway.com/web/dropin/1.43.0/js/dropin.min.js"
+          strategy="lazyOnload"
+          id="braintree-script"
+        />
+      </head>
       <body>
         <AuthProvider>
           <ThemeRegistry>
@@ -36,7 +45,10 @@ export default function RootLayout({ children }) {
             <Box 
               component="main" 
               sx={{ 
-                marginTop: '64px'
+                marginTop: '64px',
+                minHeight: 'calc(100vh - 64px)',
+                display: 'flex',
+                flexDirection: 'column'
               }}
             >
               {children}

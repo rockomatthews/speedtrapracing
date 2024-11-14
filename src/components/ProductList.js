@@ -1,16 +1,17 @@
 // src/components/ProductList.js
-'use client';
-
 import React from 'react';
-import Container from '@mui/material/Container';
-import Grid from '@mui/material/Grid';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardMedia from '@mui/material/CardMedia';
-import Typography from '@mui/material/Typography';
-import Box from '@mui/material/Box';
+import { 
+  Container,
+  Grid,
+  Card,
+  CardContent,
+  CardMedia,
+  Typography,
+  Box,
+  Button
+} from '@mui/material';
 
-export default function ProductList({ products, error }) {
+export default function ProductList({ products, error, onAddToCart }) {
   if (error) {
     return (
       <Typography color="error" align="center">
@@ -18,6 +19,13 @@ export default function ProductList({ products, error }) {
       </Typography>
     );
   }
+
+  const formatPrice = (price, currency) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD'
+    }).format(price);
+  };
 
   return (
     <Container maxWidth="lg" sx={{ py: 8 }}>
@@ -27,38 +35,55 @@ export default function ProductList({ products, error }) {
       
       {products.length > 0 ? (
         <Grid container spacing={4}>
-          {products.map((product) => (
-            <Grid item key={product.id} xs={12} sm={6} md={4}>
-              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                {product.images && product.images[0] ? (
-                  <CardMedia
-                    component="img"
-                    sx={{
-                      aspectRatio: '4/3',
-                      objectFit: 'cover',
-                    }}
-                    image={product.images[0].src}
-                    alt={product.images[0].alt || product.title}
-                  />
-                ) : (
-                  <Box sx={{ aspectRatio: '4/3', bgcolor: 'grey.200', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    No image available
-                  </Box>
-                )}
-                <CardContent>
-                  <Typography variant="h6" component="div">
-                    {product.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {product.category}
-                  </Typography>
-                  <Typography variant="subtitle1">
-                    {product.currency} {parseFloat(product.price).toFixed(2)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+          {products.map((product) => {
+            const price = product.variants?.[0]?.prices?.[0]?.amount || 0;
+            const displayPrice = price / 100; // Convert from cents to dollars
+            const currency = product.variants?.[0]?.prices?.[0]?.currency_code || 'USD';
+
+            return (
+              <Grid item key={product.id} xs={12} sm={6} md={4}>
+                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  {product.images && product.images[0] ? (
+                    <CardMedia
+                      component="img"
+                      sx={{
+                        aspectRatio: '4/3',
+                        objectFit: 'cover',
+                      }}
+                      image={product.images[0].src}
+                      alt={product.images[0].alt || product.title}
+                    />
+                  ) : (
+                    <Box sx={{ aspectRatio: '4/3', bgcolor: 'grey.200', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      No image available
+                    </Box>
+                  )}
+                  <CardContent>
+                    <Typography variant="h6" component="div">
+                      {product.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {product.category}
+                    </Typography>
+                    <Typography variant="subtitle1" sx={{ mb: 2 }}>
+                      {formatPrice(displayPrice, currency)}
+                    </Typography>
+                    <Button 
+                      variant="contained" 
+                      fullWidth
+                      onClick={() => onAddToCart({
+                        ...product,
+                        displayPrice,
+                        currency
+                      })}
+                    >
+                      Add to Cart
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
         </Grid>
       ) : (
         <Typography variant="h5" align="center" sx={{ mt: 4 }}>
