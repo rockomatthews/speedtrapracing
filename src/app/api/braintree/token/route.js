@@ -23,13 +23,21 @@ export async function GET() {
 
     const gateway = new braintree.BraintreeGateway({
       environment: braintree.Environment.Production,
-      merchantId: process.env.BRAINTREE_MERCHANT_ID.trim(),
-      publicKey: process.env.BRAINTREE_PUBLIC_KEY.trim(),
-      privateKey: process.env.BRAINTREE_PRIVATE_KEY.trim()
+      merchantId: 'nw8dgz48gg9sr53b',
+      publicKey: '3sb3yt7vnrwsc4wr',
+      privateKey: 'a44e7fae1ddcc314e195d3998406afed'
     });
 
-    const response = await gateway.clientToken.generate();
+    // Generate a client token with merchant account ID
+    const response = await gateway.clientToken.generate({
+      merchantAccountId: 'nw8dgz48gg9sr53b'
+    });
+    
     console.log('Token generated successfully');
+
+    if (!response.clientToken) {
+      throw new Error('Failed to generate client token');
+    }
 
     return NextResponse.json({
       success: true,

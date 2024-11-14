@@ -1,10 +1,7 @@
-
-
-
 // src/components/ShoppingCart.js
 'use client';
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
 import { 
   Box, 
   Button,
@@ -26,276 +23,402 @@ import {
   Paper,
   Snackbar
 } from '@mui/material';
+
 import { 
   Delete as DeleteIcon,
   ShoppingCart as ShoppingCartIcon,
   Close as CloseIcon,
   ArrowBack as ArrowBackIcon,
-  ArrowForward as ArrowForwardIcon,
-  Warning as WarningIcon
+  ArrowForward as ArrowForwardIcon
 } from '@mui/icons-material';
+
 import { useShoppingCart } from '@/app/hooks/useShoppingCart';
 import { useAuth } from '@/context/AuthContext';
-import { useBraintree } from '@/context/BraintreeProvider';
+import { useBraintree } from '@/context/BraintreeProvider'; 
 
 function ShoppingCart() {
-  // Core state management
-  const { tokenData, getToken } = useBraintree();
-  const { items, removeFromCart, clearCart } = useShoppingCart();
-  const { user } = useAuth();
+  // Context initialization
+  const { isScriptsLoaded } = useBraintree();
+  const shoppingCartContext = useShoppingCart();
+  const items = shoppingCartContext.items;
+  const removeFromCart = shoppingCartContext.removeFromCart;
+  const clearCart = shoppingCartContext.clearCart;
+  const dropinContainerRef = useRef(null);
 
-  // State for UI
+  const authContext = useAuth();
+  const user = authContext.user;
+
+  // Component state initialization with explicit naming
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(null);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [isLoadingState, setIsLoadingState] = useState(false);
+  const [errorMessageState, setErrorMessageState] = useState(null);
+  const [braintreeInstanceState, setBraintreeInstanceState] = useState(null);
+  const [snackbarOpenState, setSnackbarOpenState] = useState(false);
+  const [snackbarMessageState, setSnackbarMessageState] = useState('');
 
-  // State for Braintree
-  const [clientToken, setClientToken] = useState(null);
-  const [braintreeInstance, setBraintreeInstance] = useState(null);
-  const containerRef = useRef(null);
-
-  // Refs for tracking initialization
-  const tokenFetchInProgress = useRef(false);
-  const dropinInitInProgress = useRef(false);
+  // Component mount tracking for cleanup
   const isComponentMounted = useRef(true);
 
-  // Calculate total with memoization
-  const calculateCartTotal = useCallback(() => {
-    return items.reduce((total, item) => {
-      const itemPrice = parseFloat(item.price) || 0;
-      const quantity = parseInt(item.quantity) || 0;
-      return total + (itemPrice * quantity);
+  // Cart total calculation with full implementation
+  const calculateCartTotal = useCallback(function calculateCartTotalAmount() {
+    const totalAmount = items.reduce(function calculateTotal(accumulator, currentItem) {
+      const itemPrice = parseFloat(currentItem.price);
+      const itemQuantity = currentItem.quantity;
+      const itemTotal = itemPrice * itemQuantity;
+      return accumulator + itemTotal;
     }, 0);
+
+    return totalAmount;
   }, [items]);
 
-  // Clean up effect
-  useEffect(() => {
-    // Set mounted flag
-    isComponentMounted.current = true;
-
-    // Cleanup function
-    return () => {
-      isComponentMounted.current = false;
-      if (braintreeInstance) {
-        braintreeInstance.teardown();
-      }
-    };
-  }, []);
-
-  // Token fetching function
-  const fetchClientToken = async () => {
-    if (tokenFetchInProgress.current) return null;
-    
-    try {
-      tokenFetchInProgress.current = true;
-      const response = await fetch('/api/braintree/token');
-      const data = await response.json();
-
-      if (!isComponentMounted.current) return null;
-
-      if (!data.success || !data.clientToken) {
-        throw new Error('Failed to get payment token');
-      }
-
-      setClientToken(data.clientToken);
-      return data.clientToken;
-    } catch (error) {
-      console.error('Token fetch error:', error);
-      if (isComponentMounted.current) {
-        setErrorMessage('Could not initialize payment system');
-      }
-      return null;
-    } finally {
-      tokenFetchInProgress.current = false;
+  // Braintree initialization with complete error handling
+  const initializeBraintree = useCallback(async function initializeBraintreePayment() {
+    // Step 1: Validate prerequisites
+    if (!dropinContainerRef.current) {
+      console.error('Braintree initialization failed: Container not found');
+      setErrorMessageState('Payment form initialization failed');
+      return;
     }
-  };
-
-  // Braintree initialization function
-  const initializeBraintree = async () => {
+  
+    if (!window.braintree) {
+      console.error('Braintree initialization failed: Braintree not loaded');
+      setErrorMessageState('Payment system not available');
+      return;
+    }
+  
+    // Step 2: Start initialization
+    console.log('Starting Braintree initialization...');
+    setIsLoadingState(true);
+    setErrorMessageState(null);
+  
+    // Step 3: Clean container
+    dropinContainerRef.current.innerHTML = '';
+  
     try {
-      // Wait a bit for the container to be ready
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Check if container exists
-      const container = document.getElementById('braintree-payment-container');
-      if (!container) {
-        throw new Error('Payment container not found');
+      // Step 4: Get client token
+      console.log('Requesting client token...');
+      const tokenResponse = await fetch('/api/braintree/token');
+      const tokenData = await tokenResponse.json();
+  
+      if (!tokenData.success || !tokenData.clientToken) {
+        throw new Error('Invalid token received from server');
       }
-
-      const instance = await window.braintree.dropin.create({
-        authorization: tokenData.clientToken,
-        container: '#braintree-payment-container',
-        card: true,
-        paypal: false
+  
+      // Step 5: Create Braintree instance
+      console.log('Creating Braintree Drop-in...');
+      await new Promise((resolve, reject) => {
+        window.braintree.dropin.create(
+          {
+            authorization: tokenData.clientToken,
+            container: dropinContainerRef.current,
+            card: true,
+            paypal: false // Explicitly disable PayPal for now
+          },
+          (error, instance) => {
+            if (error) {
+              console.error('Braintree creation failed:', error);
+              reject(error);
+              return;
+            }
+  
+            if (!isComponentMounted.current) {
+              // Component unmounted during initialization
+              instance.teardown().catch(console.error);
+              reject(new Error('Component unmounted'));
+              return;
+            }
+  
+            console.log('Braintree Drop-in created successfully');
+            setBraintreeInstanceState(instance);
+            resolve(instance);
+          }
+        );
       });
-
-      setBraintreeInstance(instance);
+  
     } catch (error) {
       console.error('Braintree initialization error:', error);
-      setErrorMessage(error.message);
-    }
-  };
-
-  // Cart open handler
-  const handleOpenCart = async () => {
-    try {
-      setIsLoading(true);
-      setIsCartOpen(true);
-
-      if (!tokenData) {
-        await getToken();
-      }
-
-    } catch (error) {
-      console.error('Cart initialization error:', error);
-      setErrorMessage(error.message);
+      setErrorMessageState(
+        error.message === 'Component unmounted' 
+          ? null 
+          : 'Failed to initialize payment form'
+      );
     } finally {
-      setIsLoading(false);
+      if (isComponentMounted.current) {
+        setIsLoadingState(false);
+      }
     }
-  };
-
-  useEffect(() => {
-    if (isCartOpen && tokenData?.clientToken && !braintreeInstance) {
-      initializeBraintree();
+  }, []);
+  // Continuing from Part 1...
+  useLayoutEffect(function handleBraintreeMount() {
+    if (isCartOpen && dropinContainerRef.current && !braintreeInstanceState) {
+      initializeBraintreePayment();
     }
-  }, [isCartOpen, tokenData]);
 
-  // Cart close handler
-  const handleCloseCart = async () => {
-    setIsLoading(true);
+    return function cleanup() {
+      if (braintreeInstanceState) {
+        braintreeInstanceState.teardown().catch(console.error);
+      }
+    };
+  }, [isCartOpen, braintreeInstanceState, initializeBraintreePayment]);
+  // Cart opening handler with complete implementation
+  const handleOpenCart = useCallback(function handleCartOpening() {
+    setIsCartOpen(true);
+    setIsLoadingState(true);
+    setErrorMessageState(null);
+  }, []);
+
+  // Cart closing handler with complete teardown
+  const handleCloseCart = useCallback(async function handleCartClosing() {
+    setIsLoadingState(true);
+    
     try {
-      if (braintreeInstance) {
-        await braintreeInstance.teardown();
+      if (braintreeInstanceState) {
+        await braintreeInstanceState.teardown();
+        setBraintreeInstanceState(null);
+        
+        // Clear the container after teardown
+        const container = document.getElementById('dropin-container');
+        if (container) {
+          container.innerHTML = '';
+        }
       }
     } catch (error) {
       console.error('Teardown error:', error);
     } finally {
       if (isComponentMounted.current) {
-        setBraintreeInstance(null);
-        setClientToken(null);
-        setErrorMessage(null);
-        setIsLoading(false);
+        setErrorMessageState(null);
+        setIsLoadingState(false);
         setIsCartOpen(false);
       }
     }
-  };
+  }, [braintreeInstanceState]);
 
-  // Payment submission handler
-  const handleCheckoutSubmit = async () => {
-    if (!braintreeInstance) return;
+  // Payment submission handler with complete error handling
+  const handleCheckoutSubmit = useCallback(async function handlePaymentSubmission() {
+    // Verify we have a Braintree instance before proceeding
+    if (!braintreeInstanceState) {
+      console.error('No Braintree instance available');
+      return;
+    }
 
-    setIsLoading(true);
+    // Set loading state while processing payment
+    setIsLoadingState(true);
+
     try {
-      // Get payment nonce
-      const { nonce } = await braintreeInstance.requestPaymentMethod();
-      if (!nonce) {
-        throw new Error('Payment information not available');
+      console.log('Requesting payment method...');
+      const paymentMethodResult = await braintreeInstanceState.requestPaymentMethod();
+
+      // Verify we got a payment nonce
+      if (!paymentMethodResult.nonce) {
+        throw new Error('No payment nonce received');
       }
 
-      // Send payment to server
-      const response = await fetch('/api/braintree/process-payment', {
+      // Calculate the final amount
+      const finalAmount = calculateCartTotal();
+
+      console.log('Processing payment...');
+      const paymentResponse = await fetch('/api/braintree/process-payment', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          paymentMethodNonce: nonce,
-          amount: calculateCartTotal().toFixed(2)
+          paymentMethodNonce: paymentMethodResult.nonce,
+          amount: finalAmount.toFixed(2)
         })
       });
 
-      const result = await response.json();
+      const paymentResult = await paymentResponse.json();
 
-      if (!result.success) {
-        throw new Error(result.error || 'Payment processing failed');
+      if (!paymentResult.success) {
+        throw new Error(paymentResult.error || 'Payment processing failed');
       }
 
-      // Handle success
-      setSnackbarMessage('Payment processed successfully!');
-      setSnackbarOpen(true);
+      // Handle successful payment
+      console.log('Payment successful');
+      setSnackbarMessageState('Payment processed successfully!');
+      setSnackbarOpenState(true);
+
+      // Clear the cart
       clearCart();
+
+      // Close the cart dialog
       await handleCloseCart();
 
     } catch (error) {
-      console.error('Payment error:', error);
-      setErrorMessage(error.message);
-      setSnackbarMessage('Payment failed. Please try again.');
-      setSnackbarOpen(true);
+      console.error('Payment processing error:', error);
+      setErrorMessageState('Payment processing failed. Please try again.');
+      setSnackbarMessageState('Payment failed');
+      setSnackbarOpenState(true);
     } finally {
+      // Reset loading state if component still mounted
       if (isComponentMounted.current) {
-        setIsLoading(false);
+        setIsLoadingState(false);
       }
     }
-  };
+  }, [braintreeInstanceState, calculateCartTotal, clearCart, handleCloseCart]);
 
-  // Item removal handler
-  const handleRemoveItem = useCallback((itemId) => {
-    removeFromCart(itemId);
-    // Close cart if removing last item
+  // Item removal handler with complete implementation
+  const handleRemoveItem = useCallback(function handleItemRemoval(itemIdToRemove) {
+    console.log('Removing item:', itemIdToRemove);
+    
+    // Remove the item from cart
+    removeFromCart(itemIdToRemove);
+
+    // If this was the last item, close the cart
     if (items.length === 1) {
+      console.log('Last item removed, closing cart...');
       handleCloseCart();
     }
-  }, [items.length, removeFromCart]);
+  }, [items.length, removeFromCart, handleCloseCart]);
 
-  // Cart Icon Component - memoized to prevent unnecessary rerenders
-  const CartIcon = useCallback(() => (
-    <Box sx={{ 
-      position: 'fixed', 
-      right: '20px', 
-      top: '20px', 
-      zIndex: 1200 
-    }}>
-      <IconButton 
-        onClick={handleOpenCart}
-        aria-label={`Shopping cart with ${items.length} items`}
-        disabled={isLoading}
+  // Component mount and unmount effect
+  useEffect(function handleComponentLifecycle() {
+    // Set mounted flag
+    isComponentMounted.current = true;
+
+    // Cleanup function
+    return function cleanupComponent() {
+      console.log('Component unmounting, cleaning up...');
+      
+      // Set mounted flag to false
+      isComponentMounted.current = false;
+
+      // Teardown Braintree if it exists
+      if (braintreeInstanceState) {
+        console.log('Tearing down Braintree instance on unmount...');
+        braintreeInstanceState.teardown().catch(function handleTeardownError(error) {
+          console.error('Error during unmount teardown:', error);
+        });
+      }
+    };
+  }, [braintreeInstanceState]);
+
+  // Cart state effect for Braintree initialization
+  useEffect(function handleCartStateChange() {
+    let timeoutId;
+    // Only proceed if cart is open and we don't have an instance
+    if (isCartOpen && !braintreeInstanceState) {
+      console.log('Cart opened, preparing initialization...');
+      
+      // Set loading state
+      setIsLoadingState(true);
+      
+      // Clear any existing error messages
+      setErrorMessageState(null);
+      
+      // Add a delay to ensure DOM is ready
+      timeoutId = setTimeout(function delayedInitialization() {
+        initializeBraintreePayment();
+      }, 300); // Increased delay for better reliability
+    }
+  
+    // Cleanup
+    return function cleanup() {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [isCartOpen, braintreeInstanceState, initializeBraintreePayment]);
+
+
+  // Cart Icon Component with full implementation
+  const CartIcon = useCallback(function renderCartIcon() {
+    return (
+      <Box
         sx={{
-          backgroundColor: 'white',
-          boxShadow: 3,
-          '&:hover': {
-            backgroundColor: 'white',
-            boxShadow: 6,
-          },
-          transition: 'box-shadow 0.3s ease',
-          padding: '12px'
+          position: 'fixed',
+          right: '20px',
+          top: '20px',
+          zIndex: 1200,
+          display: 'block'
         }}
       >
-        <Badge 
-          badgeContent={items.length} 
-          color="primary"
-          max={99}
+        <IconButton 
+          onClick={function onCartIconClick() {
+            handleOpenCart();
+          }}
+          aria-label={`Shopping cart containing ${items.length} items`}
+          disabled={isLoadingState}
           sx={{
-            '& .MuiBadge-badge': {
-              fontSize: '0.75rem',
-              height: '22px',
-              minWidth: '22px',
-              padding: '0 6px'
-            }
+            backgroundColor: 'white',
+            boxShadow: '0px 3px 5px -1px rgba(0,0,0,0.2), 0px 6px 10px 0px rgba(0,0,0,0.14), 0px 1px 18px 0px rgba(0,0,0,0.12)',
+            '&:hover': {
+              backgroundColor: 'white',
+              boxShadow: '0px 5px 5px -3px rgba(0,0,0,0.2), 0px 8px 10px 1px rgba(0,0,0,0.14), 0px 3px 14px 2px rgba(0,0,0,0.12)',
+            },
+            transition: 'box-shadow 0.3s ease',
+            padding: '12px',
+            width: 'auto',
+            height: 'auto'
           }}
         >
-          <ShoppingCartIcon />
-        </Badge>
-      </IconButton>
-    </Box>
-  ), [items.length, isLoading, handleOpenCart]);
+          <Badge 
+            badgeContent={items.length} 
+            color="primary"
+            max={99}
+            sx={{
+              '& .MuiBadge-badge': {
+                fontSize: '0.75rem',
+                height: '22px',
+                minWidth: '22px',
+                padding: '0 6px',
+                fontWeight: 'bold'
+              }
+            }}
+          >
+            <ShoppingCartIcon 
+              sx={{
+                width: '24px',
+                height: '24px'
+              }}
+            />
+          </Badge>
+        </IconButton>
+      </Box>
+    );
+  }, [items.length, isLoadingState, handleOpenCart]);
 
-  // Cart Dialog Content Component - extracted for readability
-  const CartContent = useCallback(() => {
+  // Cart Content Component with full implementation
+  const CartContent = useCallback(function renderCartContent() {
+    // Handle empty cart state
     if (items.length === 0) {
       return (
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'column',
-          alignItems: 'center',
-          py: 4,
-          gap: 2
-        }}>
-          <ShoppingCartIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
-          <Typography variant="h6">Your cart is empty</Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '32px 0',
+            gap: '16px'
+          }}
+        >
+          <ShoppingCartIcon
+            sx={{
+              fontSize: '48px',
+              color: 'text.secondary'
+            }}
+          />
+          <Typography
+            variant="h6"
+            component="h2"
+            sx={{
+              color: 'text.primary',
+              fontWeight: 500
+            }}
+          >
+            Your cart is empty
+          </Typography>
           <Button 
-            variant="contained" 
-            onClick={handleCloseCart}
+            variant="contained"
+            onClick={function onContinueShoppingClick() {
+              handleCloseCart();
+            }}
             startIcon={<ArrowBackIcon />}
+            sx={{
+              marginTop: '8px'
+            }}
           >
             Continue Shopping
           </Button>
@@ -303,53 +426,169 @@ function ShoppingCart() {
       );
     }
 
+    
+    // Render cart with items
     return (
-      <>
+      <React.Fragment>
         <TableContainer 
           component={Paper} 
-          sx={{ 
-            boxShadow: 'none',
+          sx={{
+            marginBottom: '24px',
             border: '1px solid',
-            borderColor: 'divider'
+            borderColor: 'divider',
+            borderRadius: '4px',
+            boxShadow: 'none'
           }}
         >
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Item</TableCell>
-                <TableCell align="right">Price</TableCell>
-                <TableCell align="right">Qty</TableCell>
-                <TableCell align="right">Total</TableCell>
-                <TableCell padding="checkbox" />
+                <TableCell
+                  sx={{
+                    fontWeight: 600,
+                    padding: '16px',
+                    borderBottom: '2px solid',
+                    borderColor: 'divider'
+                  }}
+                >
+                  Item
+                </TableCell>
+                <TableCell
+                  align="right"
+                  sx={{
+                    fontWeight: 600,
+                    padding: '16px',
+                    borderBottom: '2px solid',
+                    borderColor: 'divider'
+                  }}
+                >
+                  Price
+                </TableCell>
+                <TableCell
+                  align="right"
+                  sx={{
+                    fontWeight: 600,
+                    padding: '16px',
+                    borderBottom: '2px solid',
+                    borderColor: 'divider'
+                  }}
+                >
+                  Qty
+                </TableCell>
+                <TableCell
+                  align="right"
+                  sx={{
+                    fontWeight: 600,
+                    padding: '16px',
+                    borderBottom: '2px solid',
+                    borderColor: 'divider'
+                  }}
+                >
+                  Total
+                </TableCell>
+                <TableCell
+                  padding="checkbox"
+                  sx={{
+                    width: '48px',
+                    borderBottom: '2px solid',
+                    borderColor: 'divider'
+                  }}
+                />
               </TableRow>
             </TableHead>
             <TableBody>
-              {items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.title}</TableCell>
-                  <TableCell align="right">
-                    ${parseFloat(item.price).toFixed(2)}
-                  </TableCell>
-                  <TableCell align="right">{item.quantity}</TableCell>
-                  <TableCell align="right">
-                    ${(parseFloat(item.price) * item.quantity).toFixed(2)}
-                  </TableCell>
-                  <TableCell padding="checkbox">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleRemoveItem(item.id)}
-                      disabled={isLoading}
+              {items.map(function renderCartItem(item) {
+                const itemPrice = parseFloat(item.price);
+                const itemTotal = itemPrice * item.quantity;
+                
+                return (
+                  <TableRow 
+                    key={item.id}
+                    sx={{
+                      '&:last-child td': {
+                        borderBottom: 0
+                      }
+                    }}
+                  >
+                    <TableCell
+                      sx={{
+                        padding: '16px',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider'
+                      }}
                     >
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
+                      {item.title}
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      sx={{
+                        padding: '16px',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider'
+                      }}
+                    >
+                      ${itemPrice.toFixed(2)}
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      sx={{
+                        padding: '16px',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider'
+                      }}
+                    >
+                      {item.quantity}
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      sx={{
+                        padding: '16px',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider'
+                      }}
+                    >
+                      ${itemTotal.toFixed(2)}
+                    </TableCell>
+                    <TableCell
+                      padding="checkbox"
+                      sx={{
+                        borderBottom: '1px solid',
+                        borderColor: 'divider'
+                      }}
+                    >
+                      <IconButton
+                        size="small"
+                        onClick={function onRemoveItemClick() {
+                          handleRemoveItem(item.id);
+                        }}
+                        disabled={isLoadingState}
+                        aria-label={`Remove ${item.title} from cart`}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
               <TableRow>
-                <TableCell colSpan={3} align="right" sx={{ fontWeight: 'bold' }}>
+                <TableCell
+                  colSpan={3}
+                  align="right"
+                  sx={{
+                    padding: '16px',
+                    fontWeight: 700
+                  }}
+                >
                   Total:
                 </TableCell>
-                <TableCell align="right" colSpan={2} sx={{ fontWeight: 'bold' }}>
+                <TableCell
+                  align="right"
+                  colSpan={2}
+                  sx={{
+                    padding: '16px',
+                    fontWeight: 700
+                  }}
+                >
                   ${calculateCartTotal().toFixed(2)}
                 </TableCell>
               </TableRow>
@@ -357,316 +596,298 @@ function ShoppingCart() {
           </Table>
         </TableContainer>
 
-        {/* Payment Form Container */}
-        {clientToken && (
-          <Box 
-            id="braintree-payment-container" 
-            sx={{ 
+        {/* Braintree Payment Form - Exactly as in tutorial */}
+        <div id="dropin-wrapper">
+          <div id="checkout-message"></div>
+          <div 
+            ref={dropinContainerRef}
+            style={{ 
               minHeight: '250px',
-              width: '100%',
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 1,
-              p: 2,
-              bgcolor: 'background.paper',
-              visibility: isLoading ? 'hidden' : 'visible',
-              '& iframe': {
-                width: '100% !important'
-              }
-            }} 
+              marginBottom: '20px',
+              padding: '16px',
+              border: '1px solid rgba(0, 0, 0, 0.12)',
+              borderRadius: '4px',
+              backgroundColor: '#ffffff'
+            }}
           />
-        )}
+        </div>
 
-        <DialogActions sx={{ 
-          pt: 2,
-          borderTop: '1px solid',
-          borderColor: 'divider'
-        }}>
+
+        <DialogActions
+          sx={{
+            padding: '16px 0',
+            marginTop: '16px',
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            display: 'flex',
+            justifyContent: 'space-between'
+          }}
+        >
           <Button 
-            onClick={handleCloseCart}
+            onClick={function onContinueShoppingClick() {
+              handleCloseCart();
+            }}
             startIcon={<ArrowBackIcon />}
-            disabled={isLoading}
+            disabled={isLoadingState}
+            sx={{
+              textTransform: 'none'
+            }}
           >
             Continue Shopping
           </Button>
           <Button
             variant="contained"
             color="primary"
-            onClick={handleCheckoutSubmit}
-            disabled={isLoading || !braintreeInstance}
-            endIcon={!isLoading && <ArrowForwardIcon />}
+            onClick={function onCheckoutClick() {
+              handleCheckoutSubmit();
+            }}
+            disabled={isLoadingState || !braintreeInstanceState}
+            endIcon={!isLoadingState && <ArrowForwardIcon />}
+            sx={{
+              textTransform: 'none',
+              minWidth: '150px'
+            }}
           >
-            {isLoading ? (
-              <CircularProgress size={24} color="inherit" />
+            {isLoadingState ? (
+              <CircularProgress 
+                size={24} 
+                color="inherit" 
+                sx={{
+                  margin: '4px'
+                }}
+              />
             ) : (
-              `Pay ${calculateCartTotal().toFixed(2)}`
+              `Pay $${calculateCartTotal().toFixed(2)}`
             )}
           </Button>
         </DialogActions>
-      </>
+      </React.Fragment>
     );
-  }, [items, isLoading, braintreeInstance, clientToken, calculateCartTotal, handleRemoveItem]);
-
-  // Main Cart Dialog Component
-  const CartDialog = useCallback(() => (
-    <Dialog 
-      open={isCartOpen}
-      onClose={handleCloseCart}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          position: 'fixed',
-          right: 0,
-          margin: 0,
-          height: '100%',
-          maxHeight: '100vh',
-          borderRadius: {
-            xs: 0,
-            sm: '4px 0 0 4px'
-          },
-          width: {
-            xs: '100%',
-            sm: '500px'
-          },
-          overflow: 'hidden'
-        }
-      }}
-    >
-      <DialogTitle 
-        sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          padding: 2,
-          borderBottom: '1px solid',
-          borderColor: 'divider'
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography component="div" variant="h6">
-            Shopping Cart 
-            {items.length > 0 && (
-              <Typography 
-                component="span" 
-                variant="subtitle2" 
-                sx={{ ml: 1, color: 'text.secondary' }}
-              >
-                ({items.length} {items.length === 1 ? 'item' : 'items'})
-              </Typography>
-            )}
-          </Typography>
-        </Box>
-        <IconButton 
-          onClick={handleCloseCart} 
-          size="small"
-          disabled={isLoading}
-        >
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-  
-      <DialogContent sx={{ p: 2 }}>
-        {/* Loading Overlay */}
-        {isLoading && (
-          <Box 
-            sx={{ 
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-              zIndex: 1300
-            }}
-          >
-            <CircularProgress />
-            <Typography sx={{ mt: 2 }}>
-              {!tokenData ? 'Initializing payment...' : 'Processing...'}
-            </Typography>
-          </Box>
-        )}
-  
-        {/* Error Message */}
-        {errorMessage && (
-          <Alert 
-            severity="error" 
-            sx={{ mb: 2 }}
-            action={
-              <Button 
-                color="error" 
-                size="small"
-                onClick={() => {
-                  setErrorMessage(null);
-                  if (!tokenData) {
-                    getToken();
-                  }
-                }}
-                disabled={isLoading}
-              >
-                Retry
-              </Button>
-            }
-          >
-            {errorMessage}
-          </Alert>
-        )}
-  
-        {/* Cart Content */}
-        {items.length === 0 ? (
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column',
-            alignItems: 'center',
-            py: 4,
-            gap: 2
-          }}>
-            <ShoppingCartIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
-            <Typography variant="h6">Your cart is empty</Typography>
-            <Button 
-              variant="contained" 
-              onClick={handleCloseCart}
-              startIcon={<ArrowBackIcon />}
-            >
-              Continue Shopping
-            </Button>
-          </Box>
-        ) : (
-          <>
-            {/* Cart Items Table */}
-            <TableContainer 
-              component={Paper} 
-              sx={{ 
-                boxShadow: 'none',
-                border: '1px solid',
-                borderColor: 'divider',
-                mb: 2
-              }}
-            >
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Item</TableCell>
-                    <TableCell align="right">Price</TableCell>
-                    <TableCell align="right">Qty</TableCell>
-                    <TableCell align="right">Total</TableCell>
-                    <TableCell padding="checkbox" />
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.title}</TableCell>
-                      <TableCell align="right">${parseFloat(item.price).toFixed(2)}</TableCell>
-                      <TableCell align="right">{item.quantity}</TableCell>
-                      <TableCell align="right">
-                        ${(parseFloat(item.price) * item.quantity).toFixed(2)}
-                      </TableCell>
-                      <TableCell padding="checkbox">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleRemoveItem(item.id)}
-                          disabled={isLoading}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow>
-                    <TableCell colSpan={3} align="right" sx={{ fontWeight: 'bold' }}>
-                      Total:
-                    </TableCell>
-                    <TableCell align="right" colSpan={2} sx={{ fontWeight: 'bold' }}>
-                      ${calculateCartTotal().toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-  
-            {/* Braintree Payment Container */}
-            <Box 
-              id="braintree-payment-container" 
-              ref={containerRef}
-              sx={{ 
-                minHeight: '250px',
-                width: '100%',
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 1,
-                p: 2,
-                mb: 2,
-                bgcolor: 'background.paper',
-                '& iframe': {
-                  width: '100% !important'
-                }
-              }} 
-            />
-  
-            {/* Cart Actions */}
-            <DialogActions sx={{ 
-              pt: 2,
-              borderTop: '1px solid',
-              borderColor: 'divider'
-            }}>
-              <Button 
-                onClick={handleCloseCart}
-                startIcon={<ArrowBackIcon />}
-                disabled={isLoading}
-              >
-                Continue Shopping
-              </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleCheckoutSubmit}
-                disabled={isLoading || !braintreeInstance}
-                endIcon={!isLoading && <ArrowForwardIcon />}
-              >
-                {isLoading ? (
-                  <CircularProgress size={24} color="inherit" />
-                ) : (
-                  `Pay $${calculateCartTotal().toFixed(2)}`
-                )}
-              </Button>
-            </DialogActions>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
-  ), [
-    isCartOpen,
-    isLoading,
+  }, [
     items,
-    errorMessage,
-    tokenData,
-    braintreeInstance,
-    handleCloseCart,
-    handleRemoveItem,
-    handleCheckoutSubmit,
+    isLoadingState,
+    braintreeInstanceState,
     calculateCartTotal,
-    containerRef
+    handleCloseCart,
+    handleCheckoutSubmit,
+    handleRemoveItem
   ]);
 
-  // Main render
+  // Continuing from Part 3...
+
+  // Cart Dialog Component with full implementation
+  const CartDialog = useCallback(function renderCartDialog() {
+    return (
+      <Dialog 
+        open={isCartOpen}
+        onClose={function onDialogClose() {
+          handleCloseCart();
+        }}
+        maxWidth="md"
+        fullWidth={true}
+        aria-labelledby="cart-dialog-title"
+        PaperProps={{
+          sx: {
+            position: 'fixed',
+            right: 0,
+            margin: 0,
+            height: '100%',
+            maxHeight: '100vh',
+            borderRadius: {
+              xs: 0,
+              sm: '4px 0 0 4px'
+            },
+            width: {
+              xs: '100%',
+              sm: '500px'
+            },
+            overflow: 'hidden',
+            backgroundColor: '#ffffff',
+            display: 'flex',
+            flexDirection: 'column'
+          }
+        }}
+        sx={{
+          '& .MuiBackdrop-root': {
+            backgroundColor: 'rgba(0, 0, 0, 0.5)'
+          }
+        }}
+      >
+        <DialogTitle 
+          id="cart-dialog-title"
+          sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            padding: '16px',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            backgroundColor: '#ffffff'
+          }}
+        >
+          <Box
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <Typography 
+              component="div" 
+              variant="h6"
+              sx={{
+                fontWeight: 500,
+                color: 'text.primary'
+              }}
+            >
+              Shopping Cart 
+              {items.length > 0 && (
+                <Typography 
+                  component="span" 
+                  variant="subtitle2" 
+                  sx={{ 
+                    marginLeft: '8px', 
+                    color: 'text.secondary',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  ({items.length} {items.length === 1 ? 'item' : 'items'})
+                </Typography>
+              )}
+            </Typography>
+          </Box>
+          <IconButton 
+            onClick={function onCloseButtonClick() {
+              handleCloseCart();
+            }}
+            size="small"
+            disabled={isLoadingState}
+            aria-label="Close cart"
+            sx={{
+              padding: '8px',
+              color: 'text.secondary',
+              '&:hover': {
+                backgroundColor: 'action.hover'
+              }
+            }}
+          >
+            <CloseIcon sx={{ fontSize: '20px' }} />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent 
+          sx={{ 
+            padding: '16px',
+            overflowY: 'auto',
+            flex: 1,
+            position: 'relative',
+            backgroundColor: '#ffffff'
+          }}
+        >
+          {/* Loading Overlay */}
+          {isLoadingState && (
+            <Box 
+              sx={{ 
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                zIndex: 1300,
+                backdropFilter: 'blur(2px)'
+              }}
+            >
+              <CircularProgress 
+                size={40}
+                thickness={4}
+                sx={{
+                  color: 'primary.main'
+                }}
+              />
+              <Typography 
+                sx={{ 
+                  marginTop: '16px',
+                  color: 'text.primary',
+                  fontWeight: 500
+                }}
+              >
+                Processing...
+              </Typography>
+            </Box>
+          )}
+
+          {/* Error Message */}
+          {errorMessageState && (
+            <Alert 
+              severity="error" 
+              sx={{ 
+                marginBottom: '16px',
+                width: '100%',
+                '& .MuiAlert-message': {
+                  width: '100%'
+                }
+              }}
+            >
+              {errorMessageState}
+            </Alert>
+          )}
+
+          {/* Cart Content */}
+          <CartContent />
+        </DialogContent>
+      </Dialog>
+    );
+  }, [
+    isCartOpen, 
+    isLoadingState, 
+    items.length, 
+    errorMessageState, 
+    handleCloseCart, 
+    CartContent
+  ]);
+
+  // Final component render
   return (
-    <>
+    <React.Fragment>
+      {/* Cart Icon */}
       <CartIcon />
+
+      {/* Cart Dialog */}
       <CartDialog />
+
+      {/* Notification Snackbar */}
       <Snackbar
-        open={snackbarOpen}
+        open={snackbarOpenState}
         autoHideDuration={6000}
-        onClose={() => setSnackbarOpen(false)}
-        message={snackbarMessage}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        onClose={function handleSnackbarClose(event, reason) {
+          if (reason === 'clickaway') {
+            return;
+          }
+          setSnackbarOpenState(false);
+        }}
+        message={snackbarMessageState}
+        anchorOrigin={{ 
+          vertical: 'bottom', 
+          horizontal: 'center' 
+        }}
+        ContentProps={{
+          sx: {
+            backgroundColor: 'background.paper',
+            color: 'text.primary',
+            boxShadow: '0px 3px 5px -1px rgba(0,0,0,0.2), 0px 6px 10px 0px rgba(0,0,0,0.14), 0px 1px 18px 0px rgba(0,0,0,0.12)',
+            minWidth: '300px',
+            maxWidth: '500px'
+          }
+        }}
       />
-    </>
+    </React.Fragment>
   );
 }
 
+// Export the component
 export default ShoppingCart;
