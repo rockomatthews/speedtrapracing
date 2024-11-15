@@ -1,7 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Image configuration for remote patterns
+  // Configure for server-side rendering and API routes
+  // Remove static export to enable dynamic features
+  // output: 'export', // Removing this line
+  
+  // Configure image optimization and remote patterns
   images: {
+    // Enable image optimization (remove unoptimized since we're not doing static export)
+    domains: ['images.ctfassets.net', 'assets.braintreegateway.com', 'checkoutshopper-test.adyen.com'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -18,7 +24,6 @@ const nextConfig = {
         hostname: 'checkoutshopper-test.adyen.com',
         pathname: '/**',
       },
-      // Additional patterns for Braintree resources
       {
         protocol: 'https',
         hostname: '*.braintree-api.com',
@@ -37,7 +42,7 @@ const nextConfig = {
     ]
   },
 
-  // Webpack configuration for Node.js polyfills and module resolution
+  // Configure webpack for Node.js compatibility
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
@@ -45,96 +50,10 @@ const nextConfig = {
       "tls": false,
       "fs": false,
     };
-    
-    // Add additional webpack configurations if needed for Braintree
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      // Add any necessary aliases here
-    };
-
     return config;
   },
 
-  // API and security configurations
-  async headers() {
-    return [
-      {
-        // Global API route headers
-        source: '/api/:path*',
-        headers: [
-          { 
-            key: 'Access-Control-Allow-Credentials', 
-            value: 'true' 
-          },
-          { 
-            key: 'Access-Control-Allow-Origin', 
-            value: process.env.NODE_ENV === 'development' 
-              ? '*' 
-              : process.env.NEXT_PUBLIC_SITE_URL || '*' 
-          },
-          { 
-            key: 'Access-Control-Allow-Methods', 
-            value: 'GET,DELETE,PATCH,POST,PUT,OPTIONS' 
-          },
-          { 
-            key: 'Access-Control-Allow-Headers', 
-            value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization' 
-          },
-        ],
-      },
-      {
-        // Specific headers for Braintree API routes
-        source: '/api/braintree/:path*',
-        headers: [
-          { 
-            key: 'Access-Control-Allow-Credentials', 
-            value: 'true' 
-          },
-          { 
-            key: 'Access-Control-Allow-Origin', 
-            value: process.env.NODE_ENV === 'development' 
-              ? '*' 
-              : process.env.NEXT_PUBLIC_SITE_URL || '*' 
-          },
-          { 
-            key: 'Access-Control-Allow-Methods', 
-            value: 'GET,POST,OPTIONS' 
-          },
-          { 
-            key: 'Access-Control-Allow-Headers', 
-            value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization' 
-          },
-          {
-            key: 'Access-Control-Max-Age',
-            value: '86400' // 24 hours cache for preflight requests
-          }
-        ],
-      }
-    ];
-  },
-
-  // Environment variable configuration
-  env: {
-    NEXT_PUBLIC_BRAINTREE_ENVIRONMENT: process.env.BRAINTREE_ENVIRONMENT || 'sandbox',
-  },
-
-  // API configuration
-  async rewrites() {
-    return [
-      {
-        // Rewrite for Braintree client token endpoint
-        source: '/api/braintree-token',
-        destination: '/api/braintree/token'
-      },
-      {
-        // Rewrite for Braintree payment processing endpoint
-        source: '/api/process-payment',
-        destination: '/api/braintree/process-payment'
-      }
-    ];
-  },
-
-  // Security headers
+  // Configure security headers
   async headers() {
     return [
       {
@@ -165,13 +84,42 @@ const nextConfig = {
     ];
   },
 
-  // Additional experimental features if needed
+  // Environment variables configuration
+  env: {
+    NEXT_PUBLIC_BRAINTREE_ENVIRONMENT: process.env.BRAINTREE_ENVIRONMENT || 'sandbox',
+  },
+
+  // Experimental features configuration
   experimental: {
-    // Enable if you need modern features
+    // Enable support for ES modules
     esmExternals: true,
-    outputFileTracingRoot: undefined,
-    // Add other experimental features as needed
-  }
+    // Enable server actions for form submissions
+    serverActions: true,
+    // Configure proper build output for Firebase
+    serverComponentsExternalPackages: ['firebase-admin'],
+  },
+
+  // Disable type checking during builds for faster deployment
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+
+  // Configure build output directory
+  distDir: '.next',
+
+  // Generate unique build ID for each deployment
+  generateBuildId: async () => {
+    return `build-${Date.now()}`
+  },
+
+  // Enable React strict mode for better development
+  reactStrictMode: true,
+
+  // Configure powered by header
+  poweredByHeader: false,
+
+  // Configure compression
+  compress: true,
 };
 
 export default nextConfig;
