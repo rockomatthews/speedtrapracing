@@ -18,6 +18,10 @@
     },
     "rewrites": [
       {
+        "source": "/api/**",
+        "function": "apiEndpoint"
+      },
+      {
         "source": "**",
         "run": {
           "serviceId": "nextjs-srv",
@@ -67,7 +71,15 @@
       }
     ]
   },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20",
+    "codebase": "default"
+  },
   "emulators": {
+    "functions": {
+      "port": 5001
+    },
     "firestore": {
       "port": 8080
     },
@@ -78,16 +90,5 @@
       "enabled": true,
       "port": 4000
     }
-  },
-  "functions": {
-    "source": ".",
-    "runtime": "nodejs20",
-    "ignore": [
-      "node_modules",
-      ".git",
-      "firebase-debug.log",
-      "firebase-debug.*.log",
-      ".env"
-    ]
   }
 }
