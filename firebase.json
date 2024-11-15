@@ -19,14 +19,11 @@
     "rewrites": [
       {
         "source": "/api/**",
-        "function": "apiEndpoint"
+        "function": "api"
       },
       {
         "source": "**",
-        "run": {
-          "serviceId": "nextjs-srv",
-          "region": "us-central1"
-        }
+        "function": "ssrspeedtrapracingaa7c8"
       }
     ],
     "predeploy": [
@@ -73,8 +70,20 @@
   },
   "functions": {
     "source": "functions",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log"
+    ],
     "runtime": "nodejs20",
-    "codebase": "default"
+    "predeploy": [
+      "npm --prefix \"$RESOURCE_DIR\" install"
+    ],
+    "codebase": "default",
+    "minInstances": 0,
+    "maxInstances": 10,
+    "memory": "256MB"
   },
   "emulators": {
     "functions": {

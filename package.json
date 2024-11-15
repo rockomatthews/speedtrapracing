@@ -43,9 +43,25 @@
     "sharp": "^0.33.5",
     "slick-carousel": "^1.8.1",
     "stripe": "^17.2.0",
-    "zustand": "^4.5.2"
+    "zustand": "^4.5.2",
+    "firebase-frameworks": "0.11.5",
+    "firebase-functions": "6.1.0",
+    "@hapi/accept": "6.0.3",
+    "@hapi/boom": "10.0.1",
+    "@hapi/hoek": "11.0.7",
+    "cookie": "0.7.2",
+    "lru-cache": "6.0.0"
   },
   "devDependencies": {
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "@types/cors": "2.8.17"
+  },
+  "resolutions": {
+    "cookie": "0.7.2",
+    "lru-cache": "6.0.0"
+  },
+  "overrides": {
+    "cookie": "0.7.2",
+    "lru-cache": "6.0.0"
   }
 }
