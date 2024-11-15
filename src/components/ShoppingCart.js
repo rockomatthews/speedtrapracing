@@ -11,7 +11,12 @@ import {
   Divider,
   Box,
   CircularProgress,
-  Alert
+  Alert,
+  TextField,
+  Grid,
+  Stepper,
+  Step,
+  StepLabel
 } from '@mui/material';
 import {
   ShoppingCart as ShoppingCartIcon,
@@ -23,12 +28,37 @@ const ShoppingCartComponent = ({ items = [], onUpdateQuantity, onRemoveItem }) =
   const [paymentError, setPaymentError] = useState(null);
   const [braintreeInstance, setBraintreeInstance] = useState(null);
   const [clientToken, setClientToken] = useState(null);
+  const [activeStep, setActiveStep] = useState(0);
+  const [shippingInfo, setShippingInfo] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: 'US'
+  });
 
   useEffect(() => {
-    if (items.length > 0 && !braintreeInstance) {
-      fetchClientToken();
+    return () => {
+      // Cleanup Braintree instance on component unmount
+      if (braintreeInstance) {
+        braintreeInstance.teardown();
+      }
+    };
+  }, [braintreeInstance]);
+
+  useEffect(() => {
+    if (items.length > 0 && !braintreeInstance && activeStep === 1) {
+      const container = document.getElementById('dropin-container');
+      if (container) {
+        // Clear the container before initializing
+        container.innerHTML = '';
+        fetchClientToken();
+      }
     }
-  }, [items.length]);
+  }, [items.length, activeStep]);
 
   const fetchClientToken = async () => {
     try {
@@ -55,16 +85,28 @@ const ShoppingCartComponent = ({ items = [], onUpdateQuantity, onRemoveItem }) =
 
     try {
       const instance = await window.braintree.dropin.create({
-        authorization: token, 
+        authorization: token,
         container: '#dropin-container',
         paypal: {
           flow: 'checkout',
           amount: calculateTotal().toFixed(2),
-          currency: items[0]?.currency || 'USD'
+          currency: items[0]?.currency || 'USD',
+          intent: 'capture', // This ensures immediate capture
+          enableShippingAddress: true,
+          shippingAddressEditable: false,
+          shippingAddressOverride: {
+            recipientName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
+            streetAddress: shippingInfo.address,
+            locality: shippingInfo.city,
+            region: shippingInfo.state,
+            postalCode: shippingInfo.zipCode,
+            countryCode: shippingInfo.country
+          }
         },
-        // Add CSE key if needed for your integration
-        client: {
-          clientKey: process.env.NEXT_PUBLIC_BRAINTREE_CSE_KEY
+        card: {
+          cardholderName: {
+            required: true
+          }
         }
       });
       setBraintreeInstance(instance);
@@ -92,7 +134,7 @@ const ShoppingCartComponent = ({ items = [], onUpdateQuantity, onRemoveItem }) =
     setPaymentError(null);
 
     try {
-      const { nonce } = await braintreeInstance.requestPaymentMethod();
+      const { nonce, details } = await braintreeInstance.requestPaymentMethod();
       
       const response = await fetch('/api/braintree/checkout', {
         method: 'POST',
@@ -102,7 +144,9 @@ const ShoppingCartComponent = ({ items = [], onUpdateQuantity, onRemoveItem }) =
         body: JSON.stringify({
           paymentMethodNonce: nonce,
           amount: calculateTotal().toFixed(2),
-          items: items
+          items: items,
+          shipping: shippingInfo,
+          paymentDetails: details
         }),
       });
 
@@ -117,6 +161,7 @@ const ShoppingCartComponent = ({ items = [], onUpdateQuantity, onRemoveItem }) =
         setBraintreeInstance(null);
         
         alert('Payment successful! Thank you for your purchase.');
+        setActiveStep(0); // Reset to first step
       } else {
         setPaymentError(result.error || 'Payment failed. Please try again.');
       }
@@ -128,7 +173,20 @@ const ShoppingCartComponent = ({ items = [], onUpdateQuantity, onRemoveItem }) =
     }
   };
 
-  const total = calculateTotal();
+  const handleShippingSubmit = (e) => {
+    e.preventDefault();
+    setActiveStep(1); // Move to payment step
+  };
+
+  const validateShippingInfo = () => {
+    return shippingInfo.firstName && 
+           shippingInfo.lastName && 
+           shippingInfo.email && 
+           shippingInfo.address && 
+           shippingInfo.city && 
+           shippingInfo.state && 
+           shippingInfo.zipCode;
+  };
 
   if (items.length === 0) {
     return (
@@ -151,79 +209,179 @@ const ShoppingCartComponent = ({ items = [], onUpdateQuantity, onRemoveItem }) =
         <Typography variant="h5" component="h2" gutterBottom>
           Shopping Cart
         </Typography>
+
+        <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+          <Step>
+            <StepLabel>Shipping</StepLabel>
+          </Step>
+          <Step>
+            <StepLabel>Payment</StepLabel>
+          </Step>
+        </Stepper>
         
-        {items.map((item) => (
-          <Box key={item.id}>
-            <Box sx={{ display: 'flex', py: 2, alignItems: 'center' }}>
-              <Box sx={{ flexGrow: 1 }}>
-                <Typography variant="subtitle1">
-                  {item.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {item.currency.toUpperCase()} {Number(item.price).toFixed(2)}
-                </Typography>
+        {/* Cart Items */}
+        {activeStep === 0 && (
+          <>
+            {items.map((item) => (
+              <Box key={item.id}>
+                <Box sx={{ display: 'flex', py: 2, alignItems: 'center' }}>
+                  <Box sx={{ flexGrow: 1 }}>
+                    <Typography variant="subtitle1">
+                      {item.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {item.currency.toUpperCase()} {Number(item.price).toFixed(2)}
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Select
+                      size="small"
+                      value={item.quantity}
+                      onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value))}
+                      sx={{ minWidth: 80 }}
+                    >
+                      {[1, 2, 3, 4, 5].map((num) => (
+                        <MenuItem key={num} value={num}>
+                          {num}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    
+                    <IconButton
+                      onClick={() => onRemoveItem(item.id)}
+                      size="small"
+                      color="error"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </Box>
+                <Divider />
               </Box>
+            ))}
+
+            {/* Shipping Form */}
+            <form onSubmit={handleShippingSubmit}>
+              <Grid container spacing={2} sx={{ mt: 2 }}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    required
+                    fullWidth
+                    label="First Name"
+                    value={shippingInfo.firstName}
+                    onChange={(e) => setShippingInfo({...shippingInfo, firstName: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    required
+                    fullWidth
+                    label="Last Name"
+                    value={shippingInfo.lastName}
+                    onChange={(e) => setShippingInfo({...shippingInfo, lastName: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    required
+                    fullWidth
+                    type="email"
+                    label="Email"
+                    value={shippingInfo.email}
+                    onChange={(e) => setShippingInfo({...shippingInfo, email: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    required
+                    fullWidth
+                    label="Address"
+                    value={shippingInfo.address}
+                    onChange={(e) => setShippingInfo({...shippingInfo, address: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    required
+                    fullWidth
+                    label="City"
+                    value={shippingInfo.city}
+                    onChange={(e) => setShippingInfo({...shippingInfo, city: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    required
+                    fullWidth
+                    label="State"
+                    value={shippingInfo.state}
+                    onChange={(e) => setShippingInfo({...shippingInfo, state: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    required
+                    fullWidth
+                    label="ZIP Code"
+                    value={shippingInfo.zipCode}
+                    onChange={(e) => setShippingInfo({...shippingInfo, zipCode: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    fullWidth
+                    disabled={!validateShippingInfo()}
+                  >
+                    Continue to Payment
+                  </Button>
+                </Grid>
+              </Grid>
+            </form>
+          </>
+        )}
+
+        {/* Payment Step */}
+        {activeStep === 1 && (
+          <Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="h6">Total:</Typography>
+              <Typography variant="h6">
+                {items[0]?.currency?.toUpperCase()} {calculateTotal().toFixed(2)}
+              </Typography>
+            </Box>
+
+            {paymentError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {paymentError}
+              </Alert>
+            )}
+
+            <div id="dropin-container"></div>
+
+            <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+              <Button
+                variant="outlined"
+                onClick={() => setActiveStep(0)}
+                sx={{ flex: 1 }}
+              >
+                Back to Shipping
+              </Button>
               
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Select
-                  size="small"
-                  value={item.quantity}
-                  onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value))}
-                  sx={{ minWidth: 80 }}
-                >
-                  {[1, 2, 3, 4, 5].map((num) => (
-                    <MenuItem key={num} value={num}>
-                      {num}
-                    </MenuItem>
-                  ))}
-                </Select>
-                
-                <IconButton
-                  onClick={() => onRemoveItem(item.id)}
-                  size="small"
-                  color="error"
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </Box>
+              <Button
+                variant="contained"
+                color="primary"
+                sx={{ flex: 1 }}
+                disabled={isLoading || !braintreeInstance}
+                onClick={handleCheckout}
+              >
+                {isLoading ? <CircularProgress size={24} /> : 'Complete Purchase'}
+              </Button>
             </Box>
-            <Divider />
           </Box>
-        ))}
-
-        <Box sx={{ mt: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="h6">Total:</Typography>
-            <Typography variant="h6">
-              {items[0]?.currency?.toUpperCase()} {total.toFixed(2)}
-            </Typography>
-          </Box>
-
-          {paymentError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {paymentError}
-            </Alert>
-          )}
-
-          <div id="dropin-container"></div>
-
-          {isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <Button
-              variant="contained"
-              color="primary"
-              fullWidth
-              sx={{ mt: 2 }}
-              disabled={isLoading || !braintreeInstance}
-              onClick={handleCheckout}
-            >
-              Proceed to Checkout
-            </Button>
-          )}
-        </Box>
+        )}
       </CardContent>
     </Card>
   );

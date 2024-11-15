@@ -1,8 +1,23 @@
+// src/app/race-nights/page.js
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import { createClient } from 'contentful';
-import { Box, Typography, Card, CardContent, CardMedia, Grid, Dialog, DialogTitle, DialogContent, IconButton, useMediaQuery, useTheme } from '@mui/material';
+import { 
+  Box, 
+  Typography, 
+  Card, 
+  CardContent, 
+  CardMedia, 
+  Grid, 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  IconButton, 
+  useMediaQuery, 
+  useTheme,
+  Container 
+} from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import Image from 'next/image';
 import { documentToReactComponents } from '@contentful/rich-text-react-renderer';
@@ -17,7 +32,8 @@ export default function NightlyEvents() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [open, setOpen] = useState(false);
   const theme = useTheme();
-  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMedium = useMediaQuery(theme.breakpoints.between('sm', 'lg'));
 
   useEffect(() => {
     async function fetchEvents() {
@@ -45,31 +61,80 @@ export default function NightlyEvents() {
   };
 
   return (
-    <Box sx={{ maxWidth: 1200, margin: '0 auto', padding: 3 }}>
-      <Typography variant="h4" gutterBottom>
+    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
+      <Typography 
+        variant="h4" 
+        gutterBottom 
+        sx={{ 
+          mb: { xs: 3, md: 4 },
+          textAlign: { xs: 'center', md: 'left' }
+        }}
+      >
         Race Nights
       </Typography>
+
       <Grid container spacing={3}>
         {events.map((event) => (
-          <Grid item xs={12} sm={6} md={4} key={event.sys.id}>
-            <Card onClick={() => handleClickOpen(event)} sx={{ cursor: 'pointer' }}>
+          <Grid 
+            item 
+            xs={12}
+            sm={6}
+            md={4}
+            lg={3} 
+            key={event.sys.id}
+          >
+            <Card 
+              onClick={() => handleClickOpen(event)} 
+              sx={{ 
+                cursor: 'pointer',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                transition: 'transform 0.2s ease-in-out',
+                '&:hover': {
+                  transform: 'scale(1.02)',
+                },
+              }}
+            >
               {event.fields.heroImage && (
                 <CardMedia
                   component="div"
-                  sx={{ height: 200, position: 'relative' }}
+                  sx={{
+                    height: { 
+                      xs: 200,
+                      sm: 220,
+                      md: 240
+                    },
+                    position: 'relative'
+                  }}
                 >
                   <Image
                     src={`https:${event.fields.heroImage.fields.file.url}`}
                     alt={event.fields.title}
                     fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    sizes="(max-width: 600px) 100vw, (max-width: 960px) 50vw, 25vw"
                     style={{ objectFit: 'cover' }}
                     priority
                   />
                 </CardMedia>
               )}
-              <CardContent>
-                <Typography variant="h6">{event.fields.title}</Typography>
+              <CardContent sx={{ flexGrow: 1 }}>
+                <Typography 
+                  variant="h6"
+                  sx={{
+                    fontSize: { xs: '1.1rem', md: '1.25rem' },
+                    lineHeight: 1.4
+                  }}
+                >
+                  {event.fields.title}
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  color="text.secondary"
+                  sx={{ mt: 1 }}
+                >
+                  {new Date(event.fields.date).toLocaleDateString()}
+                </Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -80,15 +145,17 @@ export default function NightlyEvents() {
         open={open} 
         onClose={handleClose} 
         maxWidth="md" 
-        fullWidth
-        fullScreen={fullScreen}
+        fullWidth={isMobile}
+        fullScreen={isMobile}
         PaperProps={{
           sx: {
-            width: '100%',
-            maxWidth: '100%',
+            width: isMobile ? '100%' : '80%',
+            maxWidth: isMobile ? '100%' : '800px',
             margin: 0,
-            height: fullScreen ? 'calc(100% - 64px)' : 'auto',
-            top: fullScreen ? 64 : 'auto',
+            height: isMobile ? '100%' : 'auto',
+            maxHeight: isMobile ? '100%' : '90vh',
+            borderRadius: isMobile ? 0 : 2,
+            overflow: 'auto'
           },
         }}
       >
@@ -97,11 +164,15 @@ export default function NightlyEvents() {
             <DialogTitle 
               sx={{ 
                 m: 0, 
-                p: 2, 
+                p: 3,
                 position: 'relative',
+                borderBottom: 1,
+                borderColor: 'divider'
               }}
             >
-              {selectedEvent.fields.title}
+              <Typography variant="h5" component="h2">
+                {selectedEvent.fields.title}
+              </Typography>
               <IconButton
                 aria-label="close"
                 onClick={handleClose}
@@ -115,24 +186,45 @@ export default function NightlyEvents() {
                 <CloseIcon />
               </IconButton>
             </DialogTitle>
-            <DialogContent>
+            <DialogContent sx={{ p: { xs: 2, md: 3 } }}>
               {selectedEvent.fields.heroImage && (
-                <Box sx={{ height: 300, position: 'relative', mb: 2 }}>
+                <Box 
+                  sx={{ 
+                    height: { xs: 250, sm: 300, md: 400 },
+                    position: 'relative',
+                    mb: 3,
+                    borderRadius: 1,
+                    overflow: 'hidden'
+                  }}
+                >
                   <Image
                     src={`https:${selectedEvent.fields.heroImage.fields.file.url}`}
                     alt={selectedEvent.fields.title}
                     fill
-                    sizes="100vw"
+                    sizes="(max-width: 600px) 100vw, 800px"
                     style={{ objectFit: 'cover' }}
                     priority
                   />
                 </Box>
               )}
-              <Typography variant="body2" color="text.secondary" gutterBottom>
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ mb: 2 }}
+              >
                 Date: {new Date(selectedEvent.fields.date).toLocaleDateString()}
               </Typography>
               {selectedEvent.fields.description && (
-                <Box sx={{ mt: 2 }}>
+                <Box 
+                  sx={{ 
+                    mt: 2,
+                    '& p': {
+                      fontSize: { xs: '0.9rem', md: '1rem' },
+                      lineHeight: 1.7,
+                      mb: 2
+                    }
+                  }}
+                >
                   {documentToReactComponents(selectedEvent.fields.description)}
                 </Box>
               )}
@@ -140,6 +232,6 @@ export default function NightlyEvents() {
           </>
         )}
       </Dialog>
-    </Box>
+    </Container>
   );
 }

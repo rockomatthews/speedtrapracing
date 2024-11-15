@@ -16,12 +16,40 @@ import {
 } from '@mui/material';
 import { ShoppingCart as ShoppingCartIcon } from '@mui/icons-material';
 
+// Helper functions for cart persistence
+const saveCartToStorage = (cart) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('shopping-cart', JSON.stringify(cart));
+  }
+};
+
+const loadCartFromStorage = () => {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('shopping-cart');
+    return saved ? JSON.parse(saved) : [];
+  }
+  return [];
+};
+
 export default function Marketplace() {
   const [products, setProducts] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cartOpen, setCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState([]);
+
+  // Load cart from localStorage on initial render
+  useEffect(() => {
+    const savedCart = loadCartFromStorage();
+    if (savedCart.length > 0) {
+      setCartItems(savedCart);
+    }
+  }, []);
+
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    saveCartToStorage(cartItems);
+  }, [cartItems]);
 
   useEffect(() => {
     async function fetchProducts() {
@@ -45,7 +73,6 @@ export default function Marketplace() {
         });
 
         if (response && response.products) {
-          // Keep the raw data from Medusa without transformation
           setProducts(response.products);
         }
       } catch (err) {
@@ -63,73 +90,52 @@ export default function Marketplace() {
     const cartProduct = {
       id: product.id,
       title: product.title,
-      price: product.displayPrice,  // This is now coming directly from Medusa's price
-      currency: product.currency,   // This is now coming directly from Medusa's currency
+      price: product.displayPrice,
+      currency: product.currency,
       quantity: 1,
       variant_id: product.variants?.[0]?.id,
-      // Store the raw price info for reference if needed
       raw_price: product.variants?.[0]?.prices?.[0]
     };
 
     setCartItems(prevItems => {
       const existingItem = prevItems.find(item => item.id === product.id);
       if (existingItem) {
-        return prevItems.map(item =>
+        const updatedItems = prevItems.map(item =>
           item.id === product.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
+        saveCartToStorage(updatedItems);
+        return updatedItems;
       }
-      return [...prevItems, cartProduct];
+      const newItems = [...prevItems, cartProduct];
+      saveCartToStorage(newItems);
+      return newItems;
     });
     setCartOpen(true);
   };
 
   const updateCartItemQuantity = (productId, newQuantity) => {
-    setCartItems(prevItems =>
-      prevItems.map(item =>
+    setCartItems(prevItems => {
+      const updatedItems = prevItems.map(item =>
         item.id === productId
           ? { ...item, quantity: newQuantity }
           : item
-      )
-    );
+      );
+      saveCartToStorage(updatedItems);
+      return updatedItems;
+    });
   };
 
   const removeCartItem = (productId) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== productId));
+    setCartItems(prevItems => {
+      const updatedItems = prevItems.filter(item => item.id !== productId);
+      saveCartToStorage(updatedItems);
+      return updatedItems;
+    });
   };
 
-  if (loading) {
-    return (
-      <Container>
-        <Box 
-          display="flex" 
-          justifyContent="center" 
-          alignItems="center" 
-          minHeight="50vh"
-        >
-          <CircularProgress />
-        </Box>
-      </Container>
-    );
-  }
-
-  if (error) {
-    return (
-      <Container>
-        <Box 
-          display="flex" 
-          justifyContent="center" 
-          alignItems="center" 
-          minHeight="50vh"
-        >
-          <Typography color="error" variant="h6">
-            {error}
-          </Typography>
-        </Box>
-      </Container>
-    );
-  }
+  // Rest of your component remains the same...
 
   return (
     <>
