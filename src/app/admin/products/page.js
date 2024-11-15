@@ -56,7 +56,7 @@ export default function ProductsPage() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const { products } = await medusaClient.products.list({});
+      const { products } = await medusaClient.admin.products.list();
       setProducts(products);
     } catch (err) {
       setError(err.message);
@@ -68,10 +68,15 @@ export default function ProductsPage() {
 
   const handleOpenDialog = (product = null) => {
     if (product) {
+      // When editing, get the price from variants
+      const price = product.variants?.[0]?.prices?.[0]?.amount 
+        ? (product.variants[0].prices[0].amount / 100).toString()
+        : '0';
+
       setFormData({
         title: product.title,
         description: product.description,
-        price: product.price,
+        price: price,
         category: product.category,
         size: product.size,
         inventory: product.inventory,
@@ -102,20 +107,10 @@ export default function ProductsPage() {
     e.preventDefault();
     try {
       if (editingProduct) {
-        await medusaClient.admin.products.update(editingProduct.id, {
-          ...formData,
-          price: parseFloat(formData.price),
-          inventory: parseInt(formData.inventory),
-          images: [{ src: formData.imageUrl, alt: formData.title }]
-        });
+        await medusaClient.admin.products.update(editingProduct.id, formData);
         showSnackbar('Product updated successfully');
       } else {
-        await medusaClient.products.create({
-          ...formData,
-          price: parseFloat(formData.price),
-          inventory: parseInt(formData.inventory),
-          images: [formData.imageUrl]
-        });
+        await medusaClient.admin.products.create(formData);
         showSnackbar('Product created successfully');
       }
       handleCloseDialog();
@@ -149,8 +144,13 @@ export default function ProductsPage() {
     );
   }
 
+  const formatPrice = (product) => {
+    const amount = product.variants?.[0]?.prices?.[0]?.amount;
+    return amount ? `$${(amount / 100).toFixed(2)}` : '$0.00';
+  };
+
   return (
-    <Box>
+    <Box sx={{ p: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Typography variant="h4" component="h1">
           Products
@@ -187,10 +187,18 @@ export default function ProductsPage() {
                     {product.title}
                   </Typography>
                   <Box>
-                    <IconButton size="small" onClick={() => handleOpenDialog(product)}>
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleOpenDialog(product)}
+                      aria-label="Edit product"
+                    >
                       <EditIcon />
                     </IconButton>
-                    <IconButton size="small" onClick={() => handleDelete(product.id)}>
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleDelete(product.id)}
+                      aria-label="Delete product"
+                    >
                       <DeleteIcon />
                     </IconButton>
                   </Box>
@@ -199,7 +207,7 @@ export default function ProductsPage() {
                   {product.description}
                 </Typography>
                 <Typography variant="h6" color="primary">
-                  ${parseFloat(product.price).toFixed(2)}
+                  {formatPrice(product)}
                 </Typography>
                 <Typography variant="body2">
                   Category: {product.category}
@@ -216,8 +224,14 @@ export default function ProductsPage() {
         ))}
       </Grid>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
+      <Dialog 
+        open={openDialog} 
+        onClose={handleCloseDialog} 
+        maxWidth="sm" 
+        fullWidth
+        aria-labelledby="product-dialog-title"
+      >
+        <DialogTitle id="product-dialog-title">
           {editingProduct ? 'Edit Product' : 'Add New Product'}
         </DialogTitle>
         <form onSubmit={handleSubmit}>
@@ -320,7 +334,10 @@ export default function ProductsPage() {
         autoHideDuration={6000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
       >
-        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+        <Alert 
+          severity={snackbar.severity} 
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        >
           {snackbar.message}
         </Alert>
       </Snackbar>
