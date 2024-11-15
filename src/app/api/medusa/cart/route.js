@@ -1,6 +1,6 @@
 // src/app/api/medusa/cart/route.js
 import { NextResponse } from 'next/server';
-import medusaClient from '@/lib/medusa';
+import medusaClient from '@/lib/medusa-client';
 
 export async function POST(request) {
   try {
