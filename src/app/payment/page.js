@@ -16,7 +16,7 @@ import VenmoIcon from '@mui/icons-material/AccountBalance';
 import { useRouter } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import Image from 'next/image';
-import { doc, getDoc, updateDoc, setDoc, addDoc, collection } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, addDoc, collection, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
@@ -28,17 +28,33 @@ const Payment = () => {
   const [error, setError] = useState(null);
   const router = useRouter();
 
-
   useEffect(() => {
     const storedBookingDetails = localStorage.getItem('bookingDetails');
     if (storedBookingDetails) {
       setBookingDetails(JSON.parse(storedBookingDetails));
     } else {
       setError("No booking details found. Please start your booking process again.");
+      router.push('/schedule');
     }
 
   }, []);
 
+  useEffect(() => {
+    // Function to delete the booking document
+    const deleteBooking = async () => {
+      if (bookingDetails && bookingDetails.docId) {
+        const bookingDocRef = doc(db, 'bookings', bookingDetails.docId);
+        await deleteDoc(bookingDocRef);
+      }
+    };
+  
+    // Set up cleanup function to delete booking on unmount
+    return () => {
+      deleteBooking();
+    };
+  }, [bookingDetails]);
+  
+  console.log("bookingDetails: ",bookingDetails)
   const handleMethodClick = async (method) => {
     setSelectedMethod(method);
     setLoading(true);
@@ -56,8 +72,19 @@ const Payment = () => {
             console.log('Venmo checkout not implemented yet');
             setError('Venmo checkout is not implemented yet');
         } else if (method === 'test') {
-          const bookingsCollectionRef = collection(db, 'bookings');
-          await addDoc(bookingsCollectionRef, bookingDetails);
+          console.log('Test payment method selected');
+          const bookingDocRef = doc(db, 'bookings', bookingDetails.docId);
+          try {
+              await updateDoc(bookingDocRef, {
+                  isFinalized: true,
+              });
+              console.log('Booking updated successfully');
+              localStorage.removeItem('bookingDetails');
+              console.log('Booking details removed from local storage');
+              setError(null);
+          } catch (err) {
+              console.error('Error updating booking:', err);
+          }
         }
     } catch (err) {
         setError(err.message || 'An error occurred during checkout');
@@ -103,7 +130,7 @@ const Payment = () => {
   return (
     <Box
       sx={{
-        height: '100vh',
+        height: '90vh',
         backgroundImage: `url('/loginBackground.png')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -114,6 +141,25 @@ const Payment = () => {
         padding: '20px',
       }}
     >
+
+      <Button
+        onClick={() => router.push('/schedule')}
+        sx={{
+          position: 'absolute',
+          top: '90px',
+          left: '20px',
+          backgroundColor: '#333',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: '8px 16px',
+          textTransform: 'none',
+          zIndex: 2,
+        }}
+      >
+        go back
+      </Button>
+
+
       <Typography
         variant="h4"
         sx={{

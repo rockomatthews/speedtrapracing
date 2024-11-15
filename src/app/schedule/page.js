@@ -23,7 +23,7 @@ import { useRouter } from 'next/navigation';
 import { DateTime } from 'luxon';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '../../config/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore'; // Import Firestore functions
+import { collection, query, where, getDocs, addDoc } from 'firebase/firestore'; // Import Firestore functions
 
 const Schedule = () => {
   const [selectedDate, setSelectedDate] = useState(null);
@@ -35,19 +35,43 @@ const Schedule = () => {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [bookings, setBookings] = useState([]); // New state for bookings
-  
+  const [loading, setLoading] = useState(true);
 
+  console.log("selectedDate: ",selectedDate)
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
     });
 
+    const existingBookingDetails = localStorage.getItem('bookingDetails');
+    if (existingBookingDetails) {
+      console.log("existingBookingDetails: ", existingBookingDetails)
+      const parsedBookingDetails = JSON.parse(existingBookingDetails);
+      console.log("parsedBookingDetails :", parsedBookingDetails)
+      
+      // Populate the component's state with the saved booking details
+      setSelectedDate(DateTime.fromISO(parsedBookingDetails.date));
+      setSelectedTimeSlots(parsedBookingDetails.timeSlots.reduce((acc, time) => {
+        acc[time] = true; // Set each selected time slot to true
+        return acc;
+      }, {}));
+      setGroupSize(parsedBookingDetails.groupSize);
+      setLoading(false)
+    }
+    setLoading(false)
+
     return () => unsubscribe();
   }, []);
 
+  console.log("Updated selectedDate: ", selectedDate);
+
   useEffect(() => {
-    const today = DateTime.now();
-    setSelectedDate(today);
+    if(selectedDate == null && !loading){
+      
+      console.log("Updated selectedDate to current data ", selectedDate);
+      const today = DateTime.now();
+      setSelectedDate(today);
+    }
   }, []);
 
   useEffect(() => {
@@ -55,6 +79,14 @@ const Schedule = () => {
       fetchBookingsForMonth(selectedDate);
     }
   }, [selectedDate]);
+
+  const reset = () => {
+    localStorage.removeItem('bookingDetails');
+
+    setSelectedDate(null);
+    setSelectedTimeSlots({});
+    setGroupSize(1);
+  }
 
   const fetchBookingsForMonth = async (date) => {
     try {
@@ -118,7 +150,7 @@ const Schedule = () => {
     setShowTempBar(Object.keys(selectedTimeSlots).length === 1);
   }, [selectedTimeSlots]);
 
-  const handleNextClick = () => {
+  const handleNextClick = async() => {
     if (!selectedDate) {
       setError('Please select a date');
       return;
@@ -133,13 +165,21 @@ const Schedule = () => {
       groupSize: groupSize,
       totalPrice: calculateTotalPrice(),
       user: user.uid,
+      isFinalized: false
     };
+
+    const bookingsCollectionRef = collection(db, 'bookings');
+    const docRef = await addDoc(bookingsCollectionRef, bookingDetails);
+    bookingDetails.docId = docRef.id;
 
     localStorage.setItem('bookingDetails', JSON.stringify(bookingDetails));
     router.push('/payment');
   };
 
   const calculateAvailableSims = () => {
+    
+    if (selectedDate == null) return 0; // Fixed the syntax error
+
     const simsPerSlot = {};
     bookings.forEach((booking) => {
       const { date, timeSlots, groupSize } = booking;
@@ -178,6 +218,7 @@ const Schedule = () => {
       }}
     >
       <Box sx={{ width: '100%', zIndex: 1, position: 'relative' }}>
+
         <LocalizationProvider dateAdapter={AdapterLuxon}>
           <DatePicker
             label="Select Date"
@@ -242,7 +283,28 @@ const Schedule = () => {
             )}
           />
         </LocalizationProvider>
-  
+
+        {groupSize > 0 && selectedDate && Object.keys(selectedTimeSlots).length > 0 ? (
+          <Button
+            onClick={reset} // Ensure reset is a function
+            sx={{
+              position: 'absolute',
+              top: '0px',
+              right: '20px',
+              backgroundColor: '#333',
+              color: '#fff',
+              fontWeight: 'bold',
+              padding: '8px 16px',
+              textTransform: 'none',
+              zIndex: 2,
+            }}
+          >
+            reset
+          </Button>
+        ) : null}
+
+
+
         <Typography
           variant="h6"
           sx={{
@@ -285,6 +347,8 @@ const Schedule = () => {
           </Select>
         </FormControl>
       </Box>
+
+
   
       <Grid container spacing={2}>
         {timeSlots.map((time) => {
@@ -417,7 +481,7 @@ const Schedule = () => {
           </Typography>
           <Typography variant="body1">Total: ${calculateTotalPrice()}</Typography>
         </Box>
-        <Button variant="contained" color="primary" onClick={handleNextClick}>
+        <Button variant="contained" color="primary" disabled={groupSize > 0 && selectedDate && Object.keys(selectedTimeSlots).length > 0 ? false:true} onClick={handleNextClick}>
           Next
         </Button>
       </Paper>
