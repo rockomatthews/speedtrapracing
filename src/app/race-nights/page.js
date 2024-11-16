@@ -1,7 +1,7 @@
 // src/app/race-nights/page.js
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { createClient } from 'contentful';
 import { 
   Box, 
@@ -22,18 +22,43 @@ import CloseIcon from '@mui/icons-material/Close';
 import Image from 'next/image';
 import { documentToReactComponents } from '@contentful/rich-text-react-renderer';
 
+// Initialize Contentful client with environment variables
 const client = createClient({
   space: process.env.NEXT_PUBLIC_CONTENTFUL_SPACE_ID,
   accessToken: process.env.NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN,
 });
 
+// Helper function to ensure proper image URL formatting
+const getImageUrl = (imageField) => {
+  if (!imageField?.fields?.file?.url) {
+    console.error('Invalid image field structure:', imageField);
+    return null;
+  }
+  let url = imageField.fields.file.url;
+  if (url.startsWith('//')) {
+    return `https:${url}`;
+  }
+  if (!url.startsWith('http')) {
+    return `https://${url}`;
+  }
+  return url;
+};
+
 export default function NightlyEvents() {
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [open, setOpen] = useState(false);
+  const [imageLoadErrors, setImageLoadErrors] = useState({});
+  
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isMedium = useMediaQuery(theme.breakpoints.between('sm', 'lg'));
+
+  // Move handleImageError to useCallback to prevent recreation on every render
+  const handleImageError = useCallback((eventId) => {
+    console.error(`Image failed to load for event ${eventId}`);
+    setImageLoadErrors(prev => ({ ...prev, [eventId]: true }));
+  }, []);
 
   useEffect(() => {
     async function fetchEvents() {
@@ -41,7 +66,9 @@ export default function NightlyEvents() {
         const response = await client.getEntries({
           content_type: 'nightlyEvent',
           order: 'fields.date',
+          include: 2
         });
+        
         setEvents(response.items);
       } catch (error) {
         console.error('Error fetching nightly events:', error);
@@ -51,19 +78,20 @@ export default function NightlyEvents() {
     fetchEvents();
   }, []);
 
-  const handleClickOpen = (event) => {
+  const handleClickOpen = useCallback((event) => {
     setSelectedEvent(event);
     setOpen(true);
-  };
+  }, []);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setOpen(false);
-  };
+  }, []);
 
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
       <Typography 
         variant="h4" 
+        component="h1"
         gutterBottom 
         sx={{ 
           mb: { xs: 3, md: 4 },
@@ -74,7 +102,7 @@ export default function NightlyEvents() {
       </Typography>
 
       <Grid container spacing={3}>
-        {events.map((event) => (
+        {events.map((event, index) => (
           <Grid 
             item 
             xs={12}
@@ -96,7 +124,7 @@ export default function NightlyEvents() {
                 },
               }}
             >
-              {event.fields.heroImage && (
+              {event.fields.heroImage && !imageLoadErrors[event.sys.id] && (
                 <CardMedia
                   component="div"
                   sx={{
@@ -109,18 +137,21 @@ export default function NightlyEvents() {
                   }}
                 >
                   <Image
-                    src={`https:${event.fields.heroImage.fields.file.url}`}
-                    alt={event.fields.title}
+                    src={getImageUrl(event.fields.heroImage)}
+                    alt={event.fields.title || 'Race night event image'}
                     fill
                     sizes="(max-width: 600px) 100vw, (max-width: 960px) 50vw, 25vw"
                     style={{ objectFit: 'cover' }}
-                    priority
+                    quality={75}
+                    onError={() => handleImageError(event.sys.id)}
+                    priority={index < 4}
                   />
                 </CardMedia>
               )}
               <CardContent sx={{ flexGrow: 1 }}>
                 <Typography 
                   variant="h6"
+                  component="h2"
                   sx={{
                     fontSize: { xs: '1.1rem', md: '1.25rem' },
                     lineHeight: 1.4
@@ -170,7 +201,13 @@ export default function NightlyEvents() {
                 borderColor: 'divider'
               }}
             >
-              <Typography variant="h5" component="h2">
+              <Typography 
+                variant="h5" 
+                component="div"
+                sx={{
+                  fontWeight: 600
+                }}
+              >
                 {selectedEvent.fields.title}
               </Typography>
               <IconButton
@@ -187,7 +224,7 @@ export default function NightlyEvents() {
               </IconButton>
             </DialogTitle>
             <DialogContent sx={{ p: { xs: 2, md: 3 } }}>
-              {selectedEvent.fields.heroImage && (
+              {selectedEvent.fields.heroImage && !imageLoadErrors[selectedEvent.sys.id] && (
                 <Box 
                   sx={{ 
                     height: { xs: 250, sm: 300, md: 400 },
@@ -198,12 +235,14 @@ export default function NightlyEvents() {
                   }}
                 >
                   <Image
-                    src={`https:${selectedEvent.fields.heroImage.fields.file.url}`}
-                    alt={selectedEvent.fields.title}
+                    src={getImageUrl(selectedEvent.fields.heroImage)}
+                    alt={selectedEvent.fields.title || 'Race night detail image'}
                     fill
                     sizes="(max-width: 600px) 100vw, 800px"
                     style={{ objectFit: 'cover' }}
-                    priority
+                    quality={75}
+                    onError={() => handleImageError(selectedEvent.sys.id)}
+                    priority={true}
                   />
                 </Box>
               )}

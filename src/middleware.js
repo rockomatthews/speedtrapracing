@@ -1,19 +1,5 @@
 // src/middleware.js
 import { NextResponse } from 'next/server';
-import { getAuth } from 'firebase-admin/auth';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-
-// Initialize Firebase Admin if not already initialized
-const apps = getApps();
-if (!apps.length) {
-  initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-    })
-  });
-}
 
 export async function middleware(request) {
   // Only check auth for admin routes
@@ -26,13 +12,22 @@ export async function middleware(request) {
         return NextResponse.redirect(new URL('/login', request.url));
       }
 
-      // Verify the session
-      const decodedClaims = await getAuth().verifySessionCookie(sessionCookie, true);
+      // Call your existing Firebase admin API endpoint to verify the session
+      const verifyResponse = await fetch(new URL('/api/auth/verify', request.url), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sessionCookie }),
+      });
 
-      // Get user data from Firestore to check admin status
-      const adminDoc = await db.collection('Users').doc(decodedClaims.uid).get();
-      
-      if (!adminDoc.exists || !adminDoc.data().isAdmin) {
+      if (!verifyResponse.ok) {
+        return NextResponse.redirect(new URL('/login', request.url));
+      }
+
+      const { isAdmin, uid } = await verifyResponse.json();
+
+      if (!isAdmin) {
         return new NextResponse('Forbidden', {
           status: 403,
           headers: {
@@ -43,7 +38,7 @@ export async function middleware(request) {
 
       // Add user info to request headers
       const requestHeaders = new Headers(request.headers);
-      requestHeaders.set('x-user-id', decodedClaims.uid);
+      requestHeaders.set('x-user-id', uid);
       requestHeaders.set('x-user-role', 'admin');
 
       return NextResponse.next({
