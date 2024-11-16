@@ -6,8 +6,6 @@ const nextConfig = {
   
   // Configure image optimization and remote patterns
   images: {
-    // Enable image optimization (remove unoptimized since we're not doing static export)
-    domains: ['images.ctfassets.net', 'assets.braintreegateway.com', 'checkoutshopper-test.adyen.com'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -39,7 +37,8 @@ const nextConfig = {
         hostname: '*.braintreegateway.com',
         pathname: '/**',
       }
-    ]
+    ],
+    minimumCacheTTL: 60
   },
 
   // Configure webpack for Node.js compatibility
@@ -93,8 +92,6 @@ const nextConfig = {
   experimental: {
     // Enable support for ES modules
     esmExternals: true,
-    // Enable server actions for form submissions
-    serverActions: true,
     // Configure proper build output for Firebase
     serverComponentsExternalPackages: ['firebase-admin'],
   },
