@@ -28,7 +28,7 @@ const client = createClient({
   accessToken: process.env.NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN,
 });
 
-// Helper function to ensure proper image URL formatting
+// Helper function to ensure proper image URL formatting with production optimizations
 const getImageUrl = (imageField) => {
   if (!imageField?.fields?.file?.url) {
     console.error('Invalid image field structure:', imageField);
@@ -36,11 +36,18 @@ const getImageUrl = (imageField) => {
   }
   let url = imageField.fields.file.url;
   if (url.startsWith('//')) {
-    return `https:${url}`;
+    url = `https:${url}`;
   }
   if (!url.startsWith('http')) {
-    return `https://${url}`;
+    url = `https://${url}`;
   }
+  
+  // For production, use the direct URL with quality parameters
+  if (process.env.NODE_ENV === 'production') {
+    // Add Contentful's image API parameters for optimization
+    return `${url}?w=800&q=75&fm=webp`;
+  }
+  
   return url;
 };
 
@@ -54,7 +61,6 @@ export default function NightlyEvents() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isMedium = useMediaQuery(theme.breakpoints.between('sm', 'lg'));
 
-  // Move handleImageError to useCallback to prevent recreation on every render
   const handleImageError = useCallback((eventId) => {
     console.error(`Image failed to load for event ${eventId}`);
     setImageLoadErrors(prev => ({ ...prev, [eventId]: true }));
@@ -68,7 +74,6 @@ export default function NightlyEvents() {
           order: 'fields.date',
           include: 2
         });
-        
         setEvents(response.items);
       } catch (error) {
         console.error('Error fetching nightly events:', error);
@@ -145,6 +150,8 @@ export default function NightlyEvents() {
                     quality={75}
                     onError={() => handleImageError(event.sys.id)}
                     priority={index < 4}
+                    unoptimized={process.env.NODE_ENV === 'production'}
+                    loading={index < 4 ? 'eager' : 'lazy'}
                   />
                 </CardMedia>
               )}
@@ -243,6 +250,8 @@ export default function NightlyEvents() {
                     quality={75}
                     onError={() => handleImageError(selectedEvent.sys.id)}
                     priority={true}
+                    unoptimized={process.env.NODE_ENV === 'production'}
+                    loading="eager"
                   />
                 </Box>
               )}
