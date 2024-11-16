@@ -103,7 +103,7 @@ export default function NightlyEvents() {
           textAlign: { xs: 'center', md: 'left' }
         }}
       >
-        Race Nights
+        Race Radar
       </Typography>
 
       <Grid container spacing={3}>
