@@ -1,4 +1,3 @@
-// src/app/marketplace/page.js
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -16,41 +15,72 @@ import {
 } from '@mui/material';
 import { ShoppingCart as ShoppingCartIcon } from '@mui/icons-material';
 
-// Helper functions for cart persistence
-const saveCartToStorage = (cart) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('shopping-cart', JSON.stringify(cart));
-  }
-};
+// Improved cart storage with error handling and quota management
+const cartManager = {
+  save: (cart) => {
+    try {
+      // Trim cart data to prevent storage issues
+      const trimmedCart = cart.map(item => ({
+        id: item.id,
+        title: item.title?.substring(0, 100) || '',  // Limit title length
+        price: Number(item.price) || 0,
+        currency: item.currency || 'USD',
+        quantity: Number(item.quantity) || 1,
+        variant_id: item.variant_id,
+        raw_price: item.raw_price ? {
+          amount: item.raw_price.amount,
+          currency_code: item.raw_price.currency_code
+        } : null
+      }));
 
-const loadCartFromStorage = () => {
-  if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem('shopping-cart');
-    return saved ? JSON.parse(saved) : [];
+      // Try to save, clear if needed
+      try {
+        localStorage.setItem('shopping-cart', JSON.stringify(trimmedCart));
+      } catch (e) {
+        // If quota exceeded, clear and try again
+        localStorage.clear();
+        localStorage.setItem('shopping-cart', JSON.stringify(trimmedCart));
+      }
+    } catch (error) {
+      console.error('Failed to save cart:', error);
+    }
+  },
+
+  load: () => {
+    try {
+      const saved = localStorage.getItem('shopping-cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error('Failed to load cart:', error);
+      return [];
+    }
   }
-  return [];
 };
 
 export default function Marketplace() {
+  // State Management
   const [products, setProducts] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cartOpen, setCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState([]);
 
-  // Load cart from localStorage on initial render
+  // Load cart on initial render
   useEffect(() => {
-    const savedCart = loadCartFromStorage();
+    const savedCart = cartManager.load();
     if (savedCart.length > 0) {
       setCartItems(savedCart);
     }
   }, []);
 
-  // Save cart to localStorage whenever it changes
+  // Save cart when it changes
   useEffect(() => {
-    saveCartToStorage(cartItems);
+    if (cartItems.length > 0) {
+      cartManager.save(cartItems);
+    }
   }, [cartItems]);
 
+  // Fetch products from Medusa client
   useEffect(() => {
     async function fetchProducts() {
       try {
@@ -72,8 +102,10 @@ export default function Marketplace() {
           expand: ['variants', 'variants.prices']
         });
 
-        if (response && response.products) {
+        if (response?.products) {
           setProducts(response.products);
+        } else {
+          throw new Error('Invalid product data received');
         }
       } catch (err) {
         console.error('Error fetching products:', err);
@@ -86,12 +118,15 @@ export default function Marketplace() {
     fetchProducts();
   }, []);
 
+  // Cart Management Functions
   const addToCart = (product) => {
+    if (!product?.id) return;
+
     const cartProduct = {
       id: product.id,
       title: product.title,
       price: product.displayPrice,
-      currency: product.currency,
+      currency: product.currency || 'USD',
       quantity: 1,
       variant_id: product.variants?.[0]?.id,
       raw_price: product.variants?.[0]?.prices?.[0]
@@ -99,44 +134,70 @@ export default function Marketplace() {
 
     setCartItems(prevItems => {
       const existingItem = prevItems.find(item => item.id === product.id);
+      
       if (existingItem) {
+        // Update existing item
         const updatedItems = prevItems.map(item =>
           item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: (item.quantity || 0) + 1 }
             : item
         );
-        saveCartToStorage(updatedItems);
+        cartManager.save(updatedItems);
         return updatedItems;
       }
+      
+      // Add new item
       const newItems = [...prevItems, cartProduct];
-      saveCartToStorage(newItems);
+      cartManager.save(newItems);
       return newItems;
     });
+
     setCartOpen(true);
   };
 
   const updateCartItemQuantity = (productId, newQuantity) => {
+    if (!productId || newQuantity < 1) return;
+
     setCartItems(prevItems => {
       const updatedItems = prevItems.map(item =>
         item.id === productId
-          ? { ...item, quantity: newQuantity }
+          ? { ...item, quantity: Number(newQuantity) }
           : item
       );
-      saveCartToStorage(updatedItems);
+      cartManager.save(updatedItems);
       return updatedItems;
     });
   };
 
   const removeCartItem = (productId) => {
+    if (!productId) return;
+
     setCartItems(prevItems => {
       const updatedItems = prevItems.filter(item => item.id !== productId);
-      saveCartToStorage(updatedItems);
+      cartManager.save(updatedItems);
       return updatedItems;
     });
   };
 
-  // Rest of your component remains the same...
+  // Loading State
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
 
+  // Error State
+  if (error) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+        <Typography color="error">{error}</Typography>
+      </Box>
+    );
+  }
+
+  // Main Render
   return (
     <>
       <ProductList 
@@ -165,7 +226,7 @@ export default function Marketplace() {
           }}
         >
           <Badge 
-            badgeContent={cartItems.reduce((total, item) => total + item.quantity, 0)} 
+            badgeContent={cartItems.reduce((total, item) => total + (item.quantity || 0), 0)} 
             color="secondary"
           >
             <ShoppingCartIcon />

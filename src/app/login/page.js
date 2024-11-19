@@ -14,6 +14,7 @@ import {
   FacebookAuthProvider
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import safeStorage from '../../utils/safeStorage';
 
 const LoginPage = () => {
   const router = useRouter();
@@ -29,16 +30,14 @@ const LoginPage = () => {
       const userDocRef = doc(db, 'Users', user.uid);
       const userDocSnapshot = await getDoc(userDocRef);
       let userData;
+  
       if (!userDocSnapshot.exists()) {
         userData = {
           email: user.email,
           displayName: user.displayName || '',
-          photoURL: user.photoURL || '',
           createdAt: new Date().toISOString(),
           isInitiated: false,
           tokens: 2,
-          isPremium: false,
-          lastReset: new Date().toISOString(),
         };
         await setDoc(userDocRef, userData);
         setIsNewUser(true);
@@ -46,7 +45,14 @@ const LoginPage = () => {
         userData = userDocSnapshot.data();
         setIsNewUser(false);
       }
-      localStorage.setItem('userSession', JSON.stringify(user));
+  
+      // Use safe storage
+      safeStorage.setItem('userSession', {
+        email: user.email,
+        uid: user.uid,
+        isAdmin: userData.isAdmin || false
+      });
+  
       return userData;
     } catch (error) {
       console.error('Error in doesUserExist function:', error);
@@ -57,6 +63,7 @@ const LoginPage = () => {
   const handleSocialLogin = async (provider) => {
     setLoading(true);
     setError('');
+    
     try {
       let authProvider;
       switch(provider) {
@@ -71,11 +78,37 @@ const LoginPage = () => {
       }
       
       const result = await signInWithPopup(auth, authProvider);
+  
+      // Get the redirect URL from the query parameters
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectPath = searchParams.get('from') || '/';
+  
+      if (redirectPath.startsWith('/admin')) {
+        const idToken = await result.user.getIdToken(true);
+        const verifyResponse = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ idToken }),
+        });
+  
+        if (!verifyResponse.ok) {
+          throw new Error('Not authorized as admin');
+        }
+      }
+  
       const userData = await doesUserExist(result.user);
-      console.log(`Logged in with ${provider}`, userData);
-      handleSuccessfulAuth();
+  
+      // Use window.location.href for admin redirects
+      if (redirectPath.startsWith('/admin')) {
+        window.location.href = redirectPath;
+      } else {
+        router.push(redirectPath);
+      }
+  
     } catch (error) {
-      console.error(`${provider} login failed`, error);
+      console.error(`${provider} login failed:`, error);
       setError(getErrorMessage(error));
     } finally {
       setLoading(false);
@@ -85,18 +118,7 @@ const LoginPage = () => {
   const handleEmailAuth = async () => {
     setLoading(true);
     setError('');
-    if (isNewUser && password !== confirmPassword) {
-      setError("Passwords don't match");
-      setLoading(false);
-      return;
-    }
-
-    if (password.length < 6) {
-      setError("Password should be at least 6 characters long");
-      setLoading(false);
-      return;
-    }
-
+  
     try {
       let result;
       if (isNewUser) {
@@ -104,11 +126,38 @@ const LoginPage = () => {
       } else {
         result = await signInWithEmailAndPassword(auth, email, password);
       }
+      
+      // Get the redirect URL from the query parameters
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectPath = searchParams.get('from') || '/';
+  
+      // If redirecting to admin, verify admin status first
+      if (redirectPath.startsWith('/admin')) {
+        const idToken = await result.user.getIdToken(true);
+        const verifyResponse = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ idToken }),
+        });
+  
+        if (!verifyResponse.ok) {
+          throw new Error('Not authorized as admin');
+        }
+      }
+  
       const userData = await doesUserExist(result.user);
-      console.log(isNewUser ? 'Signed up with email' : 'Logged in with email', userData);
-      handleSuccessfulAuth();
+      
+      // Use window.location.href for a full page reload to ensure clean state
+      if (redirectPath.startsWith('/admin')) {
+        window.location.href = redirectPath;
+      } else {
+        router.push(redirectPath);
+      }
+      
     } catch (error) {
-      console.error('Email authentication failed', error);
+      console.error('Email authentication failed:', error);
       setError(getErrorMessage(error));
     } finally {
       setLoading(false);

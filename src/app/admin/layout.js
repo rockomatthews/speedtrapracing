@@ -1,7 +1,6 @@
-// src/app/admin/layout.js
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Box,
@@ -15,7 +14,8 @@ import {
   ListItemIcon,
   ListItemText,
   Toolbar,
-  Typography
+  Typography,
+  CircularProgress
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -26,12 +26,18 @@ import {
   Dashboard as DashboardIcon
 } from '@mui/icons-material';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+// Update import to use relative path
+import { getSession } from '../../utils/sessionHandler';
 
 const drawerWidth = 240;
 
 export default function AdminLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  const router = useRouter();
   const pathname = usePathname();
 
   const menuItems = [
@@ -42,6 +48,82 @@ export default function AdminLayout({ children }) {
     { text: 'Settings', href: '/admin/settings', icon: <SettingsIcon /> },
   ];
 
+  useEffect(() => {
+    const verifyAdmin = async () => {
+      console.log('🔍 Starting admin verification...');
+      console.log('📍 Current pathname:', pathname);
+
+      try {
+        const session = getSession();
+        console.log('📦 Session state:', session ? {
+          hasToken: !!session.token,
+          isAdmin: !!session.user?.isAdmin,
+          expiry: new Date(session.expiresAt).toLocaleString()
+        } : 'No session');
+        
+        if (!session?.user?.isAdmin) {
+          console.log('❌ No admin session found or user is not admin');
+          console.log('🔄 Redirecting to login with return path');
+          window.location.href = `/login?from=${pathname}`;
+          return;
+        }
+
+        console.log('🔑 Verifying session with server...');
+        const response = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            sessionCookie: session.token 
+          }),
+        });
+
+        console.log('📡 Server response status:', response.status);
+        const data = await response.json();
+        console.log('📡 Server response:', data);
+
+        if (!response.ok) {
+          console.log('❌ Server verification failed');
+          console.log('🔄 Redirecting to login');
+          window.location.href = `/login?from=${pathname}`;
+          return;
+        }
+
+        console.log('✅ Admin verified successfully');
+        setIsAuthenticated(true);
+
+      } catch (error) {
+        console.error('🚨 Verification error:', error);
+        window.location.href = `/login?from=${pathname}`;
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    verifyAdmin();
+  }, [pathname]);
+
+  // Return loading state
+  if (loading) {
+    return (
+      <Box 
+        display="flex" 
+        justifyContent="center" 
+        alignItems="center" 
+        minHeight="100vh"
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Return null if not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  // Create drawer content
   const drawer = (
     <div>
       <Toolbar>
@@ -69,9 +151,11 @@ export default function AdminLayout({ children }) {
     </div>
   );
 
+  // Return main layout
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
+      
       <AppBar
         position="fixed"
         sx={{
@@ -93,6 +177,7 @@ export default function AdminLayout({ children }) {
           </Typography>
         </Toolbar>
       </AppBar>
+
       <Box
         component="nav"
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
@@ -102,26 +187,34 @@ export default function AdminLayout({ children }) {
           open={mobileOpen}
           onClose={() => setMobileOpen(false)}
           ModalProps={{
-            keepMounted: true, // Better open performance on mobile.
+            keepMounted: true,
           }}
           sx={{
             display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth 
+            },
           }}
         >
           {drawer}
         </Drawer>
+        
         <Drawer
           variant="permanent"
           sx={{
             display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth 
+            },
           }}
           open
         >
           {drawer}
         </Drawer>
       </Box>
+
       <Box
         component="main"
         sx={{ 

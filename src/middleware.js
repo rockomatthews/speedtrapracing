@@ -1,61 +1,70 @@
-// src/middleware.js
 import { NextResponse } from 'next/server';
 
 export async function middleware(request) {
-  // Only check auth for admin routes
-  if (request.nextUrl.pathname.startsWith('/admin')) {
-    try {
-      // Get the session cookie
-      const sessionCookie = request.cookies.get('session')?.value;
+    if (request.nextUrl.pathname.startsWith('/admin')) {
+        console.log('👉 Middleware executing for:', request.nextUrl.pathname);
+        
+        try {
+            const sessionCookie = request.cookies.get('session')?.value;
+            console.log('🍪 Session cookie present:', !!sessionCookie);
 
-      if (!sessionCookie) {
-        return NextResponse.redirect(new URL('/login', request.url));
-      }
+            if (!sessionCookie) {
+                console.log('❌ No session cookie found');
+                const loginUrl = new URL('/login', request.url);
+                loginUrl.searchParams.set('from', request.nextUrl.pathname);
+                console.log('🔄 Redirecting to:', loginUrl.toString());
+                return NextResponse.redirect(loginUrl);
+            }
 
-      // Call your existing Firebase admin API endpoint to verify the session
-      const verifyResponse = await fetch(new URL('/api/auth/verify', request.url), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sessionCookie }),
-      });
+            console.log('🔍 Verifying session...');
+            const verifyResponse = await fetch(new URL('/api/auth/verify', request.url), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ sessionCookie }),
+            });
 
-      if (!verifyResponse.ok) {
-        return NextResponse.redirect(new URL('/login', request.url));
-      }
+            console.log('📡 Verify response status:', verifyResponse.status);
 
-      const { isAdmin, uid } = await verifyResponse.json();
+            if (!verifyResponse.ok) {
+                console.log('❌ Session verification failed');
+                const loginUrl = new URL('/login', request.url);
+                loginUrl.searchParams.set('from', request.nextUrl.pathname);
+                return NextResponse.redirect(loginUrl);
+            }
 
-      if (!isAdmin) {
-        return new NextResponse('Forbidden', {
-          status: 403,
-          headers: {
-            'Content-Type': 'text/plain',
-          },
-        });
-      }
+            const data = await verifyResponse.json();
+            console.log('👤 Verification response:', data);
 
-      // Add user info to request headers
-      const requestHeaders = new Headers(request.headers);
-      requestHeaders.set('x-user-id', uid);
-      requestHeaders.set('x-user-role', 'admin');
+            if (!data.isAdmin) {
+                console.log('🚫 User is not an admin');
+                return new NextResponse('Forbidden', {
+                    status: 403,
+                    headers: { 'Content-Type': 'text/plain' },
+                });
+            }
 
-      return NextResponse.next({
-        request: {
-          headers: requestHeaders,
-        },
-      });
-      
-    } catch (error) {
-      console.error('Admin middleware error:', error);
-      return NextResponse.redirect(new URL('/login', request.url));
+            console.log('✅ Admin access granted');
+            const requestHeaders = new Headers(request.headers);
+            requestHeaders.set('x-user-id', data.uid);
+            requestHeaders.set('x-user-role', 'admin');
+
+            return NextResponse.next({
+                request: { headers: requestHeaders }
+            });
+            
+        } catch (error) {
+            console.error('🚨 Middleware error:', error);
+            const loginUrl = new URL('/login', request.url);
+            loginUrl.searchParams.set('from', request.nextUrl.pathname);
+            return NextResponse.redirect(loginUrl);
+        }
     }
-  }
 
-  return NextResponse.next();
+    return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/admin/:path*']
+    matcher: ['/admin/:path*']
 };
