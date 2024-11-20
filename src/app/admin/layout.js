@@ -27,7 +27,6 @@ import {
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-// Update import to use relative path
 import { getSession } from '../../utils/sessionHandler';
 
 const drawerWidth = 240;
@@ -49,62 +48,38 @@ export default function AdminLayout({ children }) {
   ];
 
   useEffect(() => {
-    const verifyAdmin = async () => {
-      console.log('🔍 Starting admin verification...');
-      console.log('📍 Current pathname:', pathname);
-
+    const checkSession = async () => {
+      console.log('🔍 Checking admin session...');
+      
       try {
+        // Just check local session - middleware handles actual auth
         const session = getSession();
-        console.log('📦 Session state:', session ? {
-          hasToken: !!session.token,
+        console.log('📦 Local session state:', session ? {
+          hasSession: true,
           isAdmin: !!session.user?.isAdmin,
           expiry: new Date(session.expiresAt).toLocaleString()
         } : 'No session');
-        
-        if (!session?.user?.isAdmin) {
-          console.log('❌ No admin session found or user is not admin');
-          console.log('🔄 Redirecting to login with return path');
-          window.location.href = `/login?from=${pathname}`;
-          return;
+
+        // If we have a local session, we can proceed (middleware already verified the cookie)
+        if (session?.user?.isAdmin) {
+          console.log('✅ Local admin session found');
+          setIsAuthenticated(true);
+        } else {
+          console.log('❌ No local admin session');
+          setIsAuthenticated(false);
         }
-
-        console.log('🔑 Verifying session with server...');
-        const response = await fetch('/api/auth/verify', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            sessionCookie: session.token 
-          }),
-        });
-
-        console.log('📡 Server response status:', response.status);
-        const data = await response.json();
-        console.log('📡 Server response:', data);
-
-        if (!response.ok) {
-          console.log('❌ Server verification failed');
-          console.log('🔄 Redirecting to login');
-          window.location.href = `/login?from=${pathname}`;
-          return;
-        }
-
-        console.log('✅ Admin verified successfully');
-        setIsAuthenticated(true);
-
       } catch (error) {
-        console.error('🚨 Verification error:', error);
-        window.location.href = `/login?from=${pathname}`;
+        console.error('🚨 Session check error:', error);
+        setIsAuthenticated(false);
       } finally {
         setLoading(false);
       }
     };
 
-    verifyAdmin();
+    checkSession();
   }, [pathname]);
 
-  // Return loading state
+  // Loading state
   if (loading) {
     return (
       <Box 
@@ -118,12 +93,12 @@ export default function AdminLayout({ children }) {
     );
   }
 
-  // Return null if not authenticated
+  // Not authenticated state
   if (!isAuthenticated) {
     return null;
   }
 
-  // Create drawer content
+  // Drawer content
   const drawer = (
     <div>
       <Toolbar>
@@ -151,7 +126,7 @@ export default function AdminLayout({ children }) {
     </div>
   );
 
-  // Return main layout
+  // Main layout
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
@@ -182,6 +157,7 @@ export default function AdminLayout({ children }) {
         component="nav"
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
       >
+        {/* Mobile drawer */}
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -200,6 +176,7 @@ export default function AdminLayout({ children }) {
           {drawer}
         </Drawer>
         
+        {/* Desktop drawer */}
         <Drawer
           variant="permanent"
           sx={{
@@ -215,6 +192,7 @@ export default function AdminLayout({ children }) {
         </Drawer>
       </Box>
 
+      {/* Main content */}
       <Box
         component="main"
         sx={{ 

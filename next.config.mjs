@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Configure image optimization and remote patterns
   images: {
     remotePatterns: [
       {
@@ -53,14 +52,13 @@ const nextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     formats: ['image/webp'],
-    unoptimized: process.env.NODE_ENV === 'production', // Disable optimization in production
+    unoptimized: process.env.NODE_ENV === 'production',
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
-    domains: ['images.ctfassets.net'] // Add this for backward compatibility
+    domains: ['images.ctfassets.net']
   },
 
-  // Rest of the configuration remains the same...
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
@@ -76,26 +74,25 @@ const nextConfig = {
       {
         source: '/:path*',
         headers: [
-          // Previous headers remain the same...
           {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.braintreegateway.com https://*.paypal.com https://js.braintreegateway.com https://apis.google.com https://*.googleapis.com",
-              "style-src 'self' 'unsafe-inline'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.braintreegateway.com https://*.paypal.com https://js.braintreegateway.com https://apis.google.com https://*.googleapis.com https://www.paypalobjects.com",
+              "style-src 'self' 'unsafe-inline' https://assets.braintreegateway.com",
               "img-src 'self' data: blob: https: *.ctfassets.net *.braintreegateway.com *.adyen.com *.paypal.com lh3.googleusercontent.com *.googleapis.com",
-              "font-src 'self' data:",
+              "font-src 'self' data: https://assets.braintreegateway.com",
               "connect-src 'self' https://api.contentful.com https://cdn.contentful.com https://preview.contentful.com https://images.ctfassets.net https://*.braintree-api.com https://*.paypal.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://www.googleapis.com https://apis.google.com",
-              "frame-src 'self' https://*.braintreegateway.com https://*.paypal.com https://apis.google.com https://*.googleapis.com",
+              "frame-src 'self' https://*.braintreegateway.com https://*.paypal.com https://apis.google.com https://*.googleapis.com https://assets.braintreegateway.com",
               "object-src 'none'",
               "worker-src 'self' blob:",
-              "script-src-elem 'self' 'unsafe-inline' https://*.braintreegateway.com https://*.paypal.com https://js.braintreegateway.com https://apis.google.com https://*.googleapis.com"
+              "script-src-elem 'self' 'unsafe-inline' https://*.braintreegateway.com https://*.paypal.com https://js.braintreegateway.com https://apis.google.com https://*.googleapis.com https://www.paypalobjects.com",
+              "style-src-elem 'self' 'unsafe-inline' https://assets.braintreegateway.com"
             ].join('; ')
           }
         ]
       },
       {
-        // Add specific headers for image optimization endpoint
         source: '/_next/image/:path*',
         headers: [
           {
@@ -111,7 +108,6 @@ const nextConfig = {
     ];
   },
 
-  // Keep the rest of your config the same...
   env: {
     NEXT_PUBLIC_BRAINTREE_ENVIRONMENT: process.env.BRAINTREE_ENVIRONMENT || 'sandbox',
   },
