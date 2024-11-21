@@ -5,7 +5,8 @@ export async function middleware(request) {
         console.log('👉 Middleware executing for:', request.nextUrl.pathname);
         
         try {
-            const sessionCookie = request.cookies.get('session')?.value;
+            // Changed from 'session' to 'adminSession' to match your session handler
+            const sessionCookie = request.cookies.get('adminSession')?.value;
             console.log('🍪 Session cookie present:', !!sessionCookie);
 
             if (!sessionCookie) {
@@ -21,8 +22,17 @@ export async function middleware(request) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    // Add the cookie header explicitly
+                    'Cookie': `adminSession=${sessionCookie}`
                 },
-                body: JSON.stringify({ sessionCookie }),
+                body: JSON.stringify({ 
+                    sessionCookie,
+                    // Add additional verification data
+                    path: request.nextUrl.pathname,
+                    timestamp: Date.now()
+                }),
+                // Ensure credentials are included
+                credentials: 'include'
             });
 
             console.log('📡 Verify response status:', verifyResponse.status);
@@ -41,7 +51,13 @@ export async function middleware(request) {
                 console.log('🚫 User is not an admin');
                 return new NextResponse('Forbidden', {
                     status: 403,
-                    headers: { 'Content-Type': 'text/plain' },
+                    headers: { 
+                        'Content-Type': 'text/plain',
+                        // Add cache control to prevent browser caching of the forbidden response
+                        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0',
+                    },
                 });
             }
 
@@ -49,13 +65,30 @@ export async function middleware(request) {
             const requestHeaders = new Headers(request.headers);
             requestHeaders.set('x-user-id', data.uid);
             requestHeaders.set('x-user-role', 'admin');
+            requestHeaders.set('x-session-verified', 'true');
 
-            return NextResponse.next({
-                request: { headers: requestHeaders }
+            // Clone the request with new headers and add session verification
+            const response = NextResponse.next({
+                request: { 
+                    headers: requestHeaders 
+                }
             });
+
+            // Ensure the session cookie is preserved
+            response.headers.set('x-middleware-cache', 'no-cache');
+            
+            return response;
             
         } catch (error) {
             console.error('🚨 Middleware error:', error);
+            // Add detailed error logging
+            console.error('Error details:', {
+                path: request.nextUrl.pathname,
+                timestamp: new Date().toISOString(),
+                errorMessage: error.message,
+                errorStack: error.stack
+            });
+
             const loginUrl = new URL('/login', request.url);
             loginUrl.searchParams.set('from', request.nextUrl.pathname);
             return NextResponse.redirect(loginUrl);
@@ -66,5 +99,7 @@ export async function middleware(request) {
 }
 
 export const config = {
-    matcher: ['/admin/:path*']
+    matcher: [
+        '/admin/:path*'
+    ]
 };

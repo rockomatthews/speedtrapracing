@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import {
   AppBar,
   Box,
@@ -25,9 +27,6 @@ import {
   Settings as SettingsIcon,
   Dashboard as DashboardIcon
 } from '@mui/icons-material';
-import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
-import { getSession } from '../../utils/sessionHandler';
 
 const drawerWidth = 240;
 
@@ -35,6 +34,7 @@ export default function AdminLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [sessionError, setSessionError] = useState(null);
   
   const router = useRouter();
   const pathname = usePathname();
@@ -48,36 +48,71 @@ export default function AdminLayout({ children }) {
   ];
 
   useEffect(() => {
-    const checkSession = async () => {
-      console.log('🔍 Checking admin session...');
-      
+    const verifySession = async () => {
       try {
-        // Just check local session - middleware handles actual auth
-        const session = getSession();
-        console.log('📦 Local session state:', session ? {
-          hasSession: true,
-          isAdmin: !!session.user?.isAdmin,
-          expiry: new Date(session.expiresAt).toLocaleString()
-        } : 'No session');
+        setLoading(true);
+        setSessionError(null);
 
-        // If we have a local session, we can proceed (middleware already verified the cookie)
-        if (session?.user?.isAdmin) {
-          console.log('✅ Local admin session found');
+        // First check if we have a session in localStorage
+        const localSession = localStorage.getItem('adminSession');
+        let hasLocalSession = false;
+        if (localSession) {
+          try {
+            const parsed = JSON.parse(localSession);
+            if (new Date(parsed.expiresAt) > new Date()) {
+              hasLocalSession = true;
+            } else {
+              localStorage.removeItem('adminSession');
+            }
+          } catch (e) {
+            console.error('Error parsing local session:', e);
+            localStorage.removeItem('adminSession');
+          }
+        }
+
+        // Always verify with the backend
+        const response = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include', // Important: this ensures cookies are sent
+          body: JSON.stringify({
+            hasLocalSession,
+            path: pathname,
+            timestamp: Date.now()
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.status === 'success' && data.isAdmin) {
+          console.log('✅ Session verified successfully');
           setIsAuthenticated(true);
+          // Update local session
+          localStorage.setItem('adminSession', JSON.stringify({
+            isAdmin: true,
+            email: data.email,
+            expiresAt: new Date(Date.now() + (5 * 24 * 60 * 60 * 1000)).toISOString() // 5 days
+          }));
         } else {
-          console.log('❌ No local admin session');
-          setIsAuthenticated(false);
+          console.log('❌ Session verification failed:', data);
+          setSessionError(data.message || 'Authentication failed');
+          localStorage.removeItem('adminSession');
+          router.push('/login?from=' + encodeURIComponent(pathname));
         }
       } catch (error) {
-        console.error('🚨 Session check error:', error);
-        setIsAuthenticated(false);
+        console.error('Session verification error:', error);
+        setSessionError(error.message);
+        localStorage.removeItem('adminSession');
+        router.push('/login?from=' + encodeURIComponent(pathname));
       } finally {
         setLoading(false);
       }
     };
 
-    checkSession();
-  }, [pathname]);
+    verifySession();
+  }, [pathname, router]);
 
   // Loading state
   if (loading) {
@@ -89,6 +124,27 @@ export default function AdminLayout({ children }) {
         minHeight="100vh"
       >
         <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Error state
+  if (sessionError) {
+    return (
+      <Box 
+        display="flex" 
+        flexDirection="column" 
+        justifyContent="center" 
+        alignItems="center" 
+        minHeight="100vh"
+        gap={2}
+      >
+        <Typography color="error">{sessionError}</Typography>
+        <Link href="/login" passHref>
+          <Typography color="primary" sx={{ cursor: 'pointer' }}>
+            Return to Login
+          </Typography>
+        </Link>
       </Box>
     );
   }
@@ -111,7 +167,7 @@ export default function AdminLayout({ children }) {
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
             <ListItemButton 
-              component={Link} 
+              component={Link}
               href={item.href}
               selected={pathname === item.href}
             >
@@ -126,7 +182,6 @@ export default function AdminLayout({ children }) {
     </div>
   );
 
-  // Main layout
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />

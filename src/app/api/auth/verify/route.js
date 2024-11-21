@@ -1,83 +1,106 @@
-import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 import { NextResponse } from 'next/server';
+import { adminAuth } from '@/lib/firebaseAdmin';
+import { cookies } from 'next/headers';
+import { adminDb } from '@/lib/firebaseAdmin';
 
 export async function POST(request) {
-  try {
-    const body = await request.json();
-    
-    // Handle both session cookie and ID token verification
-    const { sessionCookie, idToken } = body;
-    
-    console.log('📝 Verify endpoint received request:', { 
-      hasSessionCookie: !!sessionCookie, 
-      hasIdToken: !!idToken 
-    });
+    try {
+        const body = await request.json();
+        const { sessionCookie, idToken } = body;
+        
+        // Get cookie from request if not provided in body
+        const cookieStore = cookies();
+        const sessionCookieFromRequest = cookieStore.get('adminSession')?.value;
 
-    let decodedClaims;
-    
-    if (sessionCookie) {
-      // Verify session cookie
-      console.log('🔍 Verifying session cookie...');
-      decodedClaims = await adminAuth.verifySessionCookie(sessionCookie, true);
-    } else if (idToken) {
-      // Verify ID token
-      console.log('🔍 Verifying ID token...');
-      decodedClaims = await adminAuth.verifyIdToken(idToken);
-    } else {
-      console.log('❌ No token provided');
-      return NextResponse.json({ error: 'No authentication token provided' }, { status: 401 });
+        console.log('📝 Verify endpoint received request:', {
+            hasSessionCookie: !!(sessionCookie || sessionCookieFromRequest),
+            hasIdToken: !!idToken
+        });
+
+        let uid;
+        let decodedClaim;
+        
+        // Try session cookie first (from body or request)
+        const cookieToVerify = sessionCookie || sessionCookieFromRequest;
+        if (cookieToVerify) {
+            console.log('🔍 Verifying session cookie...');
+            try {
+                decodedClaim = await adminAuth.verifySessionCookie(cookieToVerify, true);
+                uid = decodedClaim.uid;
+                console.log('✅ Token verified for UID:', uid);
+            } catch (cookieError) {
+                console.log('❌ Session cookie verification failed:', cookieError.message);
+                // If cookie verification fails, try ID token next
+            }
+        }
+        
+        // If cookie verification failed, try ID token
+        if (!uid && idToken) {
+            console.log('🔍 Verifying ID token...');
+            const decodedToken = await adminAuth.verifyIdToken(idToken);
+            uid = decodedToken.uid;
+            console.log('✅ Token verified for UID:', uid);
+
+            // Create a new session cookie
+            console.log('🔑 Creating new session cookie');
+            const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
+            const newSessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
+            
+            // Set the cookie in the response
+            const response = NextResponse.json({
+                status: 'success',
+                uid: uid,
+                email: decodedToken.email,
+                isAdmin: true // Will be verified below
+            });
+
+            response.cookies.set('adminSession', newSessionCookie, {
+                maxAge: expiresIn,
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                path: '/'
+            });
+
+            return response;
+        }
+
+        if (!uid) {
+            throw new Error('No valid authentication token provided');
+        }
+
+        // Verify admin status
+        const userDoc = await adminDb.collection('Users').doc(uid).get();
+        console.log('📋 User document exists:', userDoc.exists);
+        
+        if (!userDoc.exists) {
+            throw new Error('User document not found');
+        }
+
+        const userData = userDoc.data();
+        console.log('👤 User admin status:', userData.isAdmin);
+
+        if (!userData.isAdmin) {
+            throw new Error('User is not an admin');
+        }
+
+        // Return success response
+        return NextResponse.json({
+            status: 'success',
+            uid: uid,
+            email: userData.email,
+            isAdmin: true
+        });
+
+    } catch (error) {
+        console.error('❌ Verification error:', error);
+        return NextResponse.json(
+            { 
+                status: 'error', 
+                message: 'Session verification failed',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            },
+            { status: 401 }
+        );
     }
-
-    console.log('✅ Token verified for UID:', decodedClaims.uid);
-
-    // Get user data from Firestore
-    const userDoc = await adminDb.collection('Users').doc(decodedClaims.uid).get();
-    console.log('📋 User document exists:', userDoc.exists);
-    
-    if (!userDoc.exists) {
-      console.log('❌ User document not found');
-      return NextResponse.json({ error: 'User not found' }, { status: 403 });
-    }
-
-    const userData = userDoc.data();
-    console.log('👤 User admin status:', userData.isAdmin);
-    
-    if (!userData.isAdmin) {
-      console.log('🚫 User is not an admin');
-      return NextResponse.json({ error: 'Not an admin' }, { status: 403 });
-    }
-
-    // If ID token was provided, create a session cookie
-    let sessionToken;
-    if (idToken) {
-      console.log('🔑 Creating new session cookie');
-      sessionToken = await adminAuth.createSessionCookie(idToken, { 
-        expiresIn: 60 * 60 * 24 * 5 * 1000 // 5 days
-      });
-    }
-
-    const response = NextResponse.json({
-      status: 'success',
-      uid: decodedClaims.uid,
-      email: userData.email,
-      isAdmin: true
-    });
-
-    // Set session cookie if we created one
-    if (sessionToken) {
-      response.cookies.set('session', sessionToken, {
-        maxAge: 60 * 60 * 24 * 5, // 5 days in seconds
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/'
-      });
-    }
-
-    return response;
-
-  } catch (error) {
-    console.error('🚨 Verification error:', error);
-    return NextResponse.json({ error: error.message }, { status: 401 });
-  }
 }

@@ -18,74 +18,242 @@ import {
   Grid,
   Stepper,
   Step,
-  StepLabel
+  StepLabel,
+  Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import {
   ShoppingCart as ShoppingCartIcon,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  CheckCircle as CheckCircleIcon,
+  ContentCopy as ContentCopyIcon
 } from '@mui/icons-material';
 
 const BRAINTREE_SCRIPT_URL = 'https://js.braintreegateway.com/web/dropin/1.33.7/js/dropin.min.js';
-const BRAINTREE_SDK_URL = 'https://www.paypalobjects.com/api/checkout.min.js';
+
+// US States constant for dropdown
+const US_STATES = [
+  { name: 'Alabama', code: 'AL' },
+  { name: 'Alaska', code: 'AK' },
+  { name: 'Arizona', code: 'AZ' },
+  { name: 'Arkansas', code: 'AR' },
+  { name: 'California', code: 'CA' },
+  { name: 'Colorado', code: 'CO' },
+  { name: 'Connecticut', code: 'CT' },
+  { name: 'Delaware', code: 'DE' },
+  { name: 'Florida', code: 'FL' },
+  { name: 'Georgia', code: 'GA' },
+  { name: 'Hawaii', code: 'HI' },
+  { name: 'Idaho', code: 'ID' },
+  { name: 'Illinois', code: 'IL' },
+  { name: 'Indiana', code: 'IN' },
+  { name: 'Iowa', code: 'IA' },
+  { name: 'Kansas', code: 'KS' },
+  { name: 'Kentucky', code: 'KY' },
+  { name: 'Louisiana', code: 'LA' },
+  { name: 'Maine', code: 'ME' },
+  { name: 'Maryland', code: 'MD' },
+  { name: 'Massachusetts', code: 'MA' },
+  { name: 'Michigan', code: 'MI' },
+  { name: 'Minnesota', code: 'MN' },
+  { name: 'Mississippi', code: 'MS' },
+  { name: 'Missouri', code: 'MO' },
+  { name: 'Montana', code: 'MT' },
+  { name: 'Nebraska', code: 'NE' },
+  { name: 'Nevada', code: 'NV' },
+  { name: 'New Hampshire', code: 'NH' },
+  { name: 'New Jersey', code: 'NJ' },
+  { name: 'New Mexico', code: 'NM' },
+  { name: 'New York', code: 'NY' },
+  { name: 'North Carolina', code: 'NC' },
+  { name: 'North Dakota', code: 'ND' },
+  { name: 'Ohio', code: 'OH' },
+  { name: 'Oklahoma', code: 'OK' },
+  { name: 'Oregon', code: 'OR' },
+  { name: 'Pennsylvania', code: 'PA' },
+  { name: 'Rhode Island', code: 'RI' },
+  { name: 'South Carolina', code: 'SC' },
+  { name: 'South Dakota', code: 'SD' },
+  { name: 'Tennessee', code: 'TN' },
+  { name: 'Texas', code: 'TX' },
+  { name: 'Utah', code: 'UT' },
+  { name: 'Vermont', code: 'VT' },
+  { name: 'Virginia', code: 'VA' },
+  { name: 'Washington', code: 'WA' },
+  { name: 'West Virginia', code: 'WV' },
+  { name: 'Wisconsin', code: 'WI' },
+  { name: 'Wyoming', code: 'WY' }
+].sort((a, b) => a.name.localeCompare(b.name));
+
+// Empty cart state component
+const EmptyCartState = () => (
+  <Card sx={{ maxWidth: 600, margin: '20px auto', py: 6 }}>
+    <CardContent>
+      <Box 
+        display="flex" 
+        flexDirection="column" 
+        alignItems="center" 
+        justifyContent="center" 
+        textAlign="center"
+        gap={2}
+      >
+        <ShoppingCartIcon 
+          sx={{ 
+            fontSize: 60,
+            color: 'action.disabled',
+            mb: 2
+          }} 
+        />
+        <Typography variant="h5" color="text.primary" gutterBottom>
+          Your Cart is Empty
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ maxWidth: '80%', mb: 3 }}>
+          Looks like you haven't added any items to your cart yet.
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          component="a"
+          href="/marketplace"
+          startIcon={<ShoppingCartIcon />}
+        >
+          Start Shopping
+        </Button>
+      </Box>
+    </CardContent>
+  </Card>
+);
+
+// Success state component
+const SuccessState = ({ orderId, onClose }) => (
+  <Dialog 
+    open={true} 
+    onClose={onClose}
+    maxWidth="sm"
+    fullWidth
+  >
+    <Box sx={{ p: 4, textAlign: 'center' }}>
+      <Typography
+        component="div"
+        sx={{
+          width: 60,
+          height: 60,
+          borderRadius: '50%',
+          bgcolor: 'success.light',
+          color: 'success.contrastText',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 24px',
+        }}
+      >
+        <CheckCircleIcon sx={{ fontSize: 40 }} />
+      </Typography>
+      
+      <Typography variant="h5" gutterBottom>
+        Order Successful!
+      </Typography>
+      
+      <Typography variant="body1" color="text.secondary" paragraph>
+        Thank you for your purchase. Your order has been received and is being processed.
+      </Typography>
+      
+      {orderId && (
+        <Box sx={{ 
+          bgcolor: 'grey.50', 
+          p: 2, 
+          borderRadius: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 1,
+          mb: 3
+        }}>
+          <Typography variant="body2" color="text.secondary">
+            Order ID:
+          </Typography>
+          <Typography variant="body2" color="text.primary" sx={{ fontWeight: 'medium' }}>
+            {orderId}
+          </Typography>
+          <IconButton 
+            size="small"
+            onClick={() => navigator.clipboard.writeText(orderId)}
+            sx={{ ml: 1 }}
+          >
+            <ContentCopyIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      )}
+
+      <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'center' }}>
+        <Button
+          variant="outlined"
+          onClick={onClose}
+        >
+          Close
+        </Button>
+        <Button
+          variant="contained"
+          component="a"
+          href="/marketplace"
+        >
+          Continue Shopping
+        </Button>
+      </Box>
+    </Box>
+  </Dialog>
+);
 
 const ShoppingCartComponent = ({ items = [], onUpdateQuantity, onRemoveItem }) => {
+  // State management
   const [isLoading, setIsLoading] = useState(false);
   const [paymentError, setPaymentError] = useState(null);
   const [braintreeInstance, setBraintreeInstance] = useState(null);
-  const [clientToken, setClientToken] = useState(null);
   const [activeStep, setActiveStep] = useState(0);
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
+  const [orderSuccess, setOrderSuccess] = useState(null);
+  
+  // Shipping information state
   const [shippingInfo, setShippingInfo] = useState({
     firstName: '',
     lastName: '',
     email: '',
     address: '',
+    address2: '',
     city: '',
     state: '',
     zipCode: '',
     country: 'US'
   });
 
-  // Load Braintree scripts
+  // Load Braintree script
   useEffect(() => {
-    const loadScripts = async () => {
+    const loadBraintreeScript = async () => {
       try {
-        // Load Braintree SDK
         if (!document.querySelector(`script[src="${BRAINTREE_SCRIPT_URL}"]`)) {
-          const braintreeScript = document.createElement('script');
-          braintreeScript.src = BRAINTREE_SCRIPT_URL;
-          braintreeScript.async = true;
+          const script = document.createElement('script');
+          script.src = BRAINTREE_SCRIPT_URL;
+          script.async = true;
           
-          const paypalScript = document.createElement('script');
-          paypalScript.src = BRAINTREE_SDK_URL;
-          paypalScript.async = true;
-          
-          await Promise.all([
-            new Promise((resolve, reject) => {
-              braintreeScript.onload = resolve;
-              braintreeScript.onerror = reject;
-              document.body.appendChild(braintreeScript);
-            }),
-            new Promise((resolve, reject) => {
-              paypalScript.onload = resolve;
-              paypalScript.onerror = reject;
-              document.body.appendChild(paypalScript);
-            })
-          ]);
-          
-          setScriptsLoaded(true);
-        } else {
-          setScriptsLoaded(true);
+          await new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = reject;
+            document.body.appendChild(script);
+          });
         }
+        setScriptsLoaded(true);
       } catch (error) {
-        console.error('Error loading payment scripts:', error);
+        console.error('Error loading Braintree script:', error);
         setPaymentError('Failed to load payment system. Please refresh the page.');
       }
     };
 
-    loadScripts();
+    loadBraintreeScript();
 
-    // Cleanup
+    // Cleanup on unmount
     return () => {
       if (braintreeInstance) {
         braintreeInstance.teardown();
@@ -95,85 +263,105 @@ const ShoppingCartComponent = ({ items = [], onUpdateQuantity, onRemoveItem }) =
 
   // Initialize Braintree when moving to payment step
   useEffect(() => {
-    if (items.length > 0 && !braintreeInstance && activeStep === 1 && scriptsLoaded) {
-      const container = document.getElementById('dropin-container');
-      if (container) {
-        container.innerHTML = '';
-        fetchClientToken();
+    const initializeBraintreeIfNeeded = async () => {
+      if (items.length > 0 && !braintreeInstance && activeStep === 1 && scriptsLoaded) {
+        const container = document.getElementById('dropin-container');
+        if (container) {
+          container.innerHTML = '';
+          await fetchClientToken();
+        }
       }
-    }
+    };
+
+    initializeBraintreeIfNeeded();
   }, [items.length, activeStep, scriptsLoaded]);
 
-const fetchClientToken = async () => {
-  try {
-    const response = await fetch('/api/braintree/client-token');
-    const data = await response.json();
+  // Helper functions
+  const calculateTotal = () => {
+    return items.reduce((sum, item) => {
+      const itemPrice = Number(item.price) || 0;
+      const itemQuantity = Number(item.quantity) || 0;
+      return sum + (itemPrice * itemQuantity);
+    }, 0);
+  };
+
+  const validateShippingInfo = () => {
+    const requiredFields = [
+      'firstName',
+      'lastName',
+      'email',
+      'address',
+      'city',
+      'state',
+      'zipCode'
+    ];
     
-    if (data.clientToken) {
-      setClientToken(data.clientToken);
-      initializeBraintree(data.clientToken);
-    } else {
-      throw new Error('No client token received');
-    }
-  } catch (error) {
-    console.error('Error fetching client token:', error);
-    setPaymentError('Failed to initialize payment system: Could not get authorization token');
-  }
-};
+    return requiredFields.every(field => 
+      shippingInfo[field] && shippingInfo[field].trim() !== ''
+    );
+  };
 
-const initializeBraintree = async (token) => {
-  try {
-    if (!window.braintree) {
-      throw new Error('Braintree script not loaded');
-    }
-
-    const instance = await window.braintree.dropin.create({
-      authorization: token,
-      container: '#dropin-container',
-      paypal: {
-        flow: 'checkout',
-        amount: calculateTotal().toFixed(2),
-        currency: items[0]?.currency || 'USD',
-        intent: 'capture',
-        enableShippingAddress: true,
-        shippingAddressEditable: false,
-        shippingAddressOverride: {
-          recipientName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
-          streetAddress: shippingInfo.address,
-          locality: shippingInfo.city,
-          region: shippingInfo.state,
-          postalCode: shippingInfo.zipCode,
-          countryCode: shippingInfo.country
-        }
-      },
-      card: {
-        cardholderName: {
-          required: true
-        }
-      },
-      styles: {
-        input: {
-          'font-size': '14px',
-          'font-family': 'inherit'
-        }
+  // Braintree initialization
+  const fetchClientToken = async () => {
+    try {
+      const response = await fetch('/api/braintree/client-token');
+      const data = await response.json();
+      
+      if (data.clientToken) {
+        await initializeBraintree(data.clientToken);
+      } else {
+        throw new Error('No client token received');
       }
-    });
-    
-    setBraintreeInstance(instance);
-  } catch (error) {
-    console.error('Error initializing Braintree:', error);
-    setPaymentError('Failed to initialize payment system: ' + error.message);
-  }
-};
+    } catch (error) {
+      console.error('Error fetching client token:', error);
+      setPaymentError('Failed to initialize payment system. Please try again.');
+    }
+  };
 
-const calculateTotal = () => {
-  return items.reduce((sum, item) => {
-    const itemPrice = Number(item.price) || 0;
-    const itemQuantity = Number(item.quantity) || 0;
-    return sum + (itemPrice * itemQuantity);
-  }, 0);
-};
+  const initializeBraintree = async (token) => {
+    try {
+      if (!window.braintree) {
+        throw new Error('Braintree script not loaded');
+      }
 
+      const instance = await window.braintree.dropin.create({
+        authorization: token,
+        container: '#dropin-container',
+        paypal: {
+          flow: 'checkout',
+          amount: calculateTotal().toFixed(2),
+          currency: items[0]?.currency || 'USD',
+          intent: 'capture',
+          enableShippingAddress: true,
+          shippingAddressEditable: false,
+          shippingAddressOverride: {
+            recipientName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
+            streetAddress: shippingInfo.address,
+            extendedAddress: shippingInfo.address2 || undefined,
+            locality: shippingInfo.city,
+            region: shippingInfo.state,
+            postalCode: shippingInfo.zipCode,
+            countryCode: shippingInfo.country
+          }
+        },
+        card: {
+          cardholderName: {
+            required: true
+          }
+        },
+        venmo: {
+          allowNewBrowserTab: false
+        }
+      });
+      
+      setBraintreeInstance(instance);
+    } catch (error) {
+      console.error('Error initializing Braintree:', error);
+      setPaymentError('Failed to initialize payment system: ' + error.message);
+    }
+  };
+
+  // Handle checkout process
 const handleCheckout = async () => {
   if (!braintreeInstance) {
     setPaymentError('Payment system not initialized. Please try again.');
@@ -184,19 +372,19 @@ const handleCheckout = async () => {
   setPaymentError(null);
 
   try {
-    const { nonce, details } = await braintreeInstance.requestPaymentMethod();
+    const { nonce, details, type } = await braintreeInstance.requestPaymentMethod();
     
-    // Create or update user profile with order info
+    // Update user profile if logged in
     if (auth.currentUser) {
       const userRef = doc(db, 'Users', auth.currentUser.uid);
       await updateDoc(userRef, {
         firstName: shippingInfo.firstName,
         lastName: shippingInfo.lastName,
         email: shippingInfo.email,
-        phone: details.phone || null,
         hasOrdered: true,
         shippingAddresses: arrayUnion({
           address1: shippingInfo.address,
+          address2: shippingInfo.address2 || null,
           city: shippingInfo.city,
           state: shippingInfo.state,
           postal_code: shippingInfo.zipCode,
@@ -206,7 +394,18 @@ const handleCheckout = async () => {
       });
     }
 
-    // Process payment
+    const formattedShippingInfo = {
+      firstName: shippingInfo.firstName,
+      lastName: shippingInfo.lastName,
+      email: shippingInfo.email,
+      address: shippingInfo.address,
+      address2: shippingInfo.address2 || undefined,
+      city: shippingInfo.city,
+      state: shippingInfo.state,
+      zipCode: shippingInfo.zipCode,
+      country: shippingInfo.country
+    };
+
     const response = await fetch('/api/braintree/checkout', {
       method: 'POST',
       headers: {
@@ -214,64 +413,82 @@ const handleCheckout = async () => {
       },
       body: JSON.stringify({
         paymentMethodNonce: nonce,
+        paymentType: type,
         amount: calculateTotal().toFixed(2),
-        items: items,
-        shipping: shippingInfo,
-        paymentDetails: details,
-        userId: auth.currentUser?.uid
+        items: items.map(item => ({
+          ...item,
+          price: Number(item.price),
+          quantity: Number(item.quantity)
+        })),
+        shipping: formattedShippingInfo,
+        userId: auth.currentUser?.uid,
+        paymentDetails: details
       }),
     });
 
     const result = await response.json();
 
     if (result.success) {
+      // Clear cart
       items.forEach(item => onRemoveItem(item.id));
+      
+      // Clean up Braintree
       await braintreeInstance.teardown();
       setBraintreeInstance(null);
-      alert('Payment successful! Thank you for your purchase.');
+      
+      // Show success dialog with order details
+      setOrderSuccess({
+        orderId: result.orderId,
+        transactionId: result.transaction?.id
+      });
+      
+      // Reset to first step
       setActiveStep(0);
+      
+      // Reset shipping form
+      setShippingInfo({
+        firstName: '',
+        lastName: '',
+        email: '',
+        address: '',
+        address2: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        country: 'US'
+      });
     } else {
       setPaymentError(result.error || 'Payment failed. Please try again.');
     }
   } catch (error) {
     console.error('Checkout error:', error);
-    setPaymentError('Payment processing failed: ' + error.message);
+    setPaymentError(error.message || 'Payment processing failed. Please try again.');
   } finally {
     setIsLoading(false);
   }
 };
 
-  const handleShippingSubmit = (e) => {
-    e.preventDefault();
-    setActiveStep(1); // Move to payment step
-  };
+// Event handlers
+const handleShippingSubmit = (e) => {
+  e.preventDefault();
+  setActiveStep(1);
+};
 
-  const validateShippingInfo = () => {
-    return shippingInfo.firstName && 
-           shippingInfo.lastName && 
-           shippingInfo.email && 
-           shippingInfo.address && 
-           shippingInfo.city && 
-           shippingInfo.state && 
-           shippingInfo.zipCode;
-  };
+const handleShippingInfoChange = (field) => (e) => {
+  setShippingInfo(prev => ({
+    ...prev,
+    [field]: e.target.value
+  }));
+};
 
-  if (items.length === 0) {
-    return (
-      <Card sx={{ maxWidth: 600, margin: '20px auto' }}>
-        <CardContent>
-          <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
-            <ShoppingCartIcon color="action" />
-            <Typography variant="body1" color="text.secondary">
-              Your cart is empty
-            </Typography>
-          </Box>
-        </CardContent>
-      </Card>
-    );
-  }
+// Render empty cart state
+if (items.length === 0) {
+  return <EmptyCartState />;
+}
 
-  return (
+// Main render
+return (
+  <>
     <Card sx={{ maxWidth: 600, margin: '20px auto' }}>
       <CardContent>
         <Typography variant="h5" component="h2" gutterBottom>
@@ -287,9 +504,10 @@ const handleCheckout = async () => {
           </Step>
         </Stepper>
         
-        {/* Cart Items */}
+        {/* Cart Items and Shipping Form */}
         {activeStep === 0 && (
           <>
+            {/* Cart Items */}
             {items.map((item) => (
               <Box key={item.id}>
                 <Box sx={{ display: 'flex', py: 2, alignItems: 'center' }}>
@@ -298,7 +516,7 @@ const handleCheckout = async () => {
                       {item.title}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {item.currency.toUpperCase()} {Number(item.price).toFixed(2)}
+                      {item.currency?.toUpperCase() || 'USD'} {Number(item.price).toFixed(2)}
                     </Typography>
                   </Box>
                   
@@ -310,9 +528,7 @@ const handleCheckout = async () => {
                       sx={{ minWidth: 80 }}
                     >
                       {[1, 2, 3, 4, 5].map((num) => (
-                        <MenuItem key={num} value={num}>
-                          {num}
-                        </MenuItem>
+                        <MenuItem key={num} value={num}>{num}</MenuItem>
                       ))}
                     </Select>
                     
@@ -338,7 +554,7 @@ const handleCheckout = async () => {
                     fullWidth
                     label="First Name"
                     value={shippingInfo.firstName}
-                    onChange={(e) => setShippingInfo({...shippingInfo, firstName: e.target.value})}
+                    onChange={handleShippingInfoChange('firstName')}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -347,7 +563,7 @@ const handleCheckout = async () => {
                     fullWidth
                     label="Last Name"
                     value={shippingInfo.lastName}
-                    onChange={(e) => setShippingInfo({...shippingInfo, lastName: e.target.value})}
+                    onChange={handleShippingInfoChange('lastName')}
                   />
                 </Grid>
                 <Grid item xs={12}>
@@ -357,16 +573,26 @@ const handleCheckout = async () => {
                     type="email"
                     label="Email"
                     value={shippingInfo.email}
-                    onChange={(e) => setShippingInfo({...shippingInfo, email: e.target.value})}
+                    onChange={handleShippingInfoChange('email')}
                   />
                 </Grid>
                 <Grid item xs={12}>
                   <TextField
                     required
                     fullWidth
-                    label="Address"
+                    label="Address Line 1"
                     value={shippingInfo.address}
-                    onChange={(e) => setShippingInfo({...shippingInfo, address: e.target.value})}
+                    onChange={handleShippingInfoChange('address')}
+                    helperText="Street address, P.O. box"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Address Line 2 (Optional)"
+                    value={shippingInfo.address2}
+                    onChange={handleShippingInfoChange('address2')}
+                    helperText="Apartment, suite, unit, building, floor, etc."
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -375,17 +601,25 @@ const handleCheckout = async () => {
                     fullWidth
                     label="City"
                     value={shippingInfo.city}
-                    onChange={(e) => setShippingInfo({...shippingInfo, city: e.target.value})}
+                    onChange={handleShippingInfoChange('city')}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
+                    select
                     required
                     fullWidth
                     label="State"
                     value={shippingInfo.state}
-                    onChange={(e) => setShippingInfo({...shippingInfo, state: e.target.value})}
-                  />
+                    onChange={handleShippingInfoChange('state')}
+                    helperText="Please select your state"
+                  >
+                    {US_STATES.map((state) => (
+                      <MenuItem key={state.code} value={state.code}>
+                        {state.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
@@ -393,7 +627,7 @@ const handleCheckout = async () => {
                     fullWidth
                     label="ZIP Code"
                     value={shippingInfo.zipCode}
-                    onChange={(e) => setShippingInfo({...shippingInfo, zipCode: e.target.value})}
+                    onChange={handleShippingInfoChange('zipCode')}
                   />
                 </Grid>
                 <Grid item xs={12}>
@@ -417,7 +651,7 @@ const handleCheckout = async () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
               <Typography variant="h6">Total:</Typography>
               <Typography variant="h6">
-                {items[0]?.currency?.toUpperCase()} {calculateTotal().toFixed(2)}
+                {items[0]?.currency?.toUpperCase() || 'USD'} {calculateTotal().toFixed(2)}
               </Typography>
             </Box>
 
@@ -452,7 +686,16 @@ const handleCheckout = async () => {
         )}
       </CardContent>
     </Card>
-  );
+
+    {/* Success Dialog */}
+    {orderSuccess && (
+      <SuccessState
+        orderId={orderSuccess.orderId}
+        onClose={() => setOrderSuccess(null)}
+      />
+    )}
+  </>
+);
 };
 
 export default ShoppingCartComponent;

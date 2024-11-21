@@ -1,34 +1,123 @@
 import { NextResponse } from 'next/server';
 import braintree from 'braintree';
-import { orderService } from '../services/orderService';  
+import medusaClient from '@/lib/medusa-client';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
-// Helper function for transaction logging
+// Helper function to sanitize input
+const sanitizeInput = (value) => {
+  if (!value) return '';
+  return String(value)
+    .replace(/[^\w\s@.-]/g, '')
+    .trim()
+    .substring(0, 255);
+};
+
 async function logTransaction(type, data, error = null) {
   try {
     const logsRef = collection(db, 'transaction_logs');
-    const logData = {
-      type: type,
+    const cleanData = Object.entries(data).reduce((acc, [key, value]) => {
+      if (value !== undefined) acc[key] = value;
+      return acc;
+    }, {});
+
+    await addDoc(logsRef, {
+      type,
       timestamp: serverTimestamp(),
       data: {
-        ...data,
+        ...cleanData,
         environment: 'production',
-        userId: data.userId || 'guest',
-        isGuest: !data.userId,
-        customerEmail: data.shipping?.email || data.customerEmail || 'unknown'
+        userId: cleanData.userId || 'guest',
+        isGuest: !cleanData.userId,
+        customerEmail: cleanData.shipping?.email || cleanData.customerEmail || 'unknown'
       },
       error: error ? {
-        message: error.message,
-        stack: error.stack,
-        code: error.code
+        message: error.message || 'Unknown error',
+        stack: error.stack || '',
+        code: error.code || 'unknown'
       } : null,
       status: error ? 'error' : 'success'
-    };
-
-    await addDoc(logsRef, logData);
+    });
   } catch (logError) {
     console.error('Failed to write transaction log:', logError);
+  }
+}
+
+async function createOrUpdateMedusaCustomer(shipping, userId) {
+  try {
+    // Try to find existing customer by email
+    const { customers } = await medusaClient.admin.customers.list({
+      email: shipping.email
+    });
+
+    if (customers && customers.length > 0) {
+      // Update existing customer
+      await medusaClient.admin.customers.update(customers[0].id, {
+        first_name: shipping.firstName,
+        last_name: shipping.lastName,
+        email: shipping.email,
+        phone: shipping.phone
+      });
+      return customers[0].id;
+    } else {
+      // Create new customer
+      const { customer } = await medusaClient.admin.customers.create({
+        first_name: shipping.firstName,
+        last_name: shipping.lastName,
+        email: shipping.email,
+        phone: shipping.phone
+      });
+      return customer.id;
+    }
+  } catch (error) {
+    console.error('Error managing Medusa customer:', error);
+    throw error;
+  }
+}
+
+async function createMedusaOrder(orderData, customerId) {
+  try {
+    const { order } = await medusaClient.admin.orders.create({
+      email: orderData.shipping.email,
+      customer_id: customerId,
+      items: orderData.items.map(item => ({
+        variant_id: item.variant_id,
+        quantity: item.quantity,
+        title: item.title,
+        unit_price: item.price * 100 // Convert to cents
+      })),
+      shipping_address: {
+        first_name: orderData.shipping.firstName,
+        last_name: orderData.shipping.lastName,
+        address_1: orderData.shipping.address,
+        city: orderData.shipping.city,
+        province: orderData.shipping.state,
+        postal_code: orderData.shipping.zipCode,
+        country_code: orderData.shipping.country,
+        phone: orderData.shipping.phone
+      },
+      billing_address: {
+        first_name: orderData.shipping.firstName,
+        last_name: orderData.shipping.lastName,
+        address_1: orderData.shipping.address,
+        city: orderData.shipping.city,
+        province: orderData.shipping.state,
+        postal_code: orderData.shipping.zipCode,
+        country_code: orderData.shipping.country,
+        phone: orderData.shipping.phone
+      },
+      payment_method: {
+        provider_id: 'braintree',
+        data: {
+          transaction_id: orderData.transactionId
+        }
+      }
+    });
+
+    return order.id;
+  } catch (error) {
+    console.error('Error creating Medusa order:', error);
+    throw error;
   }
 }
 
@@ -43,194 +132,70 @@ export async function POST(request) {
   try {
     const requestData = await request.json();
     const { paymentMethodNonce, amount, items, shipping, userId } = requestData;
-    
-    // Log initial checkout
-    await logTransaction('checkout_initiated', {
-      userId,
-      amount,
-      itemCount: items.length,
-      shipping: {
-        country: shipping.country,
-        state: shipping.state,
-        city: shipping.city
-      },
-      customerEmail: shipping.email
-    });
 
-    // Create customer in Braintree
-    const customerResult = await gateway.customer.create({
-      firstName: shipping.firstName,
-      lastName: shipping.lastName,
-      email: shipping.email,
-      company: shipping.company || undefined,
-      phone: shipping.phone || undefined
-    });
-
-    if (!customerResult.success) {
-      await logTransaction('customer_creation_failed', {
-        userId,
-        braintreeError: customerResult.message,
-        shipping,
-        customerEmail: shipping.email
-      }, new Error(customerResult.message));
-
-      return NextResponse.json(
-        { success: false, error: 'Failed to create customer' },
-        { status: 400 }
-      );
+    if (!paymentMethodNonce || !amount || !shipping?.email) {
+      throw new Error('Missing required fields');
     }
 
-    const customer = customerResult.customer;
-    await logTransaction('customer_created', {
-      userId,
-      braintreeCustomerId: customer.id,
-      customerEmail: shipping.email
-    });
-
-    // Create and submit transaction
+    // Process payment with Braintree first
     const transactionResult = await gateway.transaction.sale({
       amount: amount,
       paymentMethodNonce: paymentMethodNonce,
-      customerId: customer.id,
       options: {
-        submitForSettlement: true,
-        storeInVaultOnSuccess: true,
-        addBillingAddressToPaymentMethod: true
+        submitForSettlement: true
       },
       customer: {
-        firstName: shipping.firstName,
-        lastName: shipping.lastName,
-        email: shipping.email,
-        phone: shipping.phone || undefined
+        firstName: sanitizeInput(shipping.firstName),
+        lastName: sanitizeInput(shipping.lastName),
+        email: sanitizeInput(shipping.email),
+        phone: shipping.phone ? sanitizeInput(shipping.phone) : undefined
       },
-      shipping: {
-        firstName: shipping.firstName,
-        lastName: shipping.lastName,
-        streetAddress: shipping.address,
-        locality: shipping.city,
-        region: shipping.state,
-        postalCode: shipping.zipCode,
+      billing: {
+        firstName: sanitizeInput(shipping.firstName),
+        lastName: sanitizeInput(shipping.lastName),
+        streetAddress: sanitizeInput(shipping.address),
+        locality: sanitizeInput(shipping.city),
+        region: sanitizeInput(shipping.state),
+        postalCode: sanitizeInput(shipping.zipCode),
         countryCodeAlpha2: shipping.country
-      },
-      customFields: {
-        user_id: userId || 'guest',
-        email: shipping.email
       }
     });
 
-    // Handle failed transaction
     if (!transactionResult.success) {
-      await logTransaction('transaction_failed', {
-        userId,
-        braintreeCustomerId: customer.id,
-        amount,
-        braintreeError: transactionResult.message,
-        processorResponseCode: transactionResult.transaction?.processorResponseCode,
-        processorResponseText: transactionResult.transaction?.processorResponseText,
-        customerEmail: shipping.email
-      }, new Error(transactionResult.message));
-
-      // Attempt refund if a transaction was created
-      if (transactionResult.transaction?.id) {
-        try {
-          await gateway.transaction.refund(transactionResult.transaction.id);
-          await logTransaction('refund_issued', {
-            userId,
-            transactionId: transactionResult.transaction.id,
-            amount,
-            customerEmail: shipping.email
-          });
-        } catch (refundError) {
-          await logTransaction('refund_failed', {
-            userId,
-            transactionId: transactionResult.transaction.id,
-            amount,
-            customerEmail: shipping.email
-          }, refundError);
-        }
-      }
-
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: transactionResult.message,
-          processorResponse: transactionResult.transaction?.processorResponseText 
-        },
-        { status: 400 }
-      );
+      throw new Error(transactionResult.message);
     }
+
+    // Create or update customer in Medusa
+    const customerId = await createOrUpdateMedusaCustomer(shipping, userId);
+
+    // Create order in Medusa
+    const orderData = {
+      shipping,
+      items,
+      transactionId: transactionResult.transaction.id,
+      customerId
+    };
+
+    const orderId = await createMedusaOrder(orderData, customerId);
 
     // Log successful transaction
     await logTransaction('transaction_success', {
       userId,
-      braintreeCustomerId: customer.id,
-      transactionId: transactionResult.transaction.id,
-      amount: transactionResult.transaction.amount,
-      status: transactionResult.transaction.status,
-      paymentMethod: transactionResult.transaction.paymentMethodType,
-      customerEmail: shipping.email
-    });
-
-    // Prepare order data
-    const orderData = {
-      customerId: userId || `guest_${Date.now()}`,
-      isGuest: !userId,
-      items: items,
-      total: amount,
-      shipping_address: {
-        firstName: shipping.firstName,
-        lastName: shipping.lastName,
-        address_1: shipping.address,
-        city: shipping.city,
-        province: shipping.state,
-        postal_code: shipping.zipCode,
-        country_code: shipping.country,
-        email: shipping.email,
-        phone: shipping.phone || null
-      },
-      payment_status: 'paid',
-      transaction_id: transactionResult.transaction.id,
-      braintree_customer_id: customer.id,
-      payment_method_type: transactionResult.transaction.paymentMethodType,
-      processor_response_code: transactionResult.transaction.processorResponseCode,
-      processor_response_text: transactionResult.transaction.processorResponseText,
-      currency_iso_code: transactionResult.transaction.currencyIsoCode,
-      merchant_account_id: transactionResult.transaction.merchantAccountId,
-      email: shipping.email
-    };
-
-    // Create order
-    const orderId = await orderService.createOrder(orderData);
-
-    // Log order creation
-    await logTransaction('order_created', {
-      userId,
+      customerId,
       orderId,
-      braintreeCustomerId: customer.id,
       transactionId: transactionResult.transaction.id,
-      amount,
-      items: items.map(item => ({
-        id: item.id,
-        title: item.title,
-        quantity: item.quantity
-      })),
-      customerEmail: shipping.email
+      amount: transactionResult.transaction.amount
     });
 
-    // Return success response
     return NextResponse.json({
       success: true,
       transaction: {
         id: transactionResult.transaction.id,
         status: transactionResult.transaction.status,
-        amount: transactionResult.transaction.amount,
-        processorResponse: transactionResult.transaction.processorResponseText
+        amount: transactionResult.transaction.amount
       },
       orderId,
-      customer: {
-        id: customer.id,
-        email: shipping.email
-      }
+      customerId
     });
 
   } catch (error) {
@@ -239,31 +204,13 @@ export async function POST(request) {
     await logTransaction('system_error', {
       errorType: error.name,
       errorMessage: error.message,
-      errorStack: error.stack,
       customerEmail: requestData?.shipping?.email || 'unknown'
     }, error);
 
-    // If payment was processed but order creation failed, trigger refund
-    if (transactionResult?.success && transactionResult.transaction?.id) {
-      try {
-        await gateway.transaction.refund(transactionResult.transaction.id);
-        await logTransaction('refund_issued_after_error', {
-          transactionId: transactionResult.transaction.id,
-          amount: transactionResult.transaction.amount,
-          customerEmail: requestData?.shipping?.email || 'unknown'
-        });
-      } catch (refundError) {
-        console.error('Refund failed:', refundError);
-      }
-    }
-
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Order processing failed',
-        message: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred'
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: false,
+      error: 'Order processing failed',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred'
+    }, { status: 500 });
   }
 }
