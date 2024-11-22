@@ -14,7 +14,8 @@ export async function POST(request) {
 
         console.log('📝 Verify endpoint received request:', {
             hasSessionCookie: !!(sessionCookie || sessionCookieFromRequest),
-            hasIdToken: !!idToken
+            hasIdToken: !!idToken,
+            path: body.path
         });
 
         let uid;
@@ -30,7 +31,7 @@ export async function POST(request) {
                 console.log('✅ Token verified for UID:', uid);
             } catch (cookieError) {
                 console.log('❌ Session cookie verification failed:', cookieError.message);
-                // If cookie verification fails, try ID token next
+                throw new Error('Invalid session cookie');
             }
         }
         
@@ -51,7 +52,7 @@ export async function POST(request) {
                 status: 'success',
                 uid: uid,
                 email: decodedToken.email,
-                isAdmin: true // Will be verified below
+                isAdmin: true
             });
 
             response.cookies.set('adminSession', newSessionCookie, {
@@ -90,6 +91,11 @@ export async function POST(request) {
             uid: uid,
             email: userData.email,
             isAdmin: true
+        }, {
+            headers: {
+                'Cache-Control': 'no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            }
         });
 
     } catch (error) {
@@ -100,7 +106,13 @@ export async function POST(request) {
                 message: 'Session verification failed',
                 error: process.env.NODE_ENV === 'development' ? error.message : undefined
             },
-            { status: 401 }
+            { 
+                status: 401,
+                headers: {
+                    'Cache-Control': 'no-store, must-revalidate',
+                    'Pragma': 'no-cache'
+                }
+            }
         );
     }
 }

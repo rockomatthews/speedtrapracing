@@ -5,7 +5,7 @@ export async function middleware(request) {
         console.log('👉 Middleware executing for:', request.nextUrl.pathname);
         
         try {
-            // Changed from 'session' to 'adminSession' to match your session handler
+            // Get the session cookie
             const sessionCookie = request.cookies.get('adminSession')?.value;
             console.log('🍪 Session cookie present:', !!sessionCookie);
 
@@ -17,21 +17,21 @@ export async function middleware(request) {
                 return NextResponse.redirect(loginUrl);
             }
 
-            console.log('🔍 Verifying session...');
-            const verifyResponse = await fetch(new URL('/api/auth/verify', request.url), {
+            // Build the verification URL using the request's origin
+            const verifyUrl = new URL('/api/auth/verify', request.url);
+            console.log('🔍 Verifying session with:', verifyUrl.toString());
+
+            const verifyResponse = await fetch(verifyUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    // Add the cookie header explicitly
                     'Cookie': `adminSession=${sessionCookie}`
                 },
                 body: JSON.stringify({ 
                     sessionCookie,
-                    // Add additional verification data
                     path: request.nextUrl.pathname,
                     timestamp: Date.now()
                 }),
-                // Ensure credentials are included
                 credentials: 'include'
             });
 
@@ -53,7 +53,6 @@ export async function middleware(request) {
                     status: 403,
                     headers: { 
                         'Content-Type': 'text/plain',
-                        // Add cache control to prevent browser caching of the forbidden response
                         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
                         'Pragma': 'no-cache',
                         'Expires': '0',
@@ -62,21 +61,23 @@ export async function middleware(request) {
             }
 
             console.log('✅ Admin access granted');
+            
+            // Create response with headers
+            const response = NextResponse.next();
+            
+            // Set security headers
+            response.headers.set('X-Frame-Options', 'DENY');
+            response.headers.set('X-Content-Type-Options', 'nosniff');
+            response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+            response.headers.set('X-XSS-Protection', '1; mode=block');
+            response.headers.set('X-DNS-Prefetch-Control', 'on');
+            
+            // Set cached state and user info
             const requestHeaders = new Headers(request.headers);
             requestHeaders.set('x-user-id', data.uid);
             requestHeaders.set('x-user-role', 'admin');
             requestHeaders.set('x-session-verified', 'true');
 
-            // Clone the request with new headers and add session verification
-            const response = NextResponse.next({
-                request: { 
-                    headers: requestHeaders 
-                }
-            });
-
-            // Ensure the session cookie is preserved
-            response.headers.set('x-middleware-cache', 'no-cache');
-            
             return response;
             
         } catch (error) {

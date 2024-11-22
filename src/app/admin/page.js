@@ -32,6 +32,7 @@ export default function AdminDashboard() {
     async function fetchStats() {
       try {
         setLoading(true);
+        setError(null);
         
         // Fetch all necessary data
         const [ordersResponse, productsResponse] = await Promise.all([
@@ -47,7 +48,7 @@ export default function AdminDashboard() {
 
         // Get unique customers count
         const uniqueCustomers = new Set(
-          ordersResponse.orders.map(order => order.customer?.id)
+          ordersResponse.orders.map(order => order.customerId)
         ).size;
 
         setStats({
@@ -58,7 +59,7 @@ export default function AdminDashboard() {
         });
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
-        setError('Failed to load dashboard statistics');
+        setError(error.message || 'Failed to load dashboard statistics');
       } finally {
         setLoading(false);
       }
