@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 export async function middleware(request) {
     console.log('🔍 Middleware executing for:', request.nextUrl.pathname);
 
-    // Add security headers
     const headers = new Headers();
     headers.set('X-Frame-Options', 'DENY');
     headers.set('X-Content-Type-Options', 'nosniff');
@@ -17,7 +16,7 @@ export async function middleware(request) {
         "img-src 'self' data: blob: https: *.ctfassets.net *.braintreegateway.com *.adyen.com *.paypal.com lh3.googleusercontent.com *.googleapis.com",
         "font-src 'self' data: https://assets.braintreegateway.com",
         "connect-src 'self' https://api.contentful.com https://cdn.contentful.com https://preview.contentful.com https://images.ctfassets.net https://*.braintree-api.com https://*.paypal.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://www.googleapis.com https://apis.google.com https://client-analytics.braintreegateway.com https://api.braintreegateway.com https://api2.amplitude.com",
-        "frame-src 'self' https://*.braintreegateway.com https://*.paypal.com https://apis.google.com https://*.googleapis.com https://assets.braintreegateway.com",
+        "frame-src 'self' https://*.braintreegateway.com https://*.paypal.com https://apis.google.com https://*.googleapis.com https://assets.braintreegateway.com https://*.firebaseapp.com https://speedtrapracing-aa7c8.firebaseapp.com",
         "object-src 'none'",
         "worker-src 'self' blob:",
         "script-src-elem 'self' 'unsafe-inline' https://*.braintreegateway.com https://*.paypal.com https://js.braintreegateway.com https://apis.google.com https://*.googleapis.com https://www.paypalobjects.com https://api2.amplitude.com",
@@ -35,14 +34,12 @@ export async function middleware(request) {
                 loginUrl.searchParams.set('from', request.nextUrl.pathname);
                 
                 const response = NextResponse.redirect(loginUrl);
-                // Add security headers to redirect
                 for (const [key, value] of headers.entries()) {
                     response.headers.set(key, value);
                 }
                 return response;
             }
 
-            // Build the verification URL using the request's origin
             const verifyUrl = new URL('/api/auth/verify', request.url);
             console.log('🔍 Verifying session with:', verifyUrl.toString());
 
@@ -68,7 +65,6 @@ export async function middleware(request) {
                 loginUrl.searchParams.set('from', request.nextUrl.pathname);
                 
                 const response = NextResponse.redirect(loginUrl);
-                // Add security headers to redirect
                 for (const [key, value] of headers.entries()) {
                     response.headers.set(key, value);
                 }
@@ -87,7 +83,6 @@ export async function middleware(request) {
                     }
                 });
                 
-                // Add security headers to forbidden response
                 for (const [key, value] of headers.entries()) {
                     response.headers.set(key, value);
                 }
@@ -96,12 +91,10 @@ export async function middleware(request) {
 
             console.log('✅ Admin access granted');
             
-            // Add auth headers
             headers.set('x-user-id', data.uid);
             headers.set('x-user-role', 'admin');
             headers.set('x-session-verified', 'true');
 
-            // Create response with all headers
             const response = NextResponse.next();
             for (const [key, value] of headers.entries()) {
                 response.headers.set(key, value);
@@ -115,7 +108,6 @@ export async function middleware(request) {
             loginUrl.searchParams.set('from', request.nextUrl.pathname);
             
             const response = NextResponse.redirect(loginUrl);
-            // Add security headers to error redirect
             for (const [key, value] of headers.entries()) {
                 response.headers.set(key, value);
             }
@@ -123,7 +115,6 @@ export async function middleware(request) {
         }
     }
 
-    // For non-admin routes, just add security headers
     const response = NextResponse.next();
     for (const [key, value] of headers.entries()) {
         response.headers.set(key, value);

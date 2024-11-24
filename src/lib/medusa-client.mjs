@@ -12,7 +12,8 @@ import {
   getDoc,
   where,
   arrayUnion,
-  serverTimestamp
+  serverTimestamp,
+  limit
 } from 'firebase/firestore';
 
 class MedusaFirebaseClient {
@@ -29,6 +30,61 @@ class MedusaFirebaseClient {
     this.formatTransactionToOrder = this.formatTransactionToOrder.bind(this);
     this.formatTransactionToCustomer = this.formatTransactionToCustomer.bind(this);
 
+    this.products = {
+      list: async ({ limit: queryLimit = 100 } = {}) => {
+        try {
+          const productsRef = collection(this.db, 'products');
+          const productsQuery = query(
+            productsRef, 
+            orderBy('createdAt', 'desc'),
+            limit(queryLimit)
+          );
+          
+          const snapshot = await getDocs(productsQuery);
+          
+          console.log('[Products Debug] Query response:', {
+            empty: snapshot.empty,
+            size: snapshot.size
+          });
+    
+          if (snapshot.empty) {
+            return { products: [] };
+          }
+    
+          const products = [];
+          for (const doc of snapshot.docs) {
+            const data = doc.data();
+            if (data) {
+              products.push({
+                id: doc.id,
+                title: data.title || '',
+                description: data.description || '',
+                handle: data.handle || '',
+                status: data.status || 'draft',
+                images: data.images || [],
+                thumbnail: data.thumbnail || '',
+                variants: (data.variants || []).map(variant => ({
+                  id: variant.id || '',
+                  title: variant.title || '',
+                  inventory_quantity: parseInt(variant.inventory_quantity || 0, 10),
+                  prices: (variant.prices || []).map(price => ({
+                    amount: parseInt(price.amount || 0, 10),
+                    currency_code: price.currency_code || 'USD'
+                  }))
+                }))
+              });
+            }
+          }
+    
+          console.log('[Products Debug] Final products:', products);
+          return { products };
+        } catch (error) {
+          console.error('[Products Debug] Error listing products:', error);
+          return { products: [] };
+        }
+      }
+    };
+
     this.admin = {
       orders: {
         list: async () => {
@@ -38,7 +94,8 @@ class MedusaFirebaseClient {
             const logsRef = collection(this.db, 'transaction_logs');
             const logsQuery = query(
               logsRef, 
-              where('type', '==', 'purchase_success'),
+              where('type', '==', 'checkout_initiated'),
+              where('status', '==', 'success'),
               orderBy('timestamp', 'desc')
             );
             
@@ -75,12 +132,13 @@ class MedusaFirebaseClient {
             const newLogRef = doc(logsRef);
 
             const transactionLog = {
-              type: 'purchase_success',
+              type: 'checkout_initiated',
+              status: 'success',
               timestamp: serverTimestamp(),
               data: {
                 userId: orderData.customerId || '',
-                email: orderData.shipping.email || '',
-                total: this.formatPrice(orderData.total || 0, true),
+                customerEmail: orderData.shipping.email || '',
+                amount: orderData.total || 0,
                 shipping: {
                   firstName: orderData.shipping.firstName || '',
                   lastName: orderData.shipping.lastName || '',
@@ -93,12 +151,9 @@ class MedusaFirebaseClient {
                   zipCode: orderData.shipping.zipCode || '',
                   country: orderData.shipping.country || ''
                 },
-                items: orderData.items.map(item => ({
-                  id: item.id || '',
-                  title: item.title || '',
-                  quantity: item.quantity || 0,
-                  price: this.formatPrice(item.price || 0, true)
-                }))
+                itemCount: orderData.items.length,
+                environment: 'production',
+                isGuest: orderData.customerId ? false : true
               }
             };
 
@@ -137,7 +192,7 @@ class MedusaFirebaseClient {
               data: {
                 ...currentData.data,
                 ...updateData,
-                total: updateData.total ? this.formatPrice(updateData.total, true) : currentData.data.total
+                amount: updateData.total || currentData.data.amount
               },
               timestamp: serverTimestamp()
             };
@@ -197,9 +252,10 @@ class MedusaFirebaseClient {
             const currentData = logDoc.data();
             const updatedData = {
               ...currentData,
+              status: 'success',
               data: {
                 ...currentData.data,
-                status: 'fulfilled'
+                fulfillmentStatus: 'fulfilled'
               },
               timestamp: serverTimestamp()
             };
@@ -227,7 +283,8 @@ class MedusaFirebaseClient {
             const logsRef = collection(this.db, 'transaction_logs');
             const logsQuery = query(
               logsRef, 
-              where('type', '==', 'purchase_success'),
+              where('type', '==', 'checkout_initiated'),
+              where('status', '==', 'success'),
               orderBy('timestamp', 'desc')
             );
             
@@ -240,11 +297,12 @@ class MedusaFirebaseClient {
             const transactionsByUser = {};
             for (const doc of snapshot.docs) {
               const data = doc.data();
-              if (data?.data?.userId) {
-                if (!transactionsByUser[data.data.userId]) {
-                  transactionsByUser[data.data.userId] = [];
+              if (data?.data?.userId || data?.data?.customerEmail) {
+                const userKey = data.data.userId || data.data.customerEmail;
+                if (!transactionsByUser[userKey]) {
+                  transactionsByUser[userKey] = [];
                 }
-                transactionsByUser[data.data.userId].push(doc);
+                transactionsByUser[userKey].push(doc);
               }
             }
 
@@ -257,9 +315,11 @@ class MedusaFirebaseClient {
             }
 
             return { 
-              customers: validCustomers.sort((a, b) => 
-                new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)
-              )
+              customers: validCustomers.sort((a, b) => {
+                const dateA = a.updatedAt instanceof Date ? a.updatedAt : new Date(a.updatedAt);
+                const dateB = b.updatedAt instanceof Date ? b.updatedAt : new Date(b.updatedAt);
+                return dateB - dateA;
+              })
             };
           } catch (error) {
             console.error('[Customers Debug] Error listing customers:', error);
@@ -279,14 +339,29 @@ class MedusaFirebaseClient {
             const logsQuery = query(
               logsRef,
               where('data.userId', '==', customerId),
-              where('type', '==', 'purchase_success'),
+              where('type', '==', 'checkout_initiated'),
+              where('status', '==', 'success'),
               orderBy('timestamp', 'desc')
             );
 
             const snapshot = await getDocs(logsQuery);
             
             if (snapshot.empty) {
-              return { customer: null };
+              const emailQuery = query(
+                logsRef,
+                where('data.customerEmail', '==', customerId),
+                where('type', '==', 'checkout_initiated'),
+                where('status', '==', 'success'),
+                orderBy('timestamp', 'desc')
+              );
+              const emailSnapshot = await getDocs(emailQuery);
+              
+              if (emailSnapshot.empty) {
+                return { customer: null };
+              }
+              
+              const customer = await this.formatTransactionToCustomer(emailSnapshot.docs, customerId);
+              return { customer };
             }
 
             const customer = await this.formatTransactionToCustomer(snapshot.docs, customerId);
@@ -310,7 +385,7 @@ class MedusaFirebaseClient {
             if (snapshot.empty) {
               return { products: [] };
             }
-
+      
             const products = [];
             for (const doc of snapshot.docs) {
               const data = doc.data();
@@ -328,23 +403,23 @@ class MedusaFirebaseClient {
                   variants: (data.variants || []).map(variant => ({
                     id: variant.id || '',
                     title: variant.title || '',
-                    inventory_quantity: variant.inventory_quantity || 0,
+                    inventory_quantity: parseInt(variant.inventory_quantity || 0, 10),
                     prices: (variant.prices || []).map(price => ({
-                      amount: this.formatPrice(price.amount || 0),
+                      amount: parseInt(price.amount || 0, 10),
                       currency_code: price.currency_code || 'USD'
                     }))
                   }))
                 });
               }
             }
-
+      
             return { products };
           } catch (error) {
             console.error('[Products Debug] Error listing products:', error);
             return { products: [] };
           }
         },
-
+      
         create: async (productData) => {
           try {
             await this.checkAdminStatus();
@@ -352,10 +427,10 @@ class MedusaFirebaseClient {
             if (!productData || !productData.title) {
               return { product: null };
             }
-
+      
             const productsRef = collection(this.db, 'products');
             const productRef = doc(productsRef);
-
+      
             const product = {
               id: productRef.id,
               title: productData.title,
@@ -365,7 +440,7 @@ class MedusaFirebaseClient {
                 id: `${productRef.id}-default`,
                 title: productData.title,
                 prices: [{
-                  amount: this.formatPrice(productData.price || 0, true),
+                  amount: parseInt(productData.price || 0, 10),
                   currency_code: 'USD'
                 }],
                 inventory_quantity: parseInt(productData.inventory || '0', 10)
@@ -376,7 +451,7 @@ class MedusaFirebaseClient {
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
             };
-
+      
             await setDoc(productRef, product);
             return { product };
           } catch (error) {
@@ -384,7 +459,7 @@ class MedusaFirebaseClient {
             return { product: null };
           }
         },
-
+      
         update: async (productId, updateData) => {
           try {
             await this.checkAdminStatus();
@@ -392,31 +467,31 @@ class MedusaFirebaseClient {
             if (!productId || !updateData) {
               return { product: null };
             }
-
+      
             const productRef = doc(this.db, 'products', productId);
             const productDoc = await getDoc(productRef);
             
             if (!productDoc.exists()) {
               return { product: null };
             }
-
+      
             const currentData = productDoc.data();
             const updatedProduct = {
               ...currentData,
               ...updateData,
               updatedAt: new Date().toISOString()
             };
-
+      
             if (updateData.price) {
               updatedProduct.variants = (updatedProduct.variants || []).map(variant => ({
                 ...variant,
                 prices: [{
-                  amount: this.formatPrice(updateData.price, true),
+                  amount: parseInt(updateData.price || 0, 10),
                   currency_code: 'USD'
                 }]
               }));
             }
-
+      
             await updateDoc(productRef, updatedProduct);
             return { product: updatedProduct };
           } catch (error) {
@@ -424,7 +499,7 @@ class MedusaFirebaseClient {
             return { product: null };
           }
         },
-
+      
         delete: async (productId) => {
           try {
             await this.checkAdminStatus();
@@ -432,7 +507,7 @@ class MedusaFirebaseClient {
             if (!productId) {
               return { success: false };
             }
-
+      
             const productRef = doc(this.db, 'products', productId);
             await deleteDoc(productRef);
             
@@ -458,16 +533,17 @@ class MedusaFirebaseClient {
     this.admin.products.create = this.admin.products.create.bind(this);
     this.admin.products.update = this.admin.products.update.bind(this);
     this.admin.products.delete = this.admin.products.delete.bind(this);
+    this.products.list = this.products.list.bind(this);
   }
 
-  formatPrice(price, toCents = false) {
-    const cleanPrice = typeof price === 'string' ? parseFloat(price) : price;
-    if (isNaN(cleanPrice)) return 0;
-    
-    if (toCents) {
-      return parseInt(cleanPrice * 100);
+  formatPrice(price) {
+    if (typeof price === 'string') {
+      return parseInt(price.replace(/[^0-9]/g, ''), 10);
     }
-    return cleanPrice / 100;
+    if (typeof price === 'number') {
+      return parseInt(price, 10);
+    }
+    return 0;
   }
 
   createHandle(title) {
@@ -522,13 +598,14 @@ class MedusaFirebaseClient {
     if (!transactionDoc) return null;
     
     const data = transactionDoc.data();
-    if (!data || !data.data) return null;
-
+    
+    if (!data?.data) return null;
+  
     return {
       id: transactionDoc.id,
       customerId: data.data.userId || '',
       customer: {
-        email: data.data.shipping?.email || data.data.email || '',
+        email: data.data.customerEmail || data.data.shipping?.email || '',
         firstName: data.data.shipping?.firstName || '',
         lastName: data.data.shipping?.lastName || '',
         phone: data.data.shipping?.phone || ''
@@ -544,26 +621,22 @@ class MedusaFirebaseClient {
         country: data.data.shipping?.country || '',
         phone: data.data.shipping?.phone || ''
       },
-      items: (data.data.items || []).map(item => ({
-        id: item.id || '',
-        title: item.title || '',
-        quantity: parseInt(item.quantity || 0),
-        unit_price: this.formatPrice(item.price || 0, false),
-        total: this.formatPrice((item.price || 0) * (parseInt(item.quantity || 0)), false)
-      })),
-      total: this.formatPrice(data.data.total || 0, false),
-      subtotal: this.formatPrice(data.data.subtotal || data.data.total || 0, false),
-      tax_total: this.formatPrice(data.data.tax_total || 0, false),
-      shipping_total: this.formatPrice(data.data.shipping_total || 0, false),
-      status: data.type === 'purchase_success' ? 'completed' : 'pending',
-      payment_status: data.type === 'purchase_success' ? 'paid' : 'pending',
-      createdAt: data.timestamp || new Date().toISOString(),
-      updatedAt: data.timestamp || new Date().toISOString()
+      total: parseInt(data.data.amount || 0, 10),
+      subtotal: parseInt(data.data.amount || 0, 10),
+      tax_total: parseInt(data.data.tax_total || 0, 10),
+      shipping_total: parseInt(data.data.shipping_total || 0, 10),
+      itemCount: parseInt(data.data.itemCount || 0, 10),
+      status: data.status === 'success' ? 'completed' : 'pending',
+      payment_status: data.status === 'success' ? 'paid' : 'pending',
+      createdAt: data.timestamp?.toDate() || new Date(),
+      updatedAt: data.timestamp?.toDate() || new Date(),
+      environment: data.data.environment || 'production',
+      isGuest: data.data.isGuest || data.data.userId === 'guest'
     };
   }
 
   async formatTransactionToCustomer(transactions, userId) {
-    if (!transactions || !transactions.length || !userId) return null;
+    if (!transactions?.length || !userId) return null;
 
     const validTransactions = [];
     for (const transaction of transactions) {
@@ -576,18 +649,18 @@ class MedusaFirebaseClient {
     if (validTransactions.length === 0) return null;
 
     const latestTransaction = transactions[0].data();
-    if (!latestTransaction || !latestTransaction.data) return null;
+    if (!latestTransaction?.data) return null;
 
-    const totalSpent = validTransactions.reduce((sum, order) => sum + parseFloat(order.total || 0), 0);
+    const totalSpent = validTransactions.reduce((sum, order) => sum + (order.total || 0), 0);
 
     return {
       id: userId,
-      email: latestTransaction.data.shipping?.email || latestTransaction.data.email || '',
+      email: latestTransaction.data.customerEmail || latestTransaction.data.shipping?.email || '',
       firstName: latestTransaction.data.shipping?.firstName || '',
       lastName: latestTransaction.data.shipping?.lastName || '',
       phone: latestTransaction.data.shipping?.phone || '',
-      createdAt: latestTransaction.timestamp || new Date().toISOString(),
-      updatedAt: latestTransaction.timestamp || new Date().toISOString(),
+      createdAt: latestTransaction.timestamp?.toDate() || new Date(),
+      updatedAt: latestTransaction.timestamp?.toDate() || new Date(),
       orders: validTransactions,
       shippingAddresses: [{
         address1: latestTransaction.data.shipping?.address || '',
@@ -599,9 +672,9 @@ class MedusaFirebaseClient {
       }],
       metrics: {
         totalOrders: validTransactions.length,
-        totalSpent: totalSpent.toFixed(2),
+        totalSpent: totalSpent,
         lastOrderDate: validTransactions[0]?.createdAt || null,
-        averageOrderValue: (totalSpent / validTransactions.length || 0).toFixed(2)
+        averageOrderValue: validTransactions.length > 0 ? Math.round(totalSpent / validTransactions.length) : 0
       }
     };
   }

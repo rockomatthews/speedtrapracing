@@ -199,11 +199,12 @@ export default function OrdersPage() {
   const formatDate = (date) => {
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
-    }).format(new Date(date));
+      minute: '2-digit',
+      timeZone: 'America/Denver'
+    }).format(date instanceof Date ? date : date.toDate());
   };
 
   // Loading state
