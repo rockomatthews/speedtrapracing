@@ -1,11 +1,31 @@
 import { NextResponse } from 'next/server';
 
 export async function middleware(request) {
+    console.log('🔍 Middleware executing for:', request.nextUrl.pathname);
+
+    // Add security headers
+    const headers = new Headers();
+    headers.set('X-Frame-Options', 'DENY');
+    headers.set('X-Content-Type-Options', 'nosniff');
+    headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    headers.set('X-XSS-Protection', '1; mode=block');
+    headers.set('Permissions-Policy', 'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()');
+    headers.set('Content-Security-Policy', [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.braintreegateway.com https://*.paypal.com https://js.braintreegateway.com https://apis.google.com https://*.googleapis.com https://www.paypalobjects.com https://api2.amplitude.com",
+        "style-src 'self' 'unsafe-inline' https://assets.braintreegateway.com",
+        "img-src 'self' data: blob: https: *.ctfassets.net *.braintreegateway.com *.adyen.com *.paypal.com lh3.googleusercontent.com *.googleapis.com",
+        "font-src 'self' data: https://assets.braintreegateway.com",
+        "connect-src 'self' https://api.contentful.com https://cdn.contentful.com https://preview.contentful.com https://images.ctfassets.net https://*.braintree-api.com https://*.paypal.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://www.googleapis.com https://apis.google.com https://client-analytics.braintreegateway.com https://api.braintreegateway.com https://api2.amplitude.com",
+        "frame-src 'self' https://*.braintreegateway.com https://*.paypal.com https://apis.google.com https://*.googleapis.com https://assets.braintreegateway.com",
+        "object-src 'none'",
+        "worker-src 'self' blob:",
+        "script-src-elem 'self' 'unsafe-inline' https://*.braintreegateway.com https://*.paypal.com https://js.braintreegateway.com https://apis.google.com https://*.googleapis.com https://www.paypalobjects.com https://api2.amplitude.com",
+        "style-src-elem 'self' 'unsafe-inline' https://assets.braintreegateway.com"
+    ].join('; '));
+
     if (request.nextUrl.pathname.startsWith('/admin')) {
-        console.log('👉 Middleware executing for:', request.nextUrl.pathname);
-        
         try {
-            // Get the session cookie
             const sessionCookie = request.cookies.get('adminSession')?.value;
             console.log('🍪 Session cookie present:', !!sessionCookie);
 
@@ -13,8 +33,13 @@ export async function middleware(request) {
                 console.log('❌ No session cookie found');
                 const loginUrl = new URL('/login', request.url);
                 loginUrl.searchParams.set('from', request.nextUrl.pathname);
-                console.log('🔄 Redirecting to:', loginUrl.toString());
-                return NextResponse.redirect(loginUrl);
+                
+                const response = NextResponse.redirect(loginUrl);
+                // Add security headers to redirect
+                for (const [key, value] of headers.entries()) {
+                    response.headers.set(key, value);
+                }
+                return response;
             }
 
             // Build the verification URL using the request's origin
@@ -41,7 +66,13 @@ export async function middleware(request) {
                 console.log('❌ Session verification failed');
                 const loginUrl = new URL('/login', request.url);
                 loginUrl.searchParams.set('from', request.nextUrl.pathname);
-                return NextResponse.redirect(loginUrl);
+                
+                const response = NextResponse.redirect(loginUrl);
+                // Add security headers to redirect
+                for (const [key, value] of headers.entries()) {
+                    response.headers.set(key, value);
+                }
+                return response;
             }
 
             const data = await verifyResponse.json();
@@ -49,58 +80,60 @@ export async function middleware(request) {
 
             if (!data.isAdmin) {
                 console.log('🚫 User is not an admin');
-                return new NextResponse('Forbidden', {
+                const response = new NextResponse('Forbidden', {
                     status: 403,
-                    headers: { 
-                        'Content-Type': 'text/plain',
-                        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-                        'Pragma': 'no-cache',
-                        'Expires': '0',
-                    },
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    }
                 });
+                
+                // Add security headers to forbidden response
+                for (const [key, value] of headers.entries()) {
+                    response.headers.set(key, value);
+                }
+                return response;
             }
 
             console.log('✅ Admin access granted');
             
-            // Create response with headers
-            const response = NextResponse.next();
-            
-            // Set security headers
-            response.headers.set('X-Frame-Options', 'DENY');
-            response.headers.set('X-Content-Type-Options', 'nosniff');
-            response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-            response.headers.set('X-XSS-Protection', '1; mode=block');
-            response.headers.set('X-DNS-Prefetch-Control', 'on');
-            
-            // Set cached state and user info
-            const requestHeaders = new Headers(request.headers);
-            requestHeaders.set('x-user-id', data.uid);
-            requestHeaders.set('x-user-role', 'admin');
-            requestHeaders.set('x-session-verified', 'true');
+            // Add auth headers
+            headers.set('x-user-id', data.uid);
+            headers.set('x-user-role', 'admin');
+            headers.set('x-session-verified', 'true');
 
-            return response;
+            // Create response with all headers
+            const response = NextResponse.next();
+            for (const [key, value] of headers.entries()) {
+                response.headers.set(key, value);
+            }
             
+            return response;
+
         } catch (error) {
             console.error('🚨 Middleware error:', error);
-            // Add detailed error logging
-            console.error('Error details:', {
-                path: request.nextUrl.pathname,
-                timestamp: new Date().toISOString(),
-                errorMessage: error.message,
-                errorStack: error.stack
-            });
-
             const loginUrl = new URL('/login', request.url);
             loginUrl.searchParams.set('from', request.nextUrl.pathname);
-            return NextResponse.redirect(loginUrl);
+            
+            const response = NextResponse.redirect(loginUrl);
+            // Add security headers to error redirect
+            for (const [key, value] of headers.entries()) {
+                response.headers.set(key, value);
+            }
+            return response;
         }
     }
 
-    return NextResponse.next();
+    // For non-admin routes, just add security headers
+    const response = NextResponse.next();
+    for (const [key, value] of headers.entries()) {
+        response.headers.set(key, value);
+    }
+    return response;
 }
 
 export const config = {
     matcher: [
-        '/admin/:path*'
+        '/admin/:path*',
+        '/((?!api|_next/static|_next/image|favicon.ico).*)'
     ]
 };
