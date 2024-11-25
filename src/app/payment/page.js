@@ -23,6 +23,8 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { useRouter } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import Image from 'next/image';
+import { doc, getDoc, updateDoc, setDoc, addDoc, collection, deleteDoc } from 'firebase/firestore';
+import { auth, db } from '../../config/firebase';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
@@ -36,12 +38,14 @@ const Payment = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
 
+
   useEffect(() => {
     const storedBookingDetails = localStorage.getItem('bookingDetails');
     if (storedBookingDetails) {
       setBookingDetails(JSON.parse(storedBookingDetails));
     } else {
       setError("No booking details found. Please start your booking process again.");
+      router.push('/schedule');
     }
   }, []);
 
@@ -107,6 +111,21 @@ const Payment = () => {
     );
   };
 
+  useEffect(() => {
+    // Function to delete the booking document
+    const deleteBooking = async () => {
+      if (bookingDetails && bookingDetails.docId) {
+        const bookingDocRef = doc(db, 'bookings', bookingDetails.docId);
+        await deleteDoc(bookingDocRef);
+      }
+    };
+  
+    // Set up cleanup function to delete booking on unmount
+    return () => {
+      deleteBooking();
+    };
+  }, [bookingDetails]);
+  
   const handleMethodClick = async (method) => {
     setSelectedMethod(method);
     setLoading(true);
@@ -166,7 +185,7 @@ const Payment = () => {
   return (
     <Box
       sx={{
-        minHeight: '100vh',
+        height: '90vh',
         backgroundImage: `url('/loginBackground.png')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -178,6 +197,25 @@ const Payment = () => {
         padding: isMobile ? '16px' : '20px',
       }}
     >
+
+      <Button
+        onClick={() => router.push('/schedule')}
+        sx={{
+          position: 'absolute',
+          top: '90px',
+          left: '20px',
+          backgroundColor: '#333',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: '8px 16px',
+          textTransform: 'none',
+          zIndex: 2,
+        }}
+      >
+        go back
+      </Button>
+
+
       <Typography
         variant={isMobile ? 'h5' : 'h4'}
         sx={{
