@@ -132,15 +132,21 @@ const Payment = () => {
     setError(null);
 
     try {
+
       if (method === 'Debit/Credit' || method === 'Apple Pay') {
         await handleStripeCheckout(method);
       } else if (method === 'PayPal') {
-        console.log('PayPal checkout not implemented yet');
-        setError('PayPal checkout is not implemented yet');
+          console.log('PayPal checkout not implemented yet');
+          setError('PayPal checkout is not implemented yet');
       } else if (method === 'Venmo') {
-        console.log('Venmo checkout not implemented yet');
-        setError('Venmo checkout is not implemented yet');
+          console.log('Venmo checkout not implemented yet');
+          setError('Venmo checkout is not implemented yet');
+      } else if (method === 'test') {
+        const bookingsCollectionRef = collection(db, 'bookings');
+        await addDoc(bookingsCollectionRef, bookingDetails);
+        router.push('/success');
       }
+
     } catch (err) {
       setError(err.message || 'An error occurred during checkout');
     } finally {
@@ -213,6 +219,23 @@ const Payment = () => {
         }}
       >
         go back
+      </Button>
+
+      <Button
+        onClick={() => router.push('/cancel')}
+        sx={{
+          position: 'absolute',
+          top: '90px',
+          right: '20px',
+          backgroundColor: '#333',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: '8px 16px',
+          textTransform: 'none',
+          zIndex: 2,
+        }}
+      >
+        cancel
       </Button>
 
 
@@ -314,6 +337,24 @@ const Payment = () => {
         >
           Buy with Apple Pay
         </Button>
+
+        <Button
+        onClick={() => handleMethodClick('test')}
+        fullWidth
+        sx={{
+          backgroundColor: '#000',
+          color: '#fff',
+          fontWeight: 'bold',
+          padding: isMobile ? '12px 16px' : '10px 20px',
+          textTransform: 'none',
+          '&:hover': {
+            backgroundColor: '#222',
+          },
+        }}
+      >
+        test pay
+      </Button>
+
       </Box>
 
       {loading && (
