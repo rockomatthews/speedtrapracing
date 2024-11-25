@@ -25,93 +25,57 @@ export async function middleware(request) {
 
     if (request.nextUrl.pathname.startsWith('/admin')) {
         try {
+            console.log('🔍 Admin route detected:', request.nextUrl.pathname);
             const sessionCookie = request.cookies.get('adminSession')?.value;
-            console.log('🍪 Session cookie present:', !!sessionCookie);
+            console.log('🍪 Session cookie:', sessionCookie ? 'Present' : 'Missing');
 
             if (!sessionCookie) {
-                console.log('❌ No session cookie found');
+                console.log('❌ Redirecting to login - No session cookie');
                 const loginUrl = new URL('/login', request.url);
                 loginUrl.searchParams.set('from', request.nextUrl.pathname);
-                
-                const response = NextResponse.redirect(loginUrl);
-                for (const [key, value] of headers.entries()) {
-                    response.headers.set(key, value);
-                }
-                return response;
+                return NextResponse.redirect(loginUrl);
             }
 
+            // Use request.url to build verify URL so it works in both environments
             const verifyUrl = new URL('/api/auth/verify', request.url);
-            console.log('🔍 Verifying session with:', verifyUrl.toString());
+            console.log('🔍 Verify URL:', verifyUrl.toString());
 
             const verifyResponse = await fetch(verifyUrl, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Cookie': `adminSession=${sessionCookie}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ 
-                    sessionCookie,
-                    path: request.nextUrl.pathname,
-                    timestamp: Date.now()
-                }),
-                credentials: 'include'
+                    sessionCookie: sessionCookie,
+                    path: request.nextUrl.pathname
+                })
             });
 
-            console.log('📡 Verify response status:', verifyResponse.status);
+            const data = await verifyResponse.json();
+            console.log('👤 Auth response:', {
+                status: verifyResponse.status,
+                isAdmin: data.isAdmin
+            });
 
-            if (!verifyResponse.ok) {
-                console.log('❌ Session verification failed');
+            if (!verifyResponse.ok || !data.isAdmin) {
+                console.log('❌ Redirecting to login - Auth failed');
                 const loginUrl = new URL('/login', request.url);
                 loginUrl.searchParams.set('from', request.nextUrl.pathname);
-                
-                const response = NextResponse.redirect(loginUrl);
-                for (const [key, value] of headers.entries()) {
-                    response.headers.set(key, value);
-                }
-                return response;
-            }
-
-            const data = await verifyResponse.json();
-            console.log('👤 Verification response:', data);
-
-            if (!data.isAdmin) {
-                console.log('🚫 User is not an admin');
-                const response = new NextResponse('Forbidden', {
-                    status: 403,
-                    headers: {
-                        'Content-Type': 'text/plain'
-                    }
-                });
-                
-                for (const [key, value] of headers.entries()) {
-                    response.headers.set(key, value);
-                }
-                return response;
+                return NextResponse.redirect(loginUrl);
             }
 
             console.log('✅ Admin access granted');
-            
-            headers.set('x-user-id', data.uid);
-            headers.set('x-user-role', 'admin');
-            headers.set('x-session-verified', 'true');
-
             const response = NextResponse.next();
             for (const [key, value] of headers.entries()) {
                 response.headers.set(key, value);
             }
-            
             return response;
-
+            
         } catch (error) {
-            console.error('🚨 Middleware error:', error);
+            console.error('🚨 Auth error:', error);
             const loginUrl = new URL('/login', request.url);
             loginUrl.searchParams.set('from', request.nextUrl.pathname);
-            
-            const response = NextResponse.redirect(loginUrl);
-            for (const [key, value] of headers.entries()) {
-                response.headers.set(key, value);
-            }
-            return response;
+            return NextResponse.redirect(loginUrl);
         }
     }
 
