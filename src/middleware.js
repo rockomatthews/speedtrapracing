@@ -31,12 +31,10 @@ export async function middleware(request) {
 
     if (request.nextUrl.pathname.startsWith('/admin')) {
         try {
-            console.log('🔍 Admin route detected:', request.nextUrl.pathname);
             const sessionCookie = request.cookies.get('adminSession')?.value;
-            console.log('🍪 Session cookie:', sessionCookie ? 'Present' : 'Missing');
-
+            console.log('🔍 Production Debug - Session Cookie:', sessionCookie?.substring(0, 10) + '...');
+    
             if (!sessionCookie) {
-                console.log('❌ Redirecting to login - No session cookie');
                 const loginUrl = new URL('/login', request.url);
                 loginUrl.searchParams.set('from', request.nextUrl.pathname);
                 const redirectResponse = NextResponse.redirect(loginUrl);
@@ -45,10 +43,16 @@ export async function middleware(request) {
                 }
                 return redirectResponse;
             }
-
-            const verifyUrl = new URL('/api/auth/verify', request.url);
-            console.log('🔍 Verify URL:', verifyUrl.toString());
-
+    
+            // Make URL absolute for production
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.url;
+            const verifyUrl = new URL('/api/auth/verify', baseUrl);
+            console.log('🔍 Production Debug - Verify URL:', verifyUrl.toString());
+            console.log('🔍 Production Debug - Headers:', {
+                cookie: `adminSession=${sessionCookie}`,
+                contentType: 'application/json'
+            });
+    
             const verifyResponse = await fetch(verifyUrl, {
                 method: 'POST',
                 headers: {
@@ -56,21 +60,22 @@ export async function middleware(request) {
                     'Cookie': `adminSession=${sessionCookie}`
                 },
                 body: JSON.stringify({ 
-                    sessionCookie: sessionCookie,
+                    sessionCookie,
                     path: request.nextUrl.pathname,
-                    timestamp: Date.now()
-                }),
-                credentials: 'include'
+                    timestamp: Date.now(),
+                    production: true
+                })
             });
-
-            const data = await verifyResponse.json();
-            console.log('👤 Auth response:', {
+    
+            console.log('🔍 Production Debug - Verify Response:', {
                 status: verifyResponse.status,
-                isAdmin: data.isAdmin
+                ok: verifyResponse.ok
             });
-
+    
+            const data = await verifyResponse.json();
+            console.log('🔍 Production Debug - Verify Data:', data);
+    
             if (!verifyResponse.ok || !data.isAdmin) {
-                console.log('❌ Redirecting to login - Auth failed');
                 const loginUrl = new URL('/login', request.url);
                 loginUrl.searchParams.set('from', request.nextUrl.pathname);
                 const redirectResponse = NextResponse.redirect(loginUrl);
@@ -79,15 +84,18 @@ export async function middleware(request) {
                 }
                 return redirectResponse;
             }
-
-            console.log('✅ Admin access granted');
+    
+            const response = NextResponse.next();
+            for (const [key, value] of headers.entries()) {
+                response.headers.set(key, value);
+            }
             response.headers.set('x-user-id', data.uid);
             response.headers.set('x-user-role', 'admin');
             response.headers.set('x-session-verified', 'true');
-            return response;
             
+            return response;
         } catch (error) {
-            console.error('🚨 Auth error:', error);
+            console.error('🚨 Production Debug - Auth Error:', error);
             const loginUrl = new URL('/login', request.url);
             loginUrl.searchParams.set('from', request.nextUrl.pathname);
             const redirectResponse = NextResponse.redirect(loginUrl);
