@@ -23,7 +23,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { useRouter } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import Image from 'next/image';
-import { doc, getDoc, updateDoc, setDoc, addDoc, collection, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, addDoc, collection, deleteDoc, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
@@ -37,7 +37,6 @@ const Payment = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
-
 
   useEffect(() => {
     const storedBookingDetails = localStorage.getItem('bookingDetails');
@@ -126,6 +125,7 @@ const Payment = () => {
     };
   }, [bookingDetails]);
   
+  console.log("bookingDetails: ",bookingDetails)
   const handleMethodClick = async (method) => {
     setSelectedMethod(method);
     setLoading(true);
@@ -133,20 +133,30 @@ const Payment = () => {
 
     try {
 
-      if (method === 'Debit/Credit' || method === 'Apple Pay') {
-        await handleStripeCheckout(method);
-      } else if (method === 'PayPal') {
-          console.log('PayPal checkout not implemented yet');
-          setError('PayPal checkout is not implemented yet');
-      } else if (method === 'Venmo') {
-          console.log('Venmo checkout not implemented yet');
-          setError('Venmo checkout is not implemented yet');
-      } else if (method === 'test') {
-        const bookingsCollectionRef = collection(db, 'bookings');
-        await addDoc(bookingsCollectionRef, bookingDetails);
-        router.push('/success');
-      }
-
+        if (method === 'Debit/Credit' || method === 'Apple Pay') {
+            await handleStripeCheckout(method);
+        } else if (method === 'PayPal') {
+            console.log('PayPal checkout not implemented yet');
+            setError('PayPal checkout is not implemented yet');
+        } else if (method === 'Venmo') {
+            console.log('Venmo checkout not implemented yet');
+            setError('Venmo checkout is not implemented yet');
+        } else if (method === 'test') {
+          console.log('Test payment method selected');
+          const bookingDocRef = doc(db, 'bookings', bookingDetails.docId);
+          try {
+              await updateDoc(bookingDocRef, {
+                  isFinalized: true,
+              });
+              console.log('Booking updated successfully');
+              // localStorage.removeItem('bookingDetails');
+              router.push('/success');
+              console.log('Booking details removed from local storage');
+              setError(null);
+          } catch (err) {
+              console.error('Error updating booking:', err);
+          }
+        }
     } catch (err) {
       setError(err.message || 'An error occurred during checkout');
     } finally {
