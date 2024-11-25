@@ -23,6 +23,12 @@ export async function middleware(request) {
         "style-src-elem 'self' 'unsafe-inline' https://assets.braintreegateway.com"
     ].join('; '));
 
+    const response = NextResponse.next();
+    
+    for (const [key, value] of headers.entries()) {
+        response.headers.set(key, value);
+    }
+
     if (request.nextUrl.pathname.startsWith('/admin')) {
         try {
             console.log('🔍 Admin route detected:', request.nextUrl.pathname);
@@ -33,22 +39,28 @@ export async function middleware(request) {
                 console.log('❌ Redirecting to login - No session cookie');
                 const loginUrl = new URL('/login', request.url);
                 loginUrl.searchParams.set('from', request.nextUrl.pathname);
-                return NextResponse.redirect(loginUrl);
+                const redirectResponse = NextResponse.redirect(loginUrl);
+                for (const [key, value] of headers.entries()) {
+                    redirectResponse.headers.set(key, value);
+                }
+                return redirectResponse;
             }
 
-            // Use request.url to build verify URL so it works in both environments
             const verifyUrl = new URL('/api/auth/verify', request.url);
             console.log('🔍 Verify URL:', verifyUrl.toString());
 
             const verifyResponse = await fetch(verifyUrl, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Cookie': `adminSession=${sessionCookie}`
                 },
                 body: JSON.stringify({ 
                     sessionCookie: sessionCookie,
-                    path: request.nextUrl.pathname
-                })
+                    path: request.nextUrl.pathname,
+                    timestamp: Date.now()
+                }),
+                credentials: 'include'
             });
 
             const data = await verifyResponse.json();
@@ -61,34 +73,36 @@ export async function middleware(request) {
                 console.log('❌ Redirecting to login - Auth failed');
                 const loginUrl = new URL('/login', request.url);
                 loginUrl.searchParams.set('from', request.nextUrl.pathname);
-                return NextResponse.redirect(loginUrl);
+                const redirectResponse = NextResponse.redirect(loginUrl);
+                for (const [key, value] of headers.entries()) {
+                    redirectResponse.headers.set(key, value);
+                }
+                return redirectResponse;
             }
 
             console.log('✅ Admin access granted');
-            const response = NextResponse.next();
-            for (const [key, value] of headers.entries()) {
-                response.headers.set(key, value);
-            }
+            response.headers.set('x-user-id', data.uid);
+            response.headers.set('x-user-role', 'admin');
+            response.headers.set('x-session-verified', 'true');
             return response;
             
         } catch (error) {
             console.error('🚨 Auth error:', error);
             const loginUrl = new URL('/login', request.url);
             loginUrl.searchParams.set('from', request.nextUrl.pathname);
-            return NextResponse.redirect(loginUrl);
+            const redirectResponse = NextResponse.redirect(loginUrl);
+            for (const [key, value] of headers.entries()) {
+                redirectResponse.headers.set(key, value);
+            }
+            return redirectResponse;
         }
     }
 
-    const response = NextResponse.next();
-    for (const [key, value] of headers.entries()) {
-        response.headers.set(key, value);
-    }
     return response;
 }
 
 export const config = {
     matcher: [
-        '/admin/:path*',
-        '/((?!api|_next/static|_next/image|favicon.ico).*)'
+        '/admin/:path*'
     ]
 };
