@@ -1,3 +1,4 @@
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
     remotePatterns: [
@@ -116,7 +117,10 @@ const nextConfig = {
   },
 
   env: {
-    NEXT_PUBLIC_BRAINTREE_ENVIRONMENT: process.env.BRAINTREE_ENVIRONMENT || 'sandbox',
+    NEXT_PUBLIC_BRAINTREE_ENVIRONMENT: 'production',
+    BRAINTREE_MERCHANT_ID: 'nw8dgz48gg9sr53b',
+    BRAINTREE_PUBLIC_KEY: 'dwq5jj83m6gn59rg',
+    BRAINTREE_PRIVATE_KEY: 'fd5336ad01dd98d7eda800b123d16260'
   },
 
   experimental: {

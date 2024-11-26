@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 export async function middleware(request) {
-    console.log('🔍 Middleware executing for:', request.nextUrl.pathname);
+    console.log('🔍 Middleware executing:', request.nextUrl.pathname);
 
     const headers = new Headers();
     headers.set('X-Frame-Options', 'DENY');
@@ -23,36 +23,16 @@ export async function middleware(request) {
         "style-src-elem 'self' 'unsafe-inline' https://assets.braintreegateway.com"
     ].join('; '));
 
-    const response = NextResponse.next();
-    
-    for (const [key, value] of headers.entries()) {
-        response.headers.set(key, value);
-    }
-
     if (request.nextUrl.pathname.startsWith('/admin')) {
         try {
             const sessionCookie = request.cookies.get('adminSession')?.value;
-            console.log('🔍 Production Debug - Session Cookie:', sessionCookie?.substring(0, 10) + '...');
-    
+            console.log('🔍 Auth:', sessionCookie ? 'Session cookie found' : 'No session cookie');
+
             if (!sessionCookie) {
-                const loginUrl = new URL('/login', request.url);
-                loginUrl.searchParams.set('from', request.nextUrl.pathname);
-                const redirectResponse = NextResponse.redirect(loginUrl);
-                for (const [key, value] of headers.entries()) {
-                    redirectResponse.headers.set(key, value);
-                }
-                return redirectResponse;
+                return redirectToLogin(request.url, request.nextUrl.pathname, headers);
             }
-    
-            // Make URL absolute for production
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.url;
-            const verifyUrl = new URL('/api/auth/verify', baseUrl);
-            console.log('🔍 Production Debug - Verify URL:', verifyUrl.toString());
-            console.log('🔍 Production Debug - Headers:', {
-                cookie: `adminSession=${sessionCookie}`,
-                contentType: 'application/json'
-            });
-    
+
+            const verifyUrl = new URL('/api/auth/verify', request.url);
             const verifyResponse = await fetch(verifyUrl, {
                 method: 'POST',
                 headers: {
@@ -61,52 +41,46 @@ export async function middleware(request) {
                 },
                 body: JSON.stringify({ 
                     sessionCookie,
-                    path: request.nextUrl.pathname,
-                    timestamp: Date.now(),
-                    production: true
+                    path: request.nextUrl.pathname
                 })
             });
-    
-            console.log('🔍 Production Debug - Verify Response:', {
-                status: verifyResponse.status,
-                ok: verifyResponse.ok
-            });
-    
+
             const data = await verifyResponse.json();
-            console.log('🔍 Production Debug - Verify Data:', data);
-    
+            console.log('👤 Auth Status:', verifyResponse.ok ? 'Verified' : 'Failed');
+
             if (!verifyResponse.ok || !data.isAdmin) {
-                const loginUrl = new URL('/login', request.url);
-                loginUrl.searchParams.set('from', request.nextUrl.pathname);
-                const redirectResponse = NextResponse.redirect(loginUrl);
-                for (const [key, value] of headers.entries()) {
-                    redirectResponse.headers.set(key, value);
-                }
-                return redirectResponse;
+                return redirectToLogin(request.url, request.nextUrl.pathname, headers);
             }
-    
+
             const response = NextResponse.next();
-            for (const [key, value] of headers.entries()) {
-                response.headers.set(key, value);
-            }
+            applyHeaders(response, headers);
             response.headers.set('x-user-id', data.uid);
             response.headers.set('x-user-role', 'admin');
-            response.headers.set('x-session-verified', 'true');
             
             return response;
         } catch (error) {
-            console.error('🚨 Production Debug - Auth Error:', error);
-            const loginUrl = new URL('/login', request.url);
-            loginUrl.searchParams.set('from', request.nextUrl.pathname);
-            const redirectResponse = NextResponse.redirect(loginUrl);
-            for (const [key, value] of headers.entries()) {
-                redirectResponse.headers.set(key, value);
-            }
-            return redirectResponse;
+            console.error('❌ Auth Error:', error);
+            return redirectToLogin(request.url, request.nextUrl.pathname, headers);
         }
     }
 
+    const response = NextResponse.next();
+    applyHeaders(response, headers);
     return response;
+}
+
+function redirectToLogin(baseUrl, path, headers) {
+    const loginUrl = new URL('/login', baseUrl);
+    loginUrl.searchParams.set('from', path);
+    const response = NextResponse.redirect(loginUrl);
+    applyHeaders(response, headers);
+    return response;
+}
+
+function applyHeaders(response, headers) {
+    for (const [key, value] of headers.entries()) {
+        response.headers.set(key, value);
+    }
 }
 
 export const config = {
