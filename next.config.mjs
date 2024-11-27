@@ -1,4 +1,3 @@
-/** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
     remotePatterns: [
@@ -78,15 +77,18 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.braintreegateway.com https://*.paypal.com https://js.braintreegateway.com https://apis.google.com https://*.googleapis.com https://www.paypalobjects.com https://api2.amplitude.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.braintreegateway.com https://*.paypal.com https://*.braintreepayments.com https://js.braintreegateway.com https://apis.google.com https://*.googleapis.com https://www.paypalobjects.com https://api2.amplitude.com",
               "style-src 'self' 'unsafe-inline' https://assets.braintreegateway.com",
               "img-src 'self' data: blob: https: *.ctfassets.net *.braintreegateway.com *.adyen.com *.paypal.com lh3.googleusercontent.com *.googleapis.com",
-              "font-src 'self' data: https://assets.braintreegateway.com",
-              "connect-src 'self' https://api.contentful.com https://cdn.contentful.com https://preview.contentful.com https://images.ctfassets.net https://*.braintree-api.com https://*.paypal.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://www.googleapis.com https://apis.google.com https://client-analytics.braintreegateway.com https://api.braintreegateway.com https://api2.amplitude.com",
-              "frame-src 'self' https://*.braintreegateway.com https://*.paypal.com https://apis.google.com https://*.googleapis.com https://assets.braintreegateway.com https://*.firebaseapp.com https://speedtrapracing-aa7c8.firebaseapp.com",
+              "font-src 'self' data: https://assets.braintreegateway.com https://fonts.gstatic.com",
+              "connect-src 'self' https://api.contentful.com https://cdn.contentful.com https://preview.contentful.com https://images.ctfassets.net https://*.braintree-api.com https://*.paypal.com https://*.braintreepayments.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://www.googleapis.com https://apis.google.com https://client-analytics.braintreegateway.com https://api.braintreegateway.com https://api2.amplitude.com https://*.cloudfunctions.net",
+              "frame-src 'self' https://*.braintreegateway.com https://*.paypal.com https://*.braintreepayments.com https://apis.google.com https://*.googleapis.com https://assets.braintreegateway.com https://*.firebaseapp.com https://speedtrapracing-aa7c8.firebaseapp.com",
               "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "frame-ancestors 'none'",
               "worker-src 'self' blob:",
-              "script-src-elem 'self' 'unsafe-inline' https://*.braintreegateway.com https://*.paypal.com https://js.braintreegateway.com https://apis.google.com https://*.googleapis.com https://www.paypalobjects.com https://api2.amplitude.com",
+              "script-src-elem 'self' 'unsafe-inline' https://*.braintreegateway.com https://*.paypal.com https://*.braintreepayments.com https://js.braintreegateway.com https://apis.google.com https://*.googleapis.com https://www.paypalobjects.com https://api2.amplitude.com",
               "style-src-elem 'self' 'unsafe-inline' https://assets.braintreegateway.com"
             ].join('; ')
           },
@@ -97,6 +99,18 @@ const nextConfig = {
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff'
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin'
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(self https://*.braintree-api.com https://*.paypal.com https://*.braintreepayments.com), usb=()'
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains'
           }
         ]
       },
@@ -110,6 +124,15 @@ const nextConfig = {
           {
             key: 'Access-Control-Allow-Origin',
             value: '*'
+          }
+        ]
+      },
+      {
+        source: '/admin/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, must-revalidate'
           }
         ]
       }
@@ -126,6 +149,13 @@ const nextConfig = {
   experimental: {
     esmExternals: true,
     serverComponentsExternalPackages: ['firebase-admin'],
+    serverActions: {
+      allowedOrigins: [
+        'localhost:3000',
+        'speedtrapracing-aa7c8.web.app',
+        'speedtrapracing-aa7c8.firebaseapp.com'
+      ]
+    }
   },
 
   typescript: {
@@ -143,6 +173,29 @@ const nextConfig = {
   poweredByHeader: false,
 
   compress: true,
+
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: '/admin/:path*',
+          has: [
+            {
+              type: 'cookie',
+              key: 'adminSession'
+            }
+          ],
+          destination: '/admin/:path*'
+        }
+      ],
+      fallback: [
+        {
+          source: '/admin/:path*',
+          destination: '/login'
+        }
+      ]
+    };
+  }
 };
 
 export default nextConfig;
