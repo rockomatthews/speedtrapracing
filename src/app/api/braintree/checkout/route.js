@@ -4,6 +4,9 @@ import medusaClient from '@/lib/medusa-client';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Helper function to sanitize input
 const sanitizeInput = (value) => {
   if (!value) return '';

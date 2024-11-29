@@ -2,6 +2,9 @@
 import { NextResponse } from 'next/server';
 import medusaClient from '@/lib/medusa-client';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function POST(request) {
   try {
     const { items } = await request.json();

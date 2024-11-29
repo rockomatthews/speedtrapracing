@@ -64,8 +64,22 @@ const nextConfig = {
       "net": false,
       "tls": false,
       "fs": false,
+      "crypto": false,
+      "stream": false
     };
+    
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+      layers: true
+    };
+
     return config;
+  },
+
+  experimental: {
+    esmExternals: true,
+    serverComponentsExternalPackages: ['firebase-admin'],
   },
 
   async headers() {

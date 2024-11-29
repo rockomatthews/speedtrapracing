@@ -2,6 +2,9 @@
 import { NextResponse } from 'next/server';
 import braintree from 'braintree';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const gateway = new braintree.BraintreeGateway({
   environment: braintree.Environment.Production,
   merchantId: process.env.BRAINTREE_MERCHANT_ID,

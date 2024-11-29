@@ -18,12 +18,23 @@
     },
     "rewrites": [
       {
+        "source": "/api/auth/**",
+        "function": "api"
+      },
+      {
+        "source": "/api/braintree/**",
+        "function": "api"
+      },
+      {
         "source": "/api/**",
         "function": "api"
       },
       {
         "source": "**",
-        "function": "ssrspeedtrapracingaa7c8"
+        "run": {
+          "serviceId": "ssrspeedtrapracingaa7c8",
+          "region": "us-central1"
+        }
       }
     ],
     "predeploy": [
@@ -38,6 +49,15 @@
           {
             "key": "Cache-Control",
             "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        "source": "/admin/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-store, must-revalidate"
           }
         ]
       },
@@ -62,7 +82,7 @@
           },
           {
             "key": "Permissions-Policy",
-            "value": "camera=(), microphone=(), geolocation=(), payment=(self 'https://*.braintree-api.com' 'https://*.paypal.com')"
+            "value": "camera=(), microphone=(), geolocation=(), payment=(self \"https://api.braintreegateway.com\" \"https://www.paypal.com\")"
           }
         ]
       }
