@@ -71,7 +71,7 @@ export default function NightlyEvents() {
       try {
         const response = await client.getEntries({
           content_type: 'nightlyEvent',
-          order: 'fields.date',
+          order: '-fields.date', // Add the minus sign to reverse the order
           include: 2
         });
         setEvents(response.items);

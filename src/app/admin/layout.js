@@ -50,38 +50,28 @@ export default function AdminLayout({ children }) {
   useEffect(() => {
     const verifySession = async () => {
       try {
-        setLoading(true);
-        setSessionError(null);
-
-        // First check if we have a session in localStorage
-        const localSession = localStorage.getItem('adminSession');
-        let hasLocalSession = false;
-        if (localSession) {
-          try {
-            const parsed = JSON.parse(localSession);
-            if (new Date(parsed.expiresAt) > new Date()) {
-              hasLocalSession = true;
-            } else {
-              localStorage.removeItem('adminSession');
-            }
-          } catch (e) {
-            console.error('Error parsing local session:', e);
-            localStorage.removeItem('adminSession');
-          }
-        }
-
-        // Always verify with the backend
-        const response = await fetch('/api/auth/verify', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include', // Important: this ensures cookies are sent
-          body: JSON.stringify({
-            hasLocalSession,
-            path: pathname,
-            timestamp: Date.now()
-          })
+          setLoading(true);
+          setSessionError(null);
+  
+          const FIREBASE_FUNCTIONS_URL = process.env.NODE_ENV === 'production' 
+    ? 'https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net'  // NO /api
+    : 'http://localhost:3000';
+  
+          // Check for local session first
+          const localSession = localStorage.getItem('adminSession');
+          const hasLocalSession = localSession ? JSON.parse(localSession) : null;
+  
+          const response = await fetch(`${FIREBASE_FUNCTIONS_URL}/api/auth/admin/verify`, {  // ADD /api
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                sessionCookie: hasLocalSession,
+                path: pathname,
+                timestamp: Date.now()
+            })
         });
 
         const data = await response.json();

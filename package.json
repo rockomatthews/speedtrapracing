@@ -16,6 +16,9 @@
     "@emotion/cache": "latest",
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
+    "@hapi/accept": "6.0.3",
+    "@hapi/boom": "10.0.1",
+    "@hapi/hoek": "11.0.7",
     "@medusajs/medusa": "^1.20.10",
     "@medusajs/medusa-js": "^6.1.7",
     "@mui/icons-material": "^6.1.6",
@@ -28,11 +31,15 @@
     "braintree-web": "^3.112.0",
     "braintree-web-drop-in": "^1.43.0",
     "contentful": "^11.0.3",
+    "cookie": "0.7.2",
     "date-fns": "^4.1.0",
     "firebase": "^10.14.1",
     "firebase-admin": "^12.7.0",
+    "firebase-frameworks": "0.11.5",
+    "firebase-functions": "6.1.0",
     "graphql": "^16.9.0",
     "graphql-request": "^7.1.0",
+    "lru-cache": "6.0.0",
     "luxon": "^3.5.0",
     "next": "14.2.14",
     "react": "^18",
@@ -43,18 +50,11 @@
     "sharp": "^0.33.5",
     "slick-carousel": "^1.8.1",
     "stripe": "^17.2.0",
-    "zustand": "^4.5.2",
-    "firebase-frameworks": "0.11.5",
-    "firebase-functions": "6.1.0",
-    "@hapi/accept": "6.0.3",
-    "@hapi/boom": "10.0.1",
-    "@hapi/hoek": "11.0.7",
-    "cookie": "0.7.2",
-    "lru-cache": "6.0.0"
+    "zustand": "^4.5.2"
   },
   "devDependencies": {
-    "dotenv": "^16.4.5",
-    "@types/cors": "2.8.17"
+    "@types/cors": "2.8.17",
+    "dotenv": "^16.4.5"
   },
   "resolutions": {
     "cookie": "0.7.2",

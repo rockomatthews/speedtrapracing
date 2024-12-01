@@ -1,3 +1,5 @@
+// api/auth/verify/route.js
+
 import { NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebaseAdmin';
 import { cookies } from 'next/headers';
