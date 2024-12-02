@@ -193,6 +193,7 @@ app.get('/api/braintree/client-token', async function(request, response) {
 
 // Braintree payment processing endpoint
 app.post('/api/braintree/process-payment', async function(request, response) {
+    const { nonce, amount, orderData } = request.body;
     // Check if Braintree is properly initialized
     if (braintreeGateway === null) {
         console.error('Payment processing failed: Gateway not initialized', {
@@ -208,14 +209,13 @@ app.post('/api/braintree/process-payment', async function(request, response) {
     }
 
     // Extract payment information from request
-    const { nonce, amount, orderData } = request.body;
 
     // Validate required payment data
-    if (!nonce || !amount) {
+    if (!nonce || !amount || !items || !shipping) {
         return response.status(400).json({
             status: 'error',
-            message: 'Missing required payment information',
-            code: 'INVALID_REQUEST'
+            message: 'Missing required fields',
+            details: { nonce: !!nonce, amount: !!amount, items: !!items, shipping: !!shipping }
         });
     }
 
