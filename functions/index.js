@@ -129,7 +129,7 @@ function setSecureCookie(response, name, value, expiresIn) {
 }
 
 // Braintree client token generation endpoint
-app.get('/braintree/client-token', async function(request, response) {
+app.get('/api/braintree/client-token', async function(request, response) {
     // Check if Braintree is properly initialized
     if (braintreeGateway === null) {
         console.error('Braintree client token request failed: Gateway not initialized', {
@@ -192,7 +192,7 @@ app.get('/braintree/client-token', async function(request, response) {
 });
 
 // Braintree payment processing endpoint
-app.post('/braintree/process-payment', async function(request, response) {
+app.post('/api/braintree/process-payment', async function(request, response) {
     // Check if Braintree is properly initialized
     if (braintreeGateway === null) {
         console.error('Payment processing failed: Gateway not initialized', {

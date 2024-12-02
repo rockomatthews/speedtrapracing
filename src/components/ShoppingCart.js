@@ -412,15 +412,15 @@ const ShoppingCartComponent = function({ items = [], onUpdateQuantity, onRemoveI
 
   // Braintree Instance Cleanup Function
   const cleanupBraintree = async function() {
-      if (braintreeInstance !== null) {
-          try {
-              await braintreeInstance.teardown();
-              setBraintreeInstance(null);
-          } catch (error) {
-              console.error('Error tearing down Braintree:', error);
-          }
-      }
-  };
+    if (braintreeInstance) {
+        await braintreeInstance.teardown();
+        setBraintreeInstance(null);
+        const container = document.getElementById('dropin-container');
+        if (container) {
+            container.innerHTML = '';
+        }
+    }
+};
 
   // Load Braintree Script Effect
   useEffect(function() {
@@ -605,19 +605,22 @@ const fetchClientToken = async function() {
 
 const initializeBraintree = async function(token) {
     try {
-        // Verify Braintree is loaded
+        // First clean up any existing instance
+        await cleanupBraintree();
+
+        // Wait a brief moment for DOM to update
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         if (!window.braintree) {
             throw new Error('Braintree script not loaded');
         }
 
-        // Clear existing container
-        const dropinContainer = document.getElementById('dropin-container');
-        if (dropinContainer) {
-            dropinContainer.innerHTML = '';
-            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure DOM update
+        // Verify container exists and is empty
+        const container = document.getElementById('dropin-container');
+        if (!container) {
+            throw new Error('Dropin container not found');
         }
 
-        // Create new Braintree instance
         const instance = await window.braintree.dropin.create({
             authorization: token,
             container: '#dropin-container',
@@ -636,11 +639,6 @@ const initializeBraintree = async function(token) {
                     region: shippingInfo.state,
                     postalCode: shippingInfo.zipCode,
                     countryCode: shippingInfo.country
-                },
-                buttonStyle: {
-                    color: 'blue',
-                    shape: 'rect',
-                    size: 'responsive'
                 }
             },
             card: {
@@ -664,7 +662,7 @@ const initializeBraintree = async function(token) {
                 }
             }
         });
-        
+
         console.log('Braintree instance created successfully');
         setBraintreeInstance(instance);
         return instance;
@@ -715,7 +713,7 @@ const handleCheckout = async function() {
 
         // Process payment through Firebase Functions
         const checkoutResponse = await fetch(
-            `${FIREBASE_FUNCTIONS_BASE_URL}/api/braintree/process-payment`,
+            `${FIREBASE_FUNCTIONS_BASE_URL}/api/braintree/process-payment`, // This URL is right but...
             {
                 method: 'POST',
                 headers: {
@@ -728,9 +726,10 @@ const handleCheckout = async function() {
                     amount: calculateTotal().toFixed(2),
                     items: items.map(function(item) {
                         return {
-                            ...item,
+                            id: item.id, // Add id field
                             price: Number(item.price),
-                            quantity: Number(item.quantity)
+                            quantity: Number(item.quantity),
+                            title: item.title // Add title field
                         };
                     }),
                     shipping: {
@@ -751,8 +750,9 @@ const handleCheckout = async function() {
         );
 
         if (!checkoutResponse.ok) {
-            const errorData = await checkoutResponse.json().catch(() => ({}));
-            throw new Error(errorData.error || `Payment failed: ${checkoutResponse.statusText}`);
+            const errorData = await checkoutResponse.json();
+            console.error('Payment processing failed:', errorData);
+            throw new Error(errorData.message || 'Payment failed');
         }
 
         const result = await checkoutResponse.json();
