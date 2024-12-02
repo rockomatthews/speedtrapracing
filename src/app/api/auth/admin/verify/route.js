@@ -5,7 +5,17 @@ import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 import { cookies } from 'next/headers';
 
 export async function POST(request) {
-    console.log('Starting admin verification...');
+    console.log('Starting admin verification...', {
+        environment: process.env.NODE_ENV,
+        origin: request.headers.get('origin')
+    });
+
+    // Add CORS headers for production
+    if (process.env.NODE_ENV === 'production') {
+        const response = NextResponse.next();
+        response.headers.set('Access-Control-Allow-Credentials', 'true');
+        response.headers.set('Access-Control-Allow-Origin', 'https://speedtrapracing.com');
+    }
 
     try {
         const body = await request.json();
@@ -60,8 +70,11 @@ export async function POST(request) {
                     maxAge: expiresIn,
                     httpOnly: true,
                     secure: process.env.NODE_ENV === 'production',
-                    sameSite: 'lax',
-                    path: '/'
+                    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Changed this
+                    path: '/',
+                    domain: process.env.NODE_ENV === 'production' 
+                        ? '.speedtrapracing.com'  // Add the dot prefix for all subdomains
+                        : 'localhost'
                 });
 
                 return response;

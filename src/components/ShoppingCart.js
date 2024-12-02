@@ -36,7 +36,9 @@ import {
 } from '@mui/icons-material';
 
 // Firebase Functions base URL for API calls
-const FIREBASE_FUNCTIONS_BASE_URL = 'https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net/api';
+const FIREBASE_FUNCTIONS_BASE_URL = process.env.NODE_ENV === 'production' 
+    ? 'https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net'
+    : 'http://localhost:3000';
 
 // Braintree script URL for payment processing
 const BRAINTREE_SCRIPT_URL = 'https://js.braintreegateway.com/web/dropin/1.33.7/js/dropin.min.js';
@@ -573,14 +575,14 @@ const fetchClientToken = async function() {
       console.log('Attempting to fetch client token from:', `${FIREBASE_FUNCTIONS_BASE_URL}/braintree/client-token`);
       
       const response = await fetch(
-          `${FIREBASE_FUNCTIONS_BASE_URL}/braintree/client-token`,
-          {
-              method: 'GET',
-              headers: {
-                  'Content-Type': 'application/json'
-              }
-          }
-      );
+        `${FIREBASE_FUNCTIONS_BASE_URL}/api/braintree/client-token`,
+        {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }
+    );
       
       if (!response.ok) {
           console.error('Client token fetch failed with status:', response.status);
@@ -602,204 +604,220 @@ const fetchClientToken = async function() {
 };
 
 const initializeBraintree = async function(token) {
-  try {
-      if (!window.braintree) {
-          throw new Error('Braintree script not loaded');
-      }
+    try {
+        // Verify Braintree is loaded
+        if (!window.braintree) {
+            throw new Error('Braintree script not loaded');
+        }
 
-      const instance = await window.braintree.dropin.create({
-          authorization: token,
-          container: '#dropin-container',
-          paypal: {
-              flow: 'checkout',
-              amount: calculateTotal().toFixed(2),
-              currency: items[0]?.currency || 'USD',
-              intent: 'capture',
-              enableShippingAddress: true,
-              shippingAddressEditable: false,
-              shippingAddressOverride: {
-                  recipientName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
-                  streetAddress: shippingInfo.address,
-                  extendedAddress: shippingInfo.address2 || undefined,
-                  locality: shippingInfo.city,
-                  region: shippingInfo.state,
-                  postalCode: shippingInfo.zipCode,
-                  countryCode: shippingInfo.country
-              }
-          },
-          card: {
-              cardholderName: {
-                  required: true
-              }
-          },
-          venmo: {
-              allowNewBrowserTab: false
-          },
-          callbacks: {
-              onError: function(error) {
-                  handlePaymentError(error);
-              },
-              onPaymentMethodRequestable: function() {
-                  setSnackbarMessage({
-                      open: true,
-                      message: "Payment method ready",
-                      severity: 'success'
-                  });
-              }
-          }
-      });
-      
-      console.log('Braintree instance created successfully');
-      setBraintreeInstance(instance);
-  } catch (error) {
-      console.error('Error initializing Braintree:', error);
-      handlePaymentError(error);
-  }
+        // Clear existing container
+        const dropinContainer = document.getElementById('dropin-container');
+        if (dropinContainer) {
+            dropinContainer.innerHTML = '';
+            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure DOM update
+        }
+
+        // Create new Braintree instance
+        const instance = await window.braintree.dropin.create({
+            authorization: token,
+            container: '#dropin-container',
+            paypal: {
+                flow: 'checkout',
+                amount: calculateTotal().toFixed(2),
+                currency: items[0]?.currency || 'USD',
+                intent: 'capture',
+                enableShippingAddress: true,
+                shippingAddressEditable: false,
+                shippingAddressOverride: {
+                    recipientName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
+                    streetAddress: shippingInfo.address,
+                    extendedAddress: shippingInfo.address2 || undefined,
+                    locality: shippingInfo.city,
+                    region: shippingInfo.state,
+                    postalCode: shippingInfo.zipCode,
+                    countryCode: shippingInfo.country
+                },
+                buttonStyle: {
+                    color: 'blue',
+                    shape: 'rect',
+                    size: 'responsive'
+                }
+            },
+            card: {
+                cardholderName: {
+                    required: true
+                }
+            },
+            venmo: {
+                allowNewBrowserTab: false
+            },
+            callbacks: {
+                onError: function(error) {
+                    handlePaymentError(error);
+                },
+                onPaymentMethodRequestable: function() {
+                    setSnackbarMessage({
+                        open: true,
+                        message: "Payment method ready",
+                        severity: 'success'
+                    });
+                }
+            }
+        });
+        
+        console.log('Braintree instance created successfully');
+        setBraintreeInstance(instance);
+        return instance;
+    } catch (error) {
+        console.error('Error initializing Braintree:', error);
+        handlePaymentError(error);
+        return null;
+    }
 };
 
 const handleCheckout = async function() {
-  if (!braintreeInstance) {
-      handlePaymentError(new Error('Payment system not initialized'));
-      return;
-  }
+    if (!braintreeInstance) {
+        handlePaymentError(new Error('Payment system not initialized'));
+        return;
+    }
 
-  setIsLoading(true);
-  setPaymentError(null);
-  setPaymentErrorDialogOpen(false);
+    setIsLoading(true);
+    setPaymentError(null);
+    setPaymentErrorDialogOpen(false);
 
-  try {
-      const paymentMethodResult = await braintreeInstance.requestPaymentMethod();
-      
-      // Update user profile if logged in
-      if (auth.currentUser) {
-          try {
-              const userRef = doc(db, 'Users', auth.currentUser.uid);
-              await updateDoc(userRef, {
-                  firstName: shippingInfo.firstName,
-                  lastName: shippingInfo.lastName,
-                  email: shippingInfo.email,
-                  hasOrdered: true,
-                  shippingAddresses: arrayUnion({
-                      address1: shippingInfo.address,
-                      address2: shippingInfo.address2 || null,
-                      city: shippingInfo.city,
-                      state: shippingInfo.state,
-                      postal_code: shippingInfo.zipCode,
-                      country: shippingInfo.country
-                  }),
-                  updatedAt: new Date().toISOString()
-              });
-          } catch (error) {
-              console.error('Error updating user profile:', error);
-          }
-      }
+    try {
+        // Get payment method from Braintree
+        const paymentMethodResult = await braintreeInstance.requestPaymentMethod();
+        
+        // Update user profile if logged in
+        if (auth.currentUser) {
+            try {
+                const userRef = doc(db, 'Users', auth.currentUser.uid);
+                await updateDoc(userRef, {
+                    firstName: shippingInfo.firstName,
+                    lastName: shippingInfo.lastName,
+                    email: shippingInfo.email,
+                    hasOrdered: true,
+                    shippingAddresses: arrayUnion({
+                        address1: shippingInfo.address,
+                        address2: shippingInfo.address2 || null,
+                        city: shippingInfo.city,
+                        state: shippingInfo.state,
+                        postal_code: shippingInfo.zipCode,
+                        country: shippingInfo.country
+                    }),
+                    updatedAt: new Date().toISOString()
+                });
+            } catch (error) {
+                console.error('Error updating user profile:', error);
+            }
+        }
 
-      // Process payment through Firebase Functions
-      const checkoutResponse = await fetch(
-          `${FIREBASE_FUNCTIONS_BASE_URL}/braintree/checkout`,
-          {
-              method: 'POST',
-              headers: {
-                  'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                  paymentMethodNonce: paymentMethodResult.nonce,
-                  paymentType: paymentMethodResult.type,
-                  amount: calculateTotal().toFixed(2),
-                  items: items.map(function(item) {
-                      return {
-                          ...item,
-                          price: Number(item.price),
-                          quantity: Number(item.quantity)
-                      };
-                  }),
-                  shipping: {
-                      firstName: shippingInfo.firstName,
-                      lastName: shippingInfo.lastName,
-                      email: shippingInfo.email,
-                      address: shippingInfo.address,
-                      address2: shippingInfo.address2 || undefined,
-                      city: shippingInfo.city,
-                      state: shippingInfo.state,
-                      zipCode: shippingInfo.zipCode,
-                      country: shippingInfo.country
-                  },
-                  userId: auth.currentUser?.uid,
-                  paymentDetails: paymentMethodResult.details
-              })
-          }
-      );
+        // Process payment through Firebase Functions
+        const checkoutResponse = await fetch(
+            `${FIREBASE_FUNCTIONS_BASE_URL}/api/braintree/process-payment`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    paymentMethodNonce: paymentMethodResult.nonce,
+                    paymentType: paymentMethodResult.type,
+                    amount: calculateTotal().toFixed(2),
+                    items: items.map(function(item) {
+                        return {
+                            ...item,
+                            price: Number(item.price),
+                            quantity: Number(item.quantity)
+                        };
+                    }),
+                    shipping: {
+                        firstName: shippingInfo.firstName,
+                        lastName: shippingInfo.lastName,
+                        email: shippingInfo.email,
+                        address: shippingInfo.address,
+                        address2: shippingInfo.address2 || undefined,
+                        city: shippingInfo.city,
+                        state: shippingInfo.state,
+                        zipCode: shippingInfo.zipCode,
+                        country: shippingInfo.country
+                    },
+                    userId: auth.currentUser?.uid,
+                    paymentDetails: paymentMethodResult.details
+                })
+            }
+        );
 
-      if (!checkoutResponse.ok) {
-          const errorData = await checkoutResponse.json().catch(() => ({}));
-          throw new Error(errorData.error || `Payment failed: ${checkoutResponse.statusText}`);
-      }
+        if (!checkoutResponse.ok) {
+            const errorData = await checkoutResponse.json().catch(() => ({}));
+            throw new Error(errorData.error || `Payment failed: ${checkoutResponse.statusText}`);
+        }
 
-      const result = await checkoutResponse.json();
+        const result = await checkoutResponse.json();
 
-      if (result.success) {
-          // Clear cart
-          items.forEach(function(item) {
-              onRemoveItem(item.id);
-          });
-          
-          // Clean up Braintree
-          await cleanupBraintree();
-          
-          // Show success dialog
-          setOrderSuccess({
-              orderId: result.orderId,
-              transactionId: result.transaction?.id
-          });
-          
-          // Reset form and step
-          setActiveStep(0);
-          setShippingInfo({
-              firstName: '',
-              lastName: '',
-              email: '',
-              address: '',
-              address2: '',
-              city: '',
-              state: '',
-              zipCode: '',
-              country: 'US'
-          });
+        if (result.success) {
+            // Clear cart
+            items.forEach(function(item) {
+                onRemoveItem(item.id);
+            });
+            
+            // Clean up Braintree
+            await cleanupBraintree();
+            
+            // Show success dialog
+            setOrderSuccess({
+                orderId: result.orderId,
+                transactionId: result.transaction?.id
+            });
+            
+            // Reset form and step
+            setActiveStep(0);
+            setShippingInfo({
+                firstName: '',
+                lastName: '',
+                email: '',
+                address: '',
+                address2: '',
+                city: '',
+                state: '',
+                zipCode: '',
+                country: 'US'
+            });
 
-          setSnackbarMessage({
-              open: true,
-              message: "Order placed successfully!",
-              severity: 'success'
-          });
-      } else {
-          throw new Error(result.error || 'Payment failed');
-      }
-  } catch (error) {
-      handlePaymentError(error);
-      
-      try {
-          await cleanupBraintree();
-          await fetchClientToken();
-      } catch (reinitError) {
-          console.error('Error reinitializing Braintree:', reinitError);
-      }
-  } finally {
-      setIsLoading(false);
-  }
+            setSnackbarMessage({
+                open: true,
+                message: "Order placed successfully!",
+                severity: 'success'
+            });
+        } else {
+            throw new Error(result.error || 'Payment failed');
+        }
+    } catch (error) {
+        handlePaymentError(error);
+        
+        try {
+            await cleanupBraintree();
+            await fetchClientToken();
+        } catch (reinitError) {
+            console.error('Error reinitializing Braintree:', reinitError);
+        }
+    } finally {
+        setIsLoading(false);
+    }
 };
 
-// part 5
-// Form Event Handlers
 const handleShippingSubmit = function(event) {
-  event.preventDefault();
-  if (validateShippingInfo()) {
-      setActiveStep(1);
-      setSnackbarMessage({
-          open: true,
-          message: "Please complete your payment details",
-          severity: 'info'
-      });
-  }
+    event.preventDefault();
+    if (validateShippingInfo()) {
+        setActiveStep(1);
+        setSnackbarMessage({
+            open: true,
+            message: "Please complete your payment details",
+            severity: 'info'
+        });
+    }
 };
 
 const handleShippingInfoChange = function(field) {

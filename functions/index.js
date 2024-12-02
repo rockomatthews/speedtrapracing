@@ -1,3 +1,5 @@
+// PART 1
+
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const express = require('express');
@@ -11,15 +13,19 @@ admin.initializeApp();
 // Create Express application instance
 const app = express();
 
-// Configure Express middleware
+// Configure Express middleware with specific CORS settings
 app.use(cors({
-    origin: true,
+    origin: [
+        'https://speedtrapracing.com', 
+        'http://localhost:3000'
+    ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
+    exposedHeaders: ['Set-Cookie'],
 }));
 
-// Enable cookie parsing
+// Enable cookie parsing with secure settings
 app.use(cookieParser());
 
 // Enable JSON body parsing
@@ -27,6 +33,22 @@ app.use(express.json());
 
 // Load Firebase Functions configuration
 const firebaseConfig = functions.config();
+
+// Cookie configuration based on environment
+const COOKIE_CONFIG = {
+    development: {
+        domain: 'localhost',
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 5 * 1000 // 5 days
+    },
+    production: {
+        domain: '.speedtrapracing.com',
+        secure: true,
+        sameSite: 'lax', // Changed from 'strict' to 'lax' for better cross-domain handling
+        maxAge: 60 * 60 * 24 * 5 * 1000 // 5 days
+    }
+};
 
 // Initialize Braintree payment gateway
 let braintreeGateway = null;
@@ -52,6 +74,7 @@ try {
         );
     }
 
+    // PArt 2
     // Initialize Braintree gateway with configuration
     braintreeGateway = new braintree.BraintreeGateway({
         environment: braintree.Environment[
@@ -76,6 +99,35 @@ try {
     });
 }
 
+// Helper function to get cookie configuration based on environment
+function getCookieConfig() {
+    const env = process.env.NODE_ENV === 'production' ? 'production' : 'development';
+    return COOKIE_CONFIG[env];
+}
+
+// Helper function to set secure cookies
+function setSecureCookie(response, name, value, expiresIn) {
+    const cookieConfig = getCookieConfig();
+    const cookieOptions = {
+        maxAge: expiresIn || cookieConfig.maxAge,
+        httpOnly: true,
+        secure: cookieConfig.secure,
+        sameSite: cookieConfig.sameSite,
+        domain: cookieConfig.domain,
+        path: '/',
+    };
+
+    // Log cookie setting for debugging
+    console.log('Setting cookie with options:', {
+        name,
+        options: cookieOptions,
+        environment: process.env.NODE_ENV,
+        timestamp: new Date().toISOString()
+    });
+
+    response.cookie(name, value, cookieOptions);
+}
+
 // Braintree client token generation endpoint
 app.get('/braintree/client-token', async function(request, response) {
     // Check if Braintree is properly initialized
@@ -92,6 +144,8 @@ app.get('/braintree/client-token', async function(request, response) {
             timestamp: new Date().toISOString()
         });
     }
+
+    // PART 3
 
     try {
         // Log token generation attempt
@@ -206,13 +260,21 @@ app.post('/braintree/process-payment', async function(request, response) {
     }
 });
 
-// API test endpoint
+//  PART 4
+
+// API test endpoint with detailed system status
 app.get('/test', function(request, response) {
+    const cookieConfig = getCookieConfig();
     const systemStatus = {
         status: 'success',
         message: 'API system operational',
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'production',
+        cookieConfig: {
+            domain: cookieConfig.domain,
+            secure: cookieConfig.secure,
+            sameSite: cookieConfig.sameSite
+        },
         services: {
             braintree: {
                 configured: Boolean(firebaseConfig.braintree),
@@ -234,17 +296,26 @@ app.get('/test', function(request, response) {
 
 // Regular auth verification endpoint
 app.post('/auth/verify', async function(request, response) {
-    console.log('Starting auth verification process');
+    console.log('Starting auth verification process:', {
+        timestamp: new Date().toISOString(),
+        headers: request.headers,
+        cookies: request.cookies
+    });
 
     try {
-        // Check for session cookie first (for middleware verification)
         const sessionCookie = request.cookies?.adminSession;
         
+        // First try to verify existing session cookie
         if (sessionCookie) {
             try {
                 const decodedClaim = await admin.auth().verifySessionCookie(sessionCookie, true);
                 const userDoc = await admin.firestore().collection('Users').doc(decodedClaim.uid).get();
                 const userData = userDoc.data();
+
+                console.log('Session cookie verification successful:', {
+                    uid: decodedClaim.uid,
+                    email: decodedClaim.email
+                });
 
                 return response.json({
                     status: 'success',
@@ -254,12 +325,11 @@ app.post('/auth/verify', async function(request, response) {
                     sessionValid: true
                 });
             } catch (sessionError) {
-                console.log('Session verification failed:', sessionError);
-                // Continue to ID token check if session verification fails
+                console.log('Session cookie verification failed:', sessionError);
             }
         }
 
-        // If no valid session, check for ID token (for initial login)
+        // If session cookie invalid or missing, try ID token
         const { idToken } = request.body;
 
         if (idToken) {
@@ -269,17 +339,16 @@ app.post('/auth/verify', async function(request, response) {
 
             // Create new session
             const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
-            const sessionCookie = await admin.auth().createSessionCookie(idToken, {
+            const newSessionCookie = await admin.auth().createSessionCookie(idToken, {
                 expiresIn: expiresIn
             });
 
-            // Set cookie in response
-            response.cookie('adminSession', sessionCookie, {
-                maxAge: expiresIn,
-                httpOnly: true,
-                secure: true,
-                sameSite: 'lax',
-                path: '/'
+            // Set cookie using helper function
+            setSecureCookie(response, 'adminSession', newSessionCookie, expiresIn);
+
+            console.log('New session created for user:', {
+                uid: decodedToken.uid,
+                email: decodedToken.email
             });
 
             return response.json({
@@ -291,7 +360,7 @@ app.post('/auth/verify', async function(request, response) {
             });
         }
 
-        // No valid authentication provided
+        console.log('No valid authentication provided');
         return response.status(401).json({
             status: 'error',
             message: 'No valid authentication provided',
@@ -308,80 +377,121 @@ app.post('/auth/verify', async function(request, response) {
     }
 });
 
-// Admin verification endpoint
+// PART 5
+
+// Admin verification endpoint with enhanced cookie handling
 app.post('/auth/admin/verify', async function(request, response) {
-    console.log('Starting admin verification process');
+    console.log('Starting admin verification process:', {
+        timestamp: new Date().toISOString(),
+        headers: request.headers,
+        cookies: request.cookies,
+        origin: request.get('origin')
+    });
 
     try {
-        const { idToken, sessionCookie } = request.body;
+        const { idToken } = request.body;
+        const sessionCookie = request.cookies?.adminSession || request.body?.sessionCookie;
         let decodedToken;
 
-        // First try session cookie if provided
+        // First try existing session cookie with detailed logging
         if (sessionCookie) {
             try {
                 decodedToken = await admin.auth().verifySessionCookie(sessionCookie, true);
+                console.log('Existing session cookie verified:', {
+                    uid: decodedToken.uid,
+                    timestamp: new Date().toISOString()
+                });
             } catch (sessionError) {
-                console.error('Session cookie verification failed:', sessionError);
+                console.error('Session cookie verification failed:', {
+                    error: sessionError.message,
+                    timestamp: new Date().toISOString()
+                });
             }
         }
 
-        // If session verification failed or no session cookie, try ID token
+        // Try ID token if session verification failed or no session exists
         if (!decodedToken && idToken) {
             try {
                 decodedToken = await admin.auth().verifyIdToken(idToken);
+                console.log('ID token verified:', {
+                    uid: decodedToken.uid,
+                    timestamp: new Date().toISOString()
+                });
+
+                // Create new session cookie with explicit options
+                const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
+                const newSessionCookie = await admin.auth().createSessionCookie(idToken, {
+                    expiresIn: expiresIn
+                });
+
+                // Set the secure cookie with explicit logging
+                setSecureCookie(response, 'adminSession', newSessionCookie, expiresIn);
+                console.log('New session cookie created and set');
+
             } catch (tokenError) {
-                console.error('ID token verification failed:', tokenError);
+                console.error('ID token verification failed:', {
+                    error: tokenError.message,
+                    timestamp: new Date().toISOString()
+                });
                 throw new Error('Invalid authentication token');
             }
         }
 
         if (!decodedToken) {
+            console.error('No valid authentication provided');
             throw new Error('No valid authentication provided');
         }
 
-        // Check if user is admin in Firestore
+        // Check if user is admin in Firestore with detailed logging
         const userDoc = await admin.firestore()
             .collection('Users')
             .doc(decodedToken.uid)
             .get();
 
         if (!userDoc.exists) {
+            console.error('User not found:', {
+                uid: decodedToken.uid,
+                timestamp: new Date().toISOString()
+            });
             throw new Error('User not found');
         }
 
         const userData = userDoc.data();
         
         if (!userData.isAdmin) {
+            console.error('User is not admin:', {
+                uid: decodedToken.uid,
+                email: userData.email,
+                timestamp: new Date().toISOString()
+            });
             throw new Error('Not authorized as admin');
         }
 
-        // If this was an ID token verification, create a session cookie
-        let newSessionCookie = null;
-        if (idToken) {
-            const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
-            newSessionCookie = await admin.auth().createSessionCookie(idToken, {
-                expiresIn: expiresIn
-            });
+        // Set CORS headers explicitly
+        response.set('Access-Control-Allow-Credentials', 'true');
+        response.set('Access-Control-Allow-Origin', request.get('origin'));
 
-            // Set the cookie in response
-            response.cookie('adminSession', newSessionCookie, {
-                maxAge: expiresIn,
-                httpOnly: true,
-                secure: true,
-                sameSite: 'lax',
-                path: '/'
-            });
-        }
+        console.log('Admin verification successful:', {
+            uid: decodedToken.uid,
+            email: userData.email,
+            timestamp: new Date().toISOString()
+        });
 
         return response.status(200).json({
             status: 'success',
             isAdmin: true,
             uid: decodedToken.uid,
-            email: userData.email
+            email: userData.email,
+            sessionValid: true
         });
 
     } catch (error) {
-        console.error('Admin verification error:', error);
+        console.error('Admin verification error:', {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString()
+        });
+
         return response.status(401).json({
             status: 'error',
             message: 'Admin verification failed',

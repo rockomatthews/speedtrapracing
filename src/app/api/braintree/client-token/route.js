@@ -14,7 +14,12 @@ const gateway = new braintree.BraintreeGateway({
 
 export async function GET() {
   try {
-    const response = await gateway.clientToken.generate();
+    const response = await gateway.clientToken.generate({
+      merchantAccountId: process.env.BRAINTREE_MERCHANT_ID,
+      paypal: {
+        flow: 'checkout'
+      }
+    });
     return NextResponse.json({ clientToken: response.clientToken });
   } catch (error) {
     console.error('Error generating client token:', error);

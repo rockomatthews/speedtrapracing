@@ -204,15 +204,18 @@ const LoginPage = () => {
         
         try {
             // Get URL parameters and determine route type
-            const searchParams = new URLSearchParams(window.location.search);
-            const redirectPath = searchParams.get('from') || '/';
-            const isAdminRoute = redirectPath.startsWith('/admin');
-            
-            console.log('Starting social login process:', {
-                provider: providerName,
-                intendedRedirectPath: redirectPath,
-                isAdminRoute: isAdminRoute
-            });
+            // In handleSocialLogin:
+const searchParams = new URLSearchParams(window.location.search);
+const redirectPath = decodeURIComponent(searchParams.get('from') || '/');
+const isAdminRoute = redirectPath.startsWith('/admin');
+
+// Log with decoded path for debugging
+console.log('Starting social login process:', {
+    provider: providerName,
+    intendedRedirectPath: redirectPath,
+    decodedPath: decodeURIComponent(redirectPath),
+    isAdminRoute: isAdminRoute
+});
             
             // Set up authentication provider
             let authProvider;
@@ -273,33 +276,26 @@ const LoginPage = () => {
         setError('');
     
         try {
-            // Get URL parameters and determine route type
             const searchParams = new URLSearchParams(window.location.search);
-            const redirectPath = searchParams.get('from') || '/';
-            const isAdminRoute = redirectPath.startsWith('/admin');
+const redirectPath = decodeURIComponent(searchParams.get('from') || '/');
+const isAdminRoute = redirectPath.startsWith('/admin');
+
+console.log('Starting email authentication:', {
+    email: email,
+    isAdminRoute: isAdminRoute,
+    redirectPath: redirectPath,
+    decodedPath: decodeURIComponent(redirectPath),
+    FIREBASE_FUNCTIONS_URL: FIREBASE_FUNCTIONS_URL
+});
     
-            console.log('Starting email authentication process:', {
-                email: email,
-                isAdminRoute: isAdminRoute,
-                intendedRedirectPath: redirectPath
-            });
+            let result = await signInWithEmailAndPassword(auth, email, password);
+            const idToken = await result.user.getIdToken(true);
     
-            // Attempt Firebase email/password authentication
-            let result;
-            try {
-                result = await signInWithEmailAndPassword(auth, email, password);
-                console.log('Firebase authentication successful for:', email);
-            } catch (firebaseError) {
-                console.error('Firebase authentication failed:', firebaseError);
-                throw firebaseError;
-            }
-    
-            // For admin routes, verify admin status
             if (isAdminRoute) {
-                console.log('Verifying admin privileges for:', email);
-                
-                const idToken = await result.user.getIdToken(true);
-                const verifyResponse = await fetch(`${FIREBASE_FUNCTIONS_URL}/api/auth/admin/verify`, {
+                const verifyUrl = `${FIREBASE_FUNCTIONS_URL}/api/auth/admin/verify`;
+                console.log('Making admin verification request to:', verifyUrl);
+    
+                const verifyResponse = await fetch(verifyUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -308,31 +304,27 @@ const LoginPage = () => {
                     credentials: 'include'
                 });
     
-                // Check response status and data
+                console.log('Admin verification response:', {
+                    status: verifyResponse.status,
+                    ok: verifyResponse.ok
+                });
+    
+                const responseData = await verifyResponse.json();
+                console.log('Admin verification response data:', responseData);
+    
                 if (!verifyResponse.ok) {
-                    console.error('Admin verification HTTP error:', {
-                        status: verifyResponse.status,
-                        statusText: verifyResponse.statusText
-                    });
-                    throw new Error('Admin verification failed');
+                    throw new Error('Admin verification failed: ' + responseData.message);
                 }
-    
-                const adminData = await verifyResponse.json();
-                console.log('Admin verification response:', adminData);
-    
-                if (adminData.status !== 'success') {
-                    console.error('Admin verification failed:', adminData);
-                    throw new Error(adminData.message || 'Not authorized as admin');
-                }
-    
-                // Successful admin verification - perform redirect
-                console.log('Admin verification successful. Redirecting to:', redirectPath);
-                window.location.replace(redirectPath);
+            
+                console.log('Admin verification successful, attempting redirect');
+                
+                // Force full URL construction
+                const adminUrl = new URL('/admin', window.location.origin);
+                console.log('Redirecting to:', adminUrl.toString());
+                window.location.replace(adminUrl.toString());
                 return;
             }
     
-            // Regular user - perform redirect
-            console.log('Regular user login successful. Redirecting to:', redirectPath);
             router.push(redirectPath);
     
         } catch (error) {
