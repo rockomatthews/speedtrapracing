@@ -153,12 +153,12 @@ const nextConfig = {
     ];
   },
 
-  env: {
-    NEXT_PUBLIC_BRAINTREE_ENVIRONMENT: 'production',
-    BRAINTREE_MERCHANT_ID: 'nw8dgz48gg9sr53b',
-    BRAINTREE_PUBLIC_KEY: 'dwq5jj83m6gn59rg',
-    BRAINTREE_PRIVATE_KEY: 'fd5336ad01dd98d7eda800b123d16260'
-  },
+  // env: {
+  //   NEXT_PUBLIC_BRAINTREE_ENVIRONMENT: 'production',
+  //   BRAINTREE_MERCHANT_ID: 'nw8dgz48gg9sr53b',
+  //   BRAINTREE_PUBLIC_KEY: 'dwq5jj83m6gn59rg',
+  //   BRAINTREE_PRIVATE_KEY: 'fd5336ad01dd98d7eda800b123d16260'
+  // },
 
   experimental: {
     esmExternals: true,

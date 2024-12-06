@@ -35,7 +35,7 @@ import {
     Warning as WarningIcon
 } from '@mui/icons-material';
 
-// Error messages for various payment scenarios
+// Error messages mapping for different payment scenarios
 const ERROR_MESSAGES = {
     CARD_DECLINED: "Your card was declined. Please try a different payment method.",
     FRAUD_SUSPECTED: "This transaction was flagged for potential fraud. Please try a different payment method or contact your bank.",
@@ -48,10 +48,11 @@ const ERROR_MESSAGES = {
     CVV_VERIFICATION: "CVV verification failed. Please check your card details.",
     POSTAL_CODE: "Postal code verification failed. Please check your billing information.",
     EXPIRED_CARD: "The card has expired. Please use a different card.",
-    GATEWAY_ERROR: "Payment system temporarily unavailable. Please try again shortly."
+    GATEWAY_ERROR: "Payment system temporarily unavailable. Please try again shortly.",
+    INITIALIZATION_ERROR: "Failed to initialize payment system. Please try again or contact support."
 };
 
-// United States state data
+// United States state data for shipping form
 const US_STATES = [
     { name: 'Alabama', code: 'AL' },
     { name: 'Alaska', code: 'AK' },
@@ -104,6 +105,21 @@ const US_STATES = [
     { name: 'Wisconsin', code: 'WI' },
     { name: 'Wyoming', code: 'WY' }
 ].sort((a, b) => a.name.localeCompare(b.name));
+
+// Initial state for shipping information
+const INITIAL_SHIPPING_STATE = {
+    firstName: '',
+    lastName: '',
+    email: '',
+    address: '',
+    address2: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: 'US'
+};
+
+// Following the previous imports and constants...
 
 // Payment Error Dialog Component
 const PaymentErrorDialog = function({ open, message, onClose, isWarning }) {
@@ -242,7 +258,7 @@ const EmptyCartState = function() {
     );
 };
 
-// Success Dialog Component
+// Success State Dialog Component
 const SuccessState = function({ orderId, onClose }) {
     return (
         <Dialog 
@@ -357,6 +373,7 @@ const ShoppingCartComponent = function({ items = [], onUpdateQuantity, onRemoveI
     const [activeStep, setActiveStep] = useState(0);
     const [scriptsLoaded, setScriptsLoaded] = useState(false);
     const [orderSuccess, setOrderSuccess] = useState(null);
+    const [shippingInfo, setShippingInfo] = useState(INITIAL_SHIPPING_STATE);
 
     // Snackbar State
     const [snackbarMessage, setSnackbarMessage] = useState({
@@ -365,23 +382,36 @@ const ShoppingCartComponent = function({ items = [], onUpdateQuantity, onRemoveI
         severity: 'info'
     });
 
-    // Shipping Information State
-    const [shippingInfo, setShippingInfo] = useState({
-        firstName: '',
-        lastName: '',
-        email: '',
-        address: '',
-        address2: '',
-        city: '',
-        state: '',
-        zipCode: '',
-        country: 'US'
-    });
+    // Utility Functions
+    const calculateTotal = function() {
+        return items.reduce(function(sum, item) {
+            const itemPrice = Number(item.price) || 0;
+            const itemQuantity = Number(item.quantity) || 0;
+            return sum + (itemPrice * itemQuantity);
+        }, 0);
+    };
 
-    // Braintree Instance Cleanup Function
+    const validateShippingInfo = function() {
+        const requiredFields = [
+            'firstName',
+            'lastName',
+            'email',
+            'address',
+            'city',
+            'state',
+            'zipCode'
+        ];
+        
+        return requiredFields.every(field => 
+            shippingInfo[field] && shippingInfo[field].trim() !== ''
+        );
+    };
+
+    // Braintree Instance Cleanup
     const cleanupBraintree = async function() {
         if (braintreeInstance) {
             try {
+                console.log('Cleaning up Braintree instance...');
                 await braintreeInstance.teardown();
                 setBraintreeInstance(null);
                 const container = document.getElementById('dropin-container');
@@ -395,61 +425,7 @@ const ShoppingCartComponent = function({ items = [], onUpdateQuantity, onRemoveI
         }
     };
 
-    // Load Braintree Script Effect
-    useEffect(function() {
-        const loadBraintreeScript = async function() {
-            try {
-                const scriptUrl = 'https://js.braintreegateway.com/web/dropin/1.33.7/js/dropin.min.js';
-                const existingScript = document.querySelector(`script[src="${scriptUrl}"]`);
-                
-                if (!existingScript) {
-                    const script = document.createElement('script');
-                    script.src = scriptUrl;
-                    script.async = true;
-                    
-                    await new Promise(function(resolve, reject) {
-                        script.onload = resolve;
-                        script.onerror = reject;
-                        document.body.appendChild(script);
-                    });
-                    
-                    console.log('Braintree script loaded successfully');
-                }
-                
-                setScriptsLoaded(true);
-            } catch (error) {
-                console.error('Error loading Braintree script:', error);
-                handlePaymentError(new Error('Failed to load payment system'), false);
-            }
-        };
-
-        loadBraintreeScript();
-
-        return function() {
-            cleanupBraintree();
-        };
-    }, []);
-
-    // Initialize Braintree When Moving to Payment Step Effect
-    useEffect(function() {
-        const initializeBraintreeIfNeeded = async function() {
-            if (items.length > 0 && 
-                !braintreeInstance && 
-                activeStep === 1 && 
-                scriptsLoaded) {
-                const container = document.getElementById('dropin-container');
-                
-                if (container) {
-                    container.innerHTML = '';
-                    await fetchClientToken();
-                }
-            }
-        };
-
-        initializeBraintreeIfNeeded();
-    }, [items.length, activeStep, scriptsLoaded, braintreeInstance]);
-
-    // Error Handling Function
+    // Error Handling
     const handlePaymentError = function(error, isWarning = false) {
         console.error('Payment error:', error);
         
@@ -494,134 +470,72 @@ const ShoppingCartComponent = function({ items = [], onUpdateQuantity, onRemoveI
         }
     };
 
-    // Dialog and Snackbar Management Functions
-    const handleCloseErrorDialog = function() {
-        setPaymentErrorDialogOpen(false);
-        setPaymentError(null);
-        setPaymentErrorIsWarning(false);
-    };
-
-    const handleSnackbarClose = function() {
-        setSnackbarMessage((prev) => ({
-            ...prev,
-            open: false
-        }));
-    };
-
-    // Cart Management Helper Functions
-    const calculateTotal = function() {
-        return items.reduce(function(sum, item) {
-            const itemPrice = Number(item.price) || 0;
-            const itemQuantity = Number(item.quantity) || 0;
-            return sum + (itemPrice * itemQuantity);
-        }, 0);
-    };
-
-    const validateShippingInfo = function() {
-        const requiredFields = [
-            'firstName',
-            'lastName',
-            'email',
-            'address',
-            'city',
-            'state',
-            'zipCode'
-        ];
-        
-        return requiredFields.every(function(field) {
-            return shippingInfo[field] && 
-                   shippingInfo[field].trim() !== '';
-        });
-    };
-
     // Braintree Integration Functions
     const fetchClientToken = async function() {
         try {
-            console.log('Fetching client token...');
+            console.log('Initiating client token request...');
             
             const response = await fetch('/api/braintree/client-token', {
                 method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json'
-                }
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'
             });
             
             if (!response.ok) {
-                console.error('Client token fetch failed with status:', response.status);
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Token fetch failed:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    error: errorData
+                });
                 throw new Error(`Failed to fetch client token: ${response.status}`);
             }
 
             const data = await response.json();
             
             if (!data.clientToken) {
-                console.error('No client token in response:', data);
+                console.error('Invalid token response:', data);
                 throw new Error('No client token received');
             }
 
-            console.log('Successfully received client token');
-            await initializeBraintree(data.clientToken);
-            
+            console.log('Client token received successfully');
+            return data.clientToken;
         } catch (error) {
-            console.error('Error fetching client token:', error);
-            handlePaymentError(new Error('Failed to initialize payment system'));
+            console.error('Token fetch error:', error);
+            throw error;
         }
     };
 
     const initializeBraintree = async function(clientToken) {
+        if (!window.braintree) {
+            console.error('Braintree script not loaded');
+            throw new Error('Braintree script not loaded');
+        }
+
         try {
             // Clean up any existing instance
             await cleanupBraintree();
-
-            // Wait for DOM updates
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            if (!window.braintree) {
-                throw new Error('Braintree script not loaded');
-            }
 
             const container = document.getElementById('dropin-container');
             if (!container) {
                 throw new Error('Dropin container not found');
             }
 
-            console.log('Creating Braintree Drop-in instance...');
-            const instance = await window.braintree.dropin.create({
+            const configuration = {
                 authorization: clientToken,
                 container: '#dropin-container',
                 paypal: {
                     flow: 'checkout',
                     amount: calculateTotal().toFixed(2),
                     currency: 'USD',
-                    intent: 'capture',
-                    enableShippingAddress: true,
-                    shippingAddressEditable: false,
-                    shippingAddressOverride: {
-                        recipientName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
-                        streetAddress: shippingInfo.address,
-                        extendedAddress: shippingInfo.address2 || undefined,
-                        locality: shippingInfo.city,
-                        region: shippingInfo.state,
-                        postalCode: shippingInfo.zipCode,
-                        countryCode: shippingInfo.country
-                    }
+                    intent: 'capture'
                 },
                 card: {
                     cardholderName: {
                         required: true
-                    },
-                    overrides: {
-                        styles: {
-                            input: {
-                                'font-size': '16px',
-                                'font-family': 'Arial, sans-serif'
-                            },
-                            '.number': {
-                                'font-family': 'monospace'
-                            },
-                            '.valid': {
-                                color: 'green'
-                            }
-                        }
                     }
                 },
                 callbacks: {
@@ -641,19 +555,131 @@ const ShoppingCartComponent = function({ items = [], onUpdateQuantity, onRemoveI
                         console.log('Payment option selected:', payload.paymentOption);
                     }
                 }
-            });
+            };
 
+            if (shippingInfo.firstName && shippingInfo.lastName) {
+                configuration.paypal.shippingAddressOverride = {
+                    recipientName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
+                    streetAddress: shippingInfo.address,
+                    extendedAddress: shippingInfo.address2 || undefined,
+                    locality: shippingInfo.city,
+                    region: shippingInfo.state,
+                    postalCode: shippingInfo.zipCode,
+                    countryCode: shippingInfo.country
+                };
+            }
+
+            console.log('Creating Braintree Drop-in instance...');
+            const instance = await window.braintree.dropin.create(configuration);
             console.log('Braintree Drop-in instance created successfully');
+            
             setBraintreeInstance(instance);
             return instance;
-            
         } catch (error) {
-            console.error('Error initializing Braintree:', error);
+            console.error('Braintree initialization error:', error);
             handlePaymentError(error);
             return null;
         }
     };
 
+    // ... continuing from previous part
+
+    // Load Braintree Script Effect
+    useEffect(function() {
+        const loadBraintreeScript = async function() {
+            try {
+                const scriptUrl = 'https://js.braintreegateway.com/web/dropin/1.33.7/js/dropin.min.js';
+                
+                // Check if script already exists
+                if (!document.querySelector(`script[src="${scriptUrl}"]`)) {
+                    const script = document.createElement('script');
+                    script.src = scriptUrl;
+                    script.async = true;
+                    
+                    await new Promise((resolve, reject) => {
+                        script.onload = resolve;
+                        script.onerror = (e) => reject(new Error(`Script load error: ${e.message}`));
+                        document.body.appendChild(script);
+                    });
+                    
+                    console.log('Braintree script loaded successfully');
+                } else {
+                    console.log('Braintree script already loaded');
+                }
+                
+                setScriptsLoaded(true);
+            } catch (error) {
+                console.error('Error loading Braintree script:', error);
+                handlePaymentError(new Error('Failed to load payment system'), false);
+            }
+        };
+
+        loadBraintreeScript();
+
+        // Cleanup function
+        return function() {
+            cleanupBraintree();
+        };
+    }, []);
+
+    // Initialize Braintree Effect
+    useEffect(function() {
+        const initializeBraintreeIfNeeded = async function() {
+            if (items.length > 0 && !braintreeInstance && activeStep === 1 && scriptsLoaded) {
+                try {
+                    const container = document.getElementById('dropin-container');
+                    if (container) {
+                        container.innerHTML = '';
+                        const token = await fetchClientToken();
+                        await initializeBraintree(token);
+                    }
+                } catch (error) {
+                    console.error('Failed to initialize payment system:', error);
+                    handlePaymentError(new Error('Failed to initialize payment system'));
+                }
+            }
+        };
+
+        initializeBraintreeIfNeeded();
+    }, [items.length, activeStep, scriptsLoaded, braintreeInstance]);
+
+    // Dialog and Snackbar Handlers
+    const handleCloseErrorDialog = function() {
+        setPaymentErrorDialogOpen(false);
+        setPaymentError(null);
+        setPaymentErrorIsWarning(false);
+    };
+
+    const handleSnackbarClose = function() {
+        setSnackbarMessage((prev) => ({
+            ...prev,
+            open: false
+        }));
+    };
+
+    // Form Handlers
+    const handleShippingInfoChange = function(field) {
+        return function(event) {
+            setShippingInfo(prev => ({
+                ...prev,
+                [field]: event.target.value
+            }));
+        };
+    };
+
+    const handleShippingSubmit = function(event) {
+        event.preventDefault();
+        if (validateShippingInfo()) {
+            setActiveStep(1);
+            setSnackbarMessage({
+                open: true,
+                message: "Please complete your payment details",
+                severity: 'info'
+            });
+        }
+    };
+
+    // Checkout Processing
     const handleCheckout = async function() {
         if (!braintreeInstance) {
             handlePaymentError(new Error('Payment system not initialized'));
@@ -688,12 +714,15 @@ const ShoppingCartComponent = function({ items = [], onUpdateQuantity, onRemoveI
                         }),
                         updatedAt: new Date().toISOString()
                     });
+                    console.log('User profile updated successfully');
                 } catch (error) {
                     console.error('Error updating user profile:', error);
+                    // Continue with checkout even if profile update fails
                 }
             }
 
             // Process payment
+            console.log('Processing payment...');
             const response = await fetch('/api/checkout', {
                 method: 'POST',
                 headers: {
@@ -721,6 +750,8 @@ const ShoppingCartComponent = function({ items = [], onUpdateQuantity, onRemoveI
             const result = await response.json();
 
             if (result.success) {
+                console.log('Payment processed successfully');
+                
                 // Clear cart
                 items.forEach(item => onRemoveItem(item.id));
                 
@@ -735,17 +766,7 @@ const ShoppingCartComponent = function({ items = [], onUpdateQuantity, onRemoveI
                 
                 // Reset form and step
                 setActiveStep(0);
-                setShippingInfo({
-                    firstName: '',
-                    lastName: '',
-                    email: '',
-                    address: '',
-                    address2: '',
-                    city: '',
-                    state: '',
-                    zipCode: '',
-                    country: 'US'
-                });
+                setShippingInfo(INITIAL_SHIPPING_STATE);
 
                 setSnackbarMessage({
                     open: true,
@@ -756,6 +777,7 @@ const ShoppingCartComponent = function({ items = [], onUpdateQuantity, onRemoveI
                 throw new Error(result.error || 'Payment failed');
             }
         } catch (error) {
+            console.error('Checkout error:', error);
             handlePaymentError(error);
             
             try {
@@ -769,27 +791,7 @@ const ShoppingCartComponent = function({ items = [], onUpdateQuantity, onRemoveI
         }
     };
 
-    // Form Handling Functions
-    const handleShippingSubmit = function(event) {
-        event.preventDefault();
-        if (validateShippingInfo()) {
-            setActiveStep(1);
-            setSnackbarMessage({
-                open: true,
-                message: "Please complete your payment details",
-                severity: 'info'
-            });
-        }
-    };
-
-    const handleShippingInfoChange = function(field) {
-        return function(event) {
-            setShippingInfo(prev => ({
-                ...prev,
-                [field]: event.target.value
-            }));
-        };
-    };
+    // ... continuing from previous part
 
     // Early return for empty cart
     if (items.length === 0) {
@@ -826,72 +828,70 @@ const ShoppingCartComponent = function({ items = [], onUpdateQuantity, onRemoveI
                     {activeStep === 0 && (
                         <>
                             {/* Cart Items List */}
-                            {items.map(function(item) {
-                                return (
-                                    <Box key={item.id}>
+                            {items.map((item) => (
+                                <Box key={item.id}>
+                                    <Box sx={{ 
+                                        display: 'flex', 
+                                        paddingY: 2,
+                                        alignItems: 'center' 
+                                    }}>
+                                        <Box sx={{ flexGrow: 1 }}>
+                                            <Typography variant="subtitle1">
+                                                {item.title}
+                                            </Typography>
+                                            <Typography 
+                                                variant="body2" 
+                                                color="text.secondary"
+                                            >
+                                                {item.currency?.toUpperCase() || 'USD'} {Number(item.price).toFixed(2)}
+                                            </Typography>
+                                        </Box>
+                                        
                                         <Box sx={{ 
                                             display: 'flex', 
-                                            paddingY: 2,
-                                            alignItems: 'center' 
+                                            alignItems: 'center', 
+                                            gap: 2 
                                         }}>
-                                            <Box sx={{ flexGrow: 1 }}>
-                                                <Typography variant="subtitle1">
-                                                    {item.title}
-                                                </Typography>
-                                                <Typography 
-                                                    variant="body2" 
-                                                    color="text.secondary"
-                                                >
-                                                    {item.currency?.toUpperCase() || 'USD'} {Number(item.price).toFixed(2)}
-                                                </Typography>
-                                            </Box>
+                                            <Select
+                                                size="small"
+                                                value={item.quantity}
+                                                onChange={(event) => {
+                                                    onUpdateQuantity(
+                                                        item.id, 
+                                                        parseInt(event.target.value, 10)
+                                                    );
+                                                }}
+                                                sx={{ minWidth: 80 }}
+                                            >
+                                                {[1, 2, 3, 4, 5].map((num) => (
+                                                    <MenuItem 
+                                                        key={num} 
+                                                        value={num}
+                                                    >
+                                                        {num}
+                                                    </MenuItem>
+                                                ))}
+                                            </Select>
                                             
-                                            <Box sx={{ 
-                                                display: 'flex', 
-                                                alignItems: 'center', 
-                                                gap: 2 
-                                            }}>
-                                                <Select
-                                                    size="small"
-                                                    value={item.quantity}
-                                                    onChange={(event) => {
-                                                        onUpdateQuantity(
-                                                            item.id, 
-                                                            parseInt(event.target.value)
-                                                        );
-                                                    }}
-                                                    sx={{ minWidth: 80 }}
-                                                >
-                                                    {[1, 2, 3, 4, 5].map((num) => (
-                                                        <MenuItem 
-                                                            key={num} 
-                                                            value={num}
-                                                        >
-                                                            {num}
-                                                        </MenuItem>
-                                                    ))}
-                                                </Select>
-                                                
-                                                <IconButton
-                                                    onClick={() => {
-                                                        onRemoveItem(item.id);
-                                                        setSnackbarMessage({
-                                                            open: true,
-                                                            message: "Item removed from cart",
-                                                            severity: 'info'
-                                                        });
-                                                    }}
-                                                    size="small"
-                                                    color="error"
-                                                >
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            </Box>
+                                            <IconButton
+                                                onClick={() => {
+                                                    onRemoveItem(item.id);
+                                                    setSnackbarMessage({
+                                                        open: true,
+                                                        message: "Item removed from cart",
+                                                        severity: 'info'
+                                                    });
+                                                }}
+                                                size="small"
+                                                color="error"
+                                            >
+                                                <DeleteIcon />
+                                            </IconButton>
                                         </Box>
-                                        <Divider />
                                     </Box>
-                                );
-                            })}
+                                    <Divider />
+                                </Box>
+                            ))}
 
                             {/* Cart Total */}
                             <Box sx={{ 

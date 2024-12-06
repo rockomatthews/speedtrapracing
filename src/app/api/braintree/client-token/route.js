@@ -6,25 +6,25 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const gateway = new braintree.BraintreeGateway({
-  environment: braintree.Environment.Production,
-  merchantId: process.env.BRAINTREE_MERCHANT_ID,
-  publicKey: process.env.BRAINTREE_PUBLIC_KEY,
-  privateKey: process.env.BRAINTREE_PRIVATE_KEY
+    environment: braintree.Environment.Production,  // Force production
+    merchantId: 'nw8dgz48gg9sr53b',
+    publicKey: 'dwq5jj83m6gn59rg',
+    privateKey: 'fd5336ad01dd98d7eda800b123d16260'
 });
 
 export async function GET() {
   try {
-    const response = await gateway.clientToken.generate({
-      merchantAccountId: process.env.BRAINTREE_MERCHANT_ID,
-      paypal: {
-        flow: 'checkout'
-      }
-    });
-    return NextResponse.json({ clientToken: response.clientToken });
+    console.log('Generating production client token...');
+
+    const { clientToken } = await gateway.clientToken.generate({});
+
+    console.log('Client token generated successfully');
+
+    return NextResponse.json({ clientToken });
   } catch (error) {
     console.error('Error generating client token:', error);
     return NextResponse.json(
-      { error: 'Failed to generate client token', details: error.message },
+      { error: error.message },
       { status: 500 }
     );
   }
