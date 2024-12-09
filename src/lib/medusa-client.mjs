@@ -370,6 +370,114 @@ class MedusaFirebaseClient {
             console.error('[Customers Debug] Error retrieving customer:', error);
             return { customer: null };
           }
+        },
+
+        create: async (customerData) => {
+          try {
+            await this.checkAdminStatus();
+            
+            if (!customerData || !customerData.email) {
+              return { customer: null };
+            }
+
+            const logsRef = collection(this.db, 'transaction_logs');
+            const newLogRef = doc(logsRef);
+
+            const customerLog = {
+              type: 'checkout_initiated',
+              status: 'success',
+              timestamp: serverTimestamp(),
+              data: {
+                customerEmail: customerData.email,
+                shipping: {
+                  firstName: customerData.first_name || '',
+                  lastName: customerData.last_name || '',
+                  email: customerData.email,
+                  phone: customerData.phone || '',
+                  address: '',
+                  city: '',
+                  state: '',
+                  zipCode: '',
+                  country: 'US'
+                },
+                environment: 'production',
+                isGuest: true,
+                itemCount: 0,
+                amount: 0
+              }
+            };
+
+            await setDoc(newLogRef, customerLog);
+            
+            const mockTransaction = {
+              id: newLogRef.id,
+              data: function() {
+                return customerLog;
+              }
+            };
+
+            const customer = await this.formatTransactionToCustomer([mockTransaction], customerData.email);
+            return { customer };
+          } catch (error) {
+            console.error('[Customers Debug] Error creating customer:', error);
+            return { customer: null };
+          }
+        },
+
+        update: async (customerId, updateData) => {
+          try {
+            await this.checkAdminStatus();
+            
+            if (!customerId || !updateData) {
+              return { customer: null };
+            }
+
+            const logsRef = collection(this.db, 'transaction_logs');
+            const logsQuery = query(
+              logsRef,
+              where('data.customerEmail', '==', customerId),
+              where('type', '==', 'checkout_initiated'),
+              where('status', '==', 'success'),
+              orderBy('timestamp', 'desc')
+            );
+
+            const snapshot = await getDocs(logsQuery);
+            
+            if (snapshot.empty) {
+              return this.admin.customers.create({
+                email: customerId,
+                first_name: updateData.first_name,
+                last_name: updateData.last_name,
+                phone: updateData.phone
+              });
+            }
+
+            const latestLog = snapshot.docs[0];
+            const logRef = doc(this.db, 'transaction_logs', latestLog.id);
+            
+            const currentData = latestLog.data();
+            const updatedLog = {
+              ...currentData,
+              data: {
+                ...currentData.data,
+                shipping: {
+                  ...currentData.data.shipping,
+                  firstName: updateData.first_name || currentData.data.shipping.firstName,
+                  lastName: updateData.last_name || currentData.data.shipping.lastName,
+                  phone: updateData.phone || currentData.data.shipping.phone
+                }
+              },
+              timestamp: serverTimestamp()
+            };
+
+            await updateDoc(logRef, updatedLog);
+
+            const customer = await this.formatTransactionToCustomer(snapshot.docs, customerId);
+            return { customer };
+          } catch (error) {
+            console.error('[Customers Debug] Error updating customer:', error);
+            return { customer: null };
+          }
         }
       },
 
