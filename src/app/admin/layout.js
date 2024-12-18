@@ -27,7 +27,7 @@ import {
   Settings as SettingsIcon,
   Dashboard as DashboardIcon
 } from '@mui/icons-material';
-
+import { FIREBASE_FUNCTIONS_URL } from '../../config/constants';
 const drawerWidth = 240;
 
 export default function AdminLayout({ children }) {
@@ -50,28 +50,15 @@ export default function AdminLayout({ children }) {
   useEffect(() => {
     const verifySession = async () => {
       try {
-          setLoading(true);
-          setSessionError(null);
-  
-          const FIREBASE_FUNCTIONS_URL = process.env.NODE_ENV === 'production' 
-    ? 'https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net'  // NO /api
-    : 'http://localhost:3000';
-  
-          // Check for local session first
-          const localSession = localStorage.getItem('adminSession');
-          const hasLocalSession = localSession ? JSON.parse(localSession) : null;
-  
-          const response = await fetch(`${FIREBASE_FUNCTIONS_URL}/api/auth/admin/verify`, {  // ADD /api
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-                sessionCookie: hasLocalSession,
-                path: pathname,
-                timestamp: Date.now()
-            })
+        setLoading(true);
+        setSessionError(null);
+
+        const response = await fetch(`${FIREBASE_FUNCTIONS_URL}/api/auth/verify`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include'
         });
 
         const data = await response.json();
@@ -79,22 +66,14 @@ export default function AdminLayout({ children }) {
         if (response.ok && data.status === 'success' && data.isAdmin) {
           console.log('✅ Session verified successfully');
           setIsAuthenticated(true);
-          // Update local session
-          localStorage.setItem('adminSession', JSON.stringify({
-            isAdmin: true,
-            email: data.email,
-            expiresAt: new Date(Date.now() + (5 * 24 * 60 * 60 * 1000)).toISOString() // 5 days
-          }));
         } else {
           console.log('❌ Session verification failed:', data);
           setSessionError(data.message || 'Authentication failed');
-          localStorage.removeItem('adminSession');
           router.push('/login?from=' + encodeURIComponent(pathname));
         }
       } catch (error) {
         console.error('Session verification error:', error);
         setSessionError(error.message);
-        localStorage.removeItem('adminSession');
         router.push('/login?from=' + encodeURIComponent(pathname));
       } finally {
         setLoading(false);

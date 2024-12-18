@@ -45,3 +45,6 @@ config/firebase/serviceAccountKey.json
 **/serviceAccountKey.json
 .env*config/firebase/serviceAccountKey.json
 **/serviceAccountKey.json
+config/firebase/serviceAccountKey.json
+**/serviceAccountKey.json
+.env*

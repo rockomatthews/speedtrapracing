@@ -1,24 +1,28 @@
-// src/lib/FirebaseAdmin.js
-const admin = require('firebase-admin');
+// src/lib/firebaseAdmin.js
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
-if (!admin.apps.length) {
-  try {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-        // Handle newlines in private key
-        privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      }),
-      databaseURL: `https://${process.env.FIREBASE_ADMIN_PROJECT_ID}.firebaseio.com`
+// Parse the service account JSON from environment variable
+const serviceAccount = JSON.parse(
+    process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}'
+);
+
+// Initialize Firebase Admin if it hasn't been initialized yet
+if (!getApps().length) {
+    initializeApp({
+        credential: cert(serviceAccount),
+        // You can add other config options here if needed, such as:
+        // databaseURL: process.env.FIREBASE_DATABASE_URL,
+        // storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
     });
-    console.log('Firebase Admin initialized successfully');
-  } catch (error) {
-    console.error('Firebase Admin initialization error:', error.stack);
-  }
 }
 
-const adminDb = admin.firestore();
-const adminAuth = admin.auth();
+// Get Auth instance
+const adminAuth = getAuth();
 
-module.exports = { adminDb, adminAuth };
+// Get Firestore instance
+const adminDb = getFirestore();
+
+// Export both instances
+export { adminAuth, adminDb };

@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { getAuth } from 'firebase/auth';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { 
   collection, 
   doc, 
@@ -89,34 +89,83 @@ class MedusaFirebaseClient {
       orders: {
         list: async () => {
           try {
+            console.log('[Orders Debug] Starting order list fetch');
             await this.checkAdminStatus();
             
             const logsRef = collection(this.db, 'transaction_logs');
-            const logsQuery = query(
-              logsRef, 
-              where('type', '==', 'checkout_initiated'),
-              where('status', '==', 'success'),
+            
+            // First, let's see ALL recent transactions
+            const allTransactionsQuery = query(
+              logsRef,
+              orderBy('timestamp', 'desc'),
+              limit(20)
+            );
+            
+            const allSnapshot = await getDocs(allTransactionsQuery);
+            console.log('[Orders Debug] All recent transactions:', 
+              allSnapshot.docs.map(doc => ({
+                id: doc.id,
+                type: doc.data().type,
+                status: doc.data().status,
+                amount: doc.data().data?.amount,
+                timestamp: doc.data().timestamp?.toDate()
+              }))
+            );
+
+            // Now let's check completed transactions
+            const completedQuery = query(
+              logsRef,
+              where('type', 'in', ['checkout_initiated', 'checkout_completed']),
               orderBy('timestamp', 'desc')
             );
             
-            const snapshot = await getDocs(logsQuery);
+            const snapshot = await getDocs(completedQuery);
+            console.log('[Orders Debug] Completed transactions:', 
+              snapshot.docs.map(doc => ({
+                id: doc.id,
+                type: doc.data().type,
+                status: doc.data().status,
+                amount: doc.data().data?.amount,
+                timestamp: doc.data().timestamp?.toDate()
+              }))
+            );
             
             if (snapshot.empty) {
-              return { orders: [] };
+              return { orders: [], total: 0 };
             }
             
             const validOrders = [];
+            let totalAmount = 0;
+            
             for (const doc of snapshot.docs) {
-              const order = await this.formatTransactionToOrder(doc);
-              if (order !== null) {
-                validOrders.push(order);
+              const data = doc.data();
+              // Include both successful and completed transactions
+              if (data.status === 'success' || data.type === 'checkout_completed') {
+                const order = await this.formatTransactionToOrder(doc);
+                if (order !== null) {
+                  validOrders.push(order);
+                  totalAmount += order.total;
+                }
               }
             }
             
-            return { orders: validOrders };
+            console.log('[Orders Debug] Final processed orders:', {
+              count: validOrders.length,
+              orders: validOrders.map(o => ({
+                id: o.id,
+                status: o.status,
+                amount: o.display_amount,
+                timestamp: o.createdAt
+              }))
+            });
+            
+            return { 
+              orders: validOrders,
+              total: totalAmount
+            };
           } catch (error) {
-            console.error('[Orders Debug] Error listing orders:', error);
-            return { orders: [] };
+            console.error('[Orders Debug] Error in list method:', error);
+            return { orders: [], total: 0 };
           }
         },
 
@@ -677,25 +726,30 @@ class MedusaFirebaseClient {
     try {
       const auth = getAuth();
       const user = auth.currentUser;
-      
+
       if (!user) {
         throw new Error('User not authenticated');
       }
 
-      const userRef = doc(this.db, 'Users', user.uid);
-      const userDoc = await getDoc(userRef);
+      // Get user's ID token to check custom claims
+      const idTokenResult = await user.getIdTokenResult();
       
-      if (!userDoc.exists()) {
-        throw new Error('User document not found');
-      }
+      console.log('[Admin Debug] Token claims:', idTokenResult.claims);
 
-      const userData = userDoc.data();
-      
-      if (!userData || !userData.isAdmin) {
+      // Check both possible admin claim formats
+      if (!idTokenResult.claims.admin && !idTokenResult.claims.isAdmin) {
         throw new Error('User does not have admin privileges');
       }
-      
-      return user;
+
+      // Also verify against Firestore
+      const userDoc = await getDoc(doc(this.db, 'Users', user.uid));
+      const userData = userDoc.data();
+
+      if (!userData?.isAdmin) {
+        throw new Error('User does not have admin privileges in database');
+      }
+
+      return true;
     } catch (error) {
       console.error('[Admin Debug] Error checking admin status:', error);
       throw error;
@@ -704,11 +758,25 @@ class MedusaFirebaseClient {
 
   async formatTransactionToOrder(transactionDoc) {
     if (!transactionDoc) return null;
-    
     const data = transactionDoc.data();
     
-    if (!data?.data) return null;
-  
+    if (!data?.data) {
+      console.log('[Debug] Invalid transaction data structure:', data);
+      return null;
+    }
+
+    // Keep the original amount as dollars (no conversion needed)
+    const amount = data.data.amount;
+    const total = typeof amount === 'string' 
+      ? parseFloat(amount)  // Just parse the string to number
+      : amount;
+    
+    console.log('[Debug] Amount conversion:', {
+      original: amount,
+      asNumber: total,
+      inCents: total * 100
+    });
+
     return {
       id: transactionDoc.id,
       customerId: data.data.userId || '',
@@ -718,19 +786,8 @@ class MedusaFirebaseClient {
         lastName: data.data.shipping?.lastName || '',
         phone: data.data.shipping?.phone || ''
       },
-      shipping_address: {
-        firstName: data.data.shipping?.firstName || '',
-        lastName: data.data.shipping?.lastName || '',
-        address1: data.data.shipping?.address || '',
-        address2: data.data.shipping?.address2 || '',
-        city: data.data.shipping?.city || '',
-        state: data.data.shipping?.state || '',
-        postal_code: data.data.shipping?.zipCode || '',
-        country: data.data.shipping?.country || '',
-        phone: data.data.shipping?.phone || ''
-      },
-      total: parseInt(data.data.amount || 0, 10),
-      subtotal: parseInt(data.data.amount || 0, 10),
+      total: total * 100, // Convert to cents for internal use
+      subtotal: total * 100,
       tax_total: parseInt(data.data.tax_total || 0, 10),
       shipping_total: parseInt(data.data.shipping_total || 0, 10),
       itemCount: parseInt(data.data.itemCount || 0, 10),
@@ -738,8 +795,8 @@ class MedusaFirebaseClient {
       payment_status: data.status === 'success' ? 'paid' : 'pending',
       createdAt: data.timestamp?.toDate() || new Date(),
       updatedAt: data.timestamp?.toDate() || new Date(),
-      environment: data.data.environment || 'production',
-      isGuest: data.data.isGuest || data.data.userId === 'guest'
+      // Add display amount for UI
+      display_amount: parseFloat(amount).toFixed(2)
     };
   }
 
@@ -805,6 +862,9 @@ class MedusaFirebaseClient {
 
   async completeCart(cartId) {
     try {
+      console.log('[Cart Debug] Completing cart:', cartId);
+      
+      // First complete the cart
       const response = await fetch(`${this.baseUrl}/carts/${cartId}/complete`, {
         method: 'POST',
         headers: {
@@ -812,9 +872,68 @@ class MedusaFirebaseClient {
         }
       });
       
-      return await response.json();
+      const result = await response.json();
+      
+      // Find and update the pending transaction
+      const logsRef = collection(this.db, 'transaction_logs');
+      const pendingQuery = query(
+        logsRef,
+        where('data.sessionId', '==', cartId),
+        where('status', '==', 'pending'),
+        where('type', '==', 'checkout_initiated'),
+        limit(1)
+      );
+      
+      const snapshot = await getDocs(pendingQuery);
+      
+      if (!snapshot.empty) {
+        const transactionDoc = snapshot.docs[0];
+        console.log('[Cart Debug] Updating transaction status:', transactionDoc.id);
+        
+        await updateDoc(doc(this.db, 'transaction_logs', transactionDoc.id), {
+          status: 'success',
+          updatedAt: serverTimestamp()
+        });
+      }
+      
+      return result;
     } catch (error) {
       console.error('Error completing cart:', error);
+      throw error;
+    }
+  }
+
+  async handleStripeWebhook(event) {
+    try {
+      console.log('[Webhook Debug] Processing Stripe event:', event.type);
+      
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        
+        // Find and update the pending transaction
+        const logsRef = collection(this.db, 'transaction_logs');
+        const pendingQuery = query(
+          logsRef,
+          where('data.sessionId', '==', session.id),
+          where('status', '==', 'pending'),
+          where('type', '==', 'checkout_initiated'),
+          limit(1)
+        );
+        
+        const snapshot = await getDocs(pendingQuery);
+        
+        if (!snapshot.empty) {
+          const transactionDoc = snapshot.docs[0];
+          console.log('[Webhook Debug] Updating transaction status:', transactionDoc.id);
+          
+          await updateDoc(doc(this.db, 'transaction_logs', transactionDoc.id), {
+            status: 'success',
+            updatedAt: serverTimestamp()
+          });
+        }
+      }
+    } catch (error) {
+      console.error('[Webhook Debug] Error processing webhook:', error);
       throw error;
     }
   }

@@ -16,11 +16,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import safeStorage from '../../utils/safeStorage';
-
-// Base URL for Firebase Functions - IMPORTANT: this should not include /api
-const FIREBASE_FUNCTIONS_URL = process.env.NODE_ENV === 'production' 
-    ? 'https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net'
-    : 'http://localhost:3000';
+import { FIREBASE_FUNCTIONS_URL } from '../../config/constants';
 
 const ERROR_MESSAGES = {
     USER_NOT_FOUND: 'No user found with this email address.',
@@ -72,9 +68,17 @@ const LoginPage = () => {
 
     // Admin verification function
     const verifyAdminAccess = async function(user) {
+        console.log('Starting email authentication:', {
+            email: user.email,
+            isAdminRoute: true,
+            redirectPath: '/admin/customers',
+            decodedPath: '/admin/customers',
+            FIREBASE_FUNCTIONS_URL: FIREBASE_FUNCTIONS_URL
+        });
+
         const idToken = await user.getIdToken(true);
-        console.log('Verifying admin access at:', `${FIREBASE_FUNCTIONS_URL}/api/auth/admin/verify`);
         
+        // Use the admin verify endpoint
         const verifyResponse = await fetch(`${FIREBASE_FUNCTIONS_URL}/api/auth/admin/verify`, {
             method: 'POST',
             headers: {
@@ -87,16 +91,18 @@ const LoginPage = () => {
             credentials: 'include'
         });
 
-        if (!verifyResponse.ok) {
-            console.error('Admin verification failed:', {
-                status: verifyResponse.status,
-                statusText: verifyResponse.statusText
-            });
-            throw new Error(ERROR_MESSAGES.NOT_ADMIN);
-        }
+        console.log('Admin verification response:', {
+            status: verifyResponse.status,
+            ok: verifyResponse.ok
+        });
 
         const responseData = await verifyResponse.json();
-        console.log('Admin verification response:', responseData);
+        console.log('Admin verification response data:', responseData);
+
+        if (!verifyResponse.ok || !responseData.isAdmin) {
+            throw new Error(`Admin verification failed: ${responseData.message}`);
+        }
+
         return responseData;
     };
 

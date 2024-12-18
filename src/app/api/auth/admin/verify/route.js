@@ -1,153 +1,117 @@
 // /api/auth/admin/verify/route.js
 
 import { NextResponse } from 'next/server';
-import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
+import { adminAuth } from '@/lib/firebaseAdmin';
 import { cookies } from 'next/headers';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 export async function POST(request) {
-    console.log('🔍 Admin verify endpoint starting...', {
-        env: process.env.NODE_ENV,
-        url: request.url
-    });
+    console.log('Admin verification request received');
 
     try {
-        const body = await request.json().catch(() => ({}));
+        const body = await request.json();
+        const { idToken, sessionCookie } = body;
         const cookieStore = cookies();
         const sessionCookieFromRequest = cookieStore.get('adminSession')?.value;
-        const { idToken } = body;
 
-        console.log('📝 Admin auth tokens:', {
-            requestSessionCookie: sessionCookieFromRequest ? 'present' : 'missing',
-            idToken: idToken ? 'present' : 'missing'
+        console.log('Verification attempt with:', {
+            hasIdToken: !!idToken,
+            hasSessionCookie: !!sessionCookie,
+            hasCookieFromRequest: !!sessionCookieFromRequest
         });
 
-        let uid;
-        let decodedClaim;
-        let userData;
-
-        // First try the session cookie if it exists
+        // Try to verify with session cookie first
         if (sessionCookieFromRequest) {
             try {
-                decodedClaim = await adminAuth.verifySessionCookie(sessionCookieFromRequest, true);
-                uid = decodedClaim.uid;
-                console.log('✅ Admin session cookie verified for UID:', uid);
-            } catch (cookieError) {
-                console.log('Admin session cookie invalid or expired, checking for ID token');
+                const decodedClaims = await adminAuth.verifySessionCookie(sessionCookieFromRequest, true);
+                const userRecord = await adminAuth.getUser(decodedClaims.uid);
+                
+                if (userRecord.customClaims?.admin) {
+                    return NextResponse.json({ 
+                        isAdmin: true,
+                        uid: userRecord.uid,
+                        email: userRecord.email
+                    });
+                }
+            } catch (error) {
+                console.log('Session cookie verification failed, trying ID token');
             }
         }
 
-        // If session cookie failed or doesn't exist, try ID token
-        if (!uid && idToken) {
+        // If no valid session cookie, try ID token
+        if (idToken) {
             try {
                 const decodedToken = await adminAuth.verifyIdToken(idToken);
-                uid = decodedToken.uid;
-                console.log('✅ Admin ID token verified for UID:', uid);
+                const userRecord = await adminAuth.getUser(decodedToken.uid);
 
-                // Create a new session cookie
-                const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
-                const newSessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
-                
-                // Verify admin status
-                const userDoc = await adminDb.collection('Users').doc(uid).get();
-                if (!userDoc.exists || !userDoc.data().isAdmin) {
-                    console.log('❌ User not authorized as admin:', uid);
+                if (!userRecord.customClaims?.admin) {
                     return NextResponse.json({ 
-                        status: 'error',
-                        message: 'Not authorized as admin'
+                        isAdmin: false,
+                        error: 'Insufficient permissions' 
                     }, { 
                         status: 403 
                     });
                 }
 
-                userData = userDoc.data();
+                // Create a new session cookie
+                const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
+                const newSessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
 
-                const response = NextResponse.json({
-                    status: 'success',
-                    uid: uid,
-                    email: userData.email,
-                    isAdmin: true
+                const response = NextResponse.json({ 
+                    isAdmin: true,
+                    uid: userRecord.uid,
+                    email: userRecord.email
                 });
 
-                // Set the new session cookie
+                // Set the session cookie
                 response.cookies.set('adminSession', newSessionCookie, {
                     maxAge: expiresIn,
                     httpOnly: true,
                     secure: process.env.NODE_ENV === 'production',
-                    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                    path: '/',
-                    domain: process.env.NODE_ENV === 'production' 
-                        ? '.speedtrapracing.com'  // Add the dot prefix for all subdomains
-                        : 'localhost'
+                    sameSite: 'lax',
+                    path: '/'
                 });
 
                 return response;
-            } catch (tokenError) {
-                console.error('❌ Admin token verification failed:', tokenError);
+            } catch (error) {
+                console.error('ID token verification failed:', error);
                 return NextResponse.json({ 
-                    status: 'error',
-                    message: 'Invalid admin token'
+                    isAdmin: false,
+                    error: 'Invalid token' 
                 }, { 
                     status: 401 
                 });
             }
         }
 
-        if (!uid) {
-            return NextResponse.json({ 
-                status: 'error',
-                message: 'Admin authentication required'
-            }, { 
-                status: 401 
-            });
-        }
-
-        // If we got here with a uid but no userData yet, fetch it
-        if (!userData) {
-            try {
-                const userDoc = await adminDb.collection('Users').doc(uid).get();
-                if (!userDoc.exists || !userDoc.data().isAdmin) {
-                    return NextResponse.json({ 
-                        status: 'error',
-                        message: 'Not authorized as admin'
-                    }, { 
-                        status: 403 
-                    });
-                }
-                userData = userDoc.data();
-            } catch (dbError) {
-                console.error('❌ Admin database error:', dbError);
-                return NextResponse.json({ 
-                    status: 'error',
-                    message: 'Database error'
-                }, { 
-                    status: 500 
-                });
-            }
-        }
-
-        return NextResponse.json({
-            status: 'success',
-            uid: uid,
-            email: userData.email,
-            isAdmin: true
-        }, {
-            headers: {
-                'Cache-Control': 'no-store, must-revalidate',
-                'Pragma': 'no-cache'
-            }
-        });
-
-    } catch (error) {
-        console.error('❌ General admin verification error:', error);
         return NextResponse.json({ 
-            status: 'error',
-            message: 'Admin verification failed',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            isAdmin: false,
+            error: 'No valid authentication provided' 
         }, { 
             status: 401 
         });
+
+    } catch (error) {
+        console.error('Unexpected error during admin verification:', error);
+        return NextResponse.json({ 
+            isAdmin: false,
+            error: 'Internal server error',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        }, { 
+            status: 500 
+        });
     }
+}
+
+export async function OPTIONS(request) {
+    return new NextResponse(null, {
+        status: 200,
+        headers: {
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Allow-Origin': process.env.NODE_ENV === 'production' 
+                ? 'https://speedtrapracing.com' 
+                : 'http://localhost:3000'
+        }
+    });
 }

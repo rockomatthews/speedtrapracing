@@ -37,7 +37,13 @@ if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
 }
 
 // Initialize Stripe with error handling
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+let stripePromise = null;
+const getStripe = () => {
+    if (!stripePromise) {
+        stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+    }
+    return stripePromise;
+};
 
 // Constants
 const INITIAL_SHIPPING_STATE = {
@@ -59,7 +65,7 @@ function ShoppingCartComponent({ items, onUpdateQuantity, onRemoveItem, clearCar
     // Debug check for Stripe initialization
     useEffect(() => {
         const verifyStripe = async () => {
-            const stripe = await stripePromise;
+            const stripe = await getStripe();
             console.log('Stripe Loaded:', !!stripe);
             if (!stripe) {
                 console.error('Stripe failed to initialize');
@@ -176,32 +182,19 @@ function ShoppingCartComponent({ items, onUpdateQuantity, onRemoveItem, clearCar
         };
     
         const handleCheckout = async () => {
-            setIsLoading(true);
-    
             try {
-                // Check if user is logged in
-                if (!user) {
-                    router.push('/login');
-                    return;
-                }
-    
-                // Validate items exist
-                if (!items || items.length === 0) {
-                    throw new Error('No items in cart');
-                }
-    
-                // Format items for Stripe
+                setIsLoading(true);
+                
+                // Format items for the API
                 const formattedItems = items.map(item => ({
-                    title: item.title || item.name,
-                    price: parseFloat(item.price),
-                    quantity: parseInt(item.quantity),
-                    image: item.image || null,
-                    variant_id: item.variant_id || null,
                     id: item.id,
-                    raw_price: item.raw_price || null
+                    title: item.title,
+                    price: item.price,
+                    quantity: item.quantity,
+                    image: item.image,
+                    variant_id: item.variant_id || `${item.id}-default`
                 }));
-    
-                // Create Stripe checkout session
+
                 const response = await fetch('/api/create-checkout-session', {
                     method: 'POST',
                     headers: {
@@ -209,82 +202,34 @@ function ShoppingCartComponent({ items, onUpdateQuantity, onRemoveItem, clearCar
                     },
                     body: JSON.stringify({
                         items: formattedItems,
+                        userId: user?.uid || 'guest',
+                        email: shippingInfo.email,
                         shippingInfo: shippingInfo,
-                        userId: user.uid,
-                        email: user.email || shippingInfo.email,
                         success_url: `${window.location.origin}/marketplace?success=true`,
                         cancel_url: `${window.location.origin}/marketplace?canceled=true`
                     }),
                 });
-    
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Failed to create checkout session');
-                }
-    
+
                 const data = await response.json();
-    
-                if (!data.sessionId) {
-                    throw new Error('No session ID returned from server');
+                
+                if (!data.success) {
+                    throw new Error(data.message || 'Failed to create checkout session');
                 }
-    
-                // Create order document in Firestore
-                const orderData = {
-                    userId: user.uid,
-                    items: formattedItems,
-                    total: calculateTotal(),
-                    status: 'pending',
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                    stripeSessionId: data.sessionId,
-                    shippingInfo: shippingInfo
-                };
-    
-                // Save order to Firestore
-                await addDoc(collection(db, 'orders'), orderData);
-    
-                // Create stripe session record
-                await addDoc(collection(db, 'stripe_sessions'), {
-                    userId: user.uid,
+
+                const stripe = await getStripe();
+                const result = await stripe.redirectToCheckout({
                     sessionId: data.sessionId,
-                    amount: calculateTotal(),
-                    status: 'pending',
-                    createdAt: serverTimestamp()
                 });
-    
-                // Create transaction log
-                await addDoc(collection(db, 'transaction_logs'), {
-                    type: 'checkout_initiated',
-                    status: 'pending',
-                    data: {
-                        userId: user.uid,
-                        sessionId: data.sessionId,
-                        amount: calculateTotal(),
-                        items: formattedItems
-                    },
-                    timestamp: serverTimestamp()
-                });
-    
-                // Initialize Stripe
-                const stripe = await stripePromise;
-                if (!stripe) {
-                    throw new Error('Stripe failed to initialize');
+
+                if (result.error) {
+                    throw new Error(result.error.message);
                 }
-    
-                // Redirect to Stripe Checkout
-                const { error } = await stripe.redirectToCheckout({
-                    sessionId: data.sessionId
-                });
-    
-                if (error) {
-                    throw error;
-                }
-    
+
             } catch (error) {
                 console.error('Checkout error:', error);
                 setSnackbarMessage({
                     open: true,
-                    message: `Checkout failed: ${error.message}`,
+                    message: 'Failed to initiate checkout. Please try again.',
                     severity: 'error'
                 });
             } finally {

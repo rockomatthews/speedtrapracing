@@ -1,33 +1,48 @@
 import { db } from '../firebase';
-import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, orderBy, where } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, orderBy, where, serverTimestamp } from 'firebase/firestore';
 
 export const orderService = {
   // Create new order
-  createOrder: async (orderData, transactionResult) => {
+  createOrder: async (orderData) => {
     try {
+      // First create the transaction log
+      const transactionRef = collection(db, 'transaction_logs');
+      const transactionData = {
+        type: 'checkout_initiated',
+        status: 'success', // Set to success immediately since payment is confirmed
+        data: {
+          amount: orderData.total.toString(),
+          customerEmail: orderData.customer?.email,
+          environment: process.env.NODE_ENV || 'development',
+          isGuest: !orderData.userId || orderData.userId === 'guest',
+          itemCount: orderData.items?.length || 0,
+          shipping: {
+            address: orderData.shipping?.address,
+            city: orderData.shipping?.city,
+            country: 'US',
+            email: orderData.customer?.email,
+            firstName: orderData.shipping?.firstName,
+            lastName: orderData.shipping?.lastName,
+            state: orderData.shipping?.state,
+            zipCode: orderData.shipping?.zipCode
+          },
+          userId: orderData.userId || 'guest'
+        },
+        timestamp: serverTimestamp(),
+        error: null
+      };
+
+      await addDoc(transactionRef, transactionData);
+
+      // Then create the order record
       const orderRef = collection(db, 'orders');
       const order = {
         ...orderData,
-        braintreeTransactionId: transactionResult.transaction.id,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         status: 'completed',
         paymentStatus: 'paid',
-        fulfillmentStatus: 'unfulfilled',
-        // Store calculation details
-        totals: {
-          subtotal: parseFloat(orderData.subtotal || 0),
-          tax: parseFloat(orderData.tax_total || 0),
-          shipping: parseFloat(orderData.shipping_total || 0),
-          total: parseFloat(orderData.total || 0),
-        },
-        // Store payment details
-        payment: {
-          method: transactionResult.transaction.paymentInstrumentType,
-          status: transactionResult.transaction.status,
-          processorResponseCode: transactionResult.transaction.processorResponseCode,
-          processorResponseText: transactionResult.transaction.processorResponseText,
-        }
+        fulfillmentStatus: 'unfulfilled'
       };
 
       const docRef = await addDoc(orderRef, order);

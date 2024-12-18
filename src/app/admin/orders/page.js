@@ -33,7 +33,6 @@ import {
 import medusaClient from '@/lib/medusa-client';
 
 export default function OrdersPage() {
-  // State management
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -48,14 +47,20 @@ export default function OrdersPage() {
     severity: 'success'
   });
 
-  // Debug logging function
+  const formatCurrency = (amount) => {
+    const dollars = amount / 100;
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(dollars);
+  };
+
   const logDebug = (message, data = null) => {
     if (process.env.NODE_ENV === 'development') {
       console.log(`[Orders Debug] ${message}`, data || '');
     }
   };
 
-  // Fetch orders with error handling
   const fetchOrders = async (showLoading = true) => {
     try {
       if (showLoading) {
@@ -67,7 +72,6 @@ export default function OrdersPage() {
       const { orders } = await medusaClient.admin.orders.list();
       logDebug('Orders fetched successfully', orders);
       
-      // Sort orders by date
       const sortedOrders = orders.sort((a, b) => 
         new Date(b.createdAt) - new Date(a.createdAt)
       );
@@ -85,12 +89,10 @@ export default function OrdersPage() {
     }
   };
 
-  // Initial load
   useEffect(() => {
     logDebug('Component mounted');
     fetchOrders();
 
-    // Refresh orders every 5 minutes
     const interval = setInterval(() => {
       fetchOrders(false);
     }, 300000);
@@ -101,7 +103,6 @@ export default function OrdersPage() {
     };
   }, []);
 
-  // Handlers
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
     logDebug('Page changed to:', newPage);
@@ -148,12 +149,15 @@ export default function OrdersPage() {
     navigator.clipboard.writeText(text)
       .then(() => {
         showSnackbar('Copied to clipboard');
-        logDebug('Copied to clipboard:', text);
       })
       .catch((err) => {
         logDebug('Error copying to clipboard:', err);
         showSnackbar('Failed to copy to clipboard', 'error');
       });
+  };
+
+  const handleRefresh = () => {
+    fetchOrders();
   };
 
   const showSnackbar = (message, severity = 'success') => {
@@ -165,150 +169,101 @@ export default function OrdersPage() {
   };
 
   const handleCloseSnackbar = () => {
-    setSnackbar(prev => ({
-      ...prev,
+    setSnackbar({
+      ...snackbar,
       open: false
-    }));
+    });
   };
 
   const getStatusColor = (status) => {
-    if (!status) return 'default';
-    
-    const normalizedStatus = status.toLowerCase();
-    switch (normalizedStatus) {
+    switch (status) {
       case 'completed':
         return 'success';
       case 'pending':
         return 'warning';
       case 'cancelled':
         return 'error';
-      case 'fulfilled':
-        return 'info';
       default:
         return 'default';
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(parseFloat(amount || 0));
-  };
-
-  const formatDate = (date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'America/Denver'
-    }).format(date instanceof Date ? date : date.toDate());
-  };
-
-  // Loading state
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
         <CircularProgress />
       </Box>
     );
   }
 
-  // Render component
+  if (error) {
+    return (
+      <Box sx={{ p: 4 }}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
+  }
+
   return (
-    <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+    <Box sx={{ p: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4 }}>
         <Typography variant="h4" component="h1">
           Orders
         </Typography>
-        <Button
-          startIcon={<RefreshIcon />}
-          onClick={() => fetchOrders()}
-          variant="outlined"
-        >
-          Refresh
-        </Button>
+        <IconButton onClick={handleRefresh} title="Refresh orders">
+          <RefreshIcon />
+        </IconButton>
       </Box>
 
-      {error && (
-        <Alert 
-          severity="error" 
-          sx={{ mb: 3 }}
-          onClose={() => setError(null)}
-        >
-          {error}
-        </Alert>
-      )}
-
-      <Paper>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Order ID</TableCell>
-                <TableCell>Date</TableCell>
-                <TableCell>Customer</TableCell>
-                <TableCell align="right">Amount</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {orders.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} align="center">
-                    No orders found
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Order ID</TableCell>
+              <TableCell>Date</TableCell>
+              <TableCell>Customer</TableCell>
+              <TableCell>Total</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {orders
+              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+              .map((order) => (
+                <TableRow key={order.id}>
+                  <TableCell>
+                    {order.id}
+                    <IconButton 
+                      size="small" 
+                      onClick={() => copyToClipboard(order.id)}
+                      sx={{ ml: 1 }}
+                    >
+                      <CopyIcon fontSize="small" />
+                    </IconButton>
+                  </TableCell>
+                  <TableCell>{new Date(order.createdAt).toLocaleString()}</TableCell>
+                  <TableCell>{order.customer?.email || 'Guest'}</TableCell>
+                  <TableCell>{formatCurrency(order.total)}</TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={order.status} 
+                      color={getStatusColor(order.status)}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <IconButton 
+                      size="small"
+                      onClick={() => handleViewOrder(order)}
+                    >
+                      <ViewIcon />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
-              ) : (
-                orders
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell>
-                        <Box display="flex" alignItems="center">
-                          {order.id.slice(0, 8)}...
-                          <IconButton 
-                            size="small" 
-                            onClick={() => copyToClipboard(order.id)}
-                            sx={{ ml: 1 }}
-                          >
-                            <CopyIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        {formatDate(order.createdAt)}
-                      </TableCell>
-                      <TableCell>
-                        {order.customer?.email || 'N/A'}
-                      </TableCell>
-                      <TableCell align="right">
-                        {formatCurrency(order.total)}
-                      </TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={order.status} 
-                          color={getStatusColor(order.status)}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleViewOrder(order)}
-                          title="View order details"
-                        >
-                          <ViewIcon />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  )))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              ))}
+          </TableBody>
+        </Table>
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}
           component="div"
@@ -318,11 +273,10 @@ export default function OrdersPage() {
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
-      </Paper>
+      </TableContainer>
 
-      {/* Order Details Dialog */}
-      <Dialog
-        open={openDialog}
+      <Dialog 
+        open={openDialog} 
         onClose={handleCloseDialog}
         maxWidth="md"
         fullWidth
@@ -330,64 +284,26 @@ export default function OrdersPage() {
         {selectedOrder && (
           <>
             <DialogTitle>
-              <Box display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="h6">
-                  Order Details
-                </Typography>
-                <Chip 
-                  label={selectedOrder.status} 
-                  color={getStatusColor(selectedOrder.status)}
-                />
-              </Box>
+              Order Details - {selectedOrder.id}
             </DialogTitle>
-            <DialogContent dividers>
-              <Grid container spacing={3}>
-                {/* Order Information */}
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Order Information
-                  </Typography>
-                  <Box sx={{ mb: 3 }}>
-                    <Typography variant="body2">
-                      <strong>Order ID:</strong> {selectedOrder.id}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Date:</strong> {formatDate(selectedOrder.createdAt)}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Total Amount:</strong> {formatCurrency(selectedOrder.total)}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Payment Status:</strong> {selectedOrder.payment_status || 'N/A'}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Fulfillment Status:</strong> {selectedOrder.fulfillment_status || 'N/A'}
-                    </Typography>
-                  </Box>
-                </Grid>
 
-                {/* Customer Information */}
+            <DialogContent>
+              <Grid container spacing={4}>
                 <Grid item xs={12} md={6}>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                     Customer Information
                   </Typography>
                   <Box sx={{ mb: 3 }}>
                     <Typography variant="body2">
-                      <strong>Email:</strong> {selectedOrder.customer?.email || 'N/A'}
+                      Email: {selectedOrder.customer?.email || 'Guest'}
                     </Typography>
-                    <Typography variant="body2">
-                      <strong>Phone:</strong> {selectedOrder.customer?.phone || 'N/A'}
-                    </Typography>
-                    {selectedOrder.customer?.firstName && (
+                    {selectedOrder.customer?.phone && (
                       <Typography variant="body2">
-                        <strong>Name:</strong> {selectedOrder.customer.firstName} {selectedOrder.customer.lastName}
+                        Phone: {selectedOrder.customer.phone}
                       </Typography>
                     )}
                   </Box>
-                </Grid>
 
-                {/* Shipping Address */}
-                <Grid item xs={12} md={6}>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                     Shipping Address
                   </Typography>
@@ -418,7 +334,6 @@ export default function OrdersPage() {
                   </Box>
                 </Grid>
 
-                {/* Billing Address */}
                 <Grid item xs={12} md={6}>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                     Billing Address
@@ -450,7 +365,6 @@ export default function OrdersPage() {
                   </Box>
                 </Grid>
 
-                {/* Order Items */}
                 <Grid item xs={12}>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                     Order Items
@@ -539,7 +453,6 @@ export default function OrdersPage() {
         )}
       </Dialog>
 
-      {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}

@@ -27,70 +27,84 @@ service cloud.firestore {
     // Products collection
     match /products/{productId} {
       allow read: if true;
-      
-      allow write: if true;
+      allow write: if isUserAdmin();
     }
     
-    match /bookings/{productId} {
+    // Bookings collection
+    match /bookings/{bookingId} {
       allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // Orders collection
+    // Orders collection with Stripe integration
     match /orders/{orderId} {
-      allow read, create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid || isUserAdmin()
+      );
       
       allow create: if request.auth != null 
         && request.resource.data.userId == request.auth.uid
-        && request.resource.data.keys().hasAll(['userId', 'items', 'totalAmount', 'createdAt']);
+        && request.resource.data.keys().hasAll([
+          'userId', 
+          'items', 
+          'total',           // Changed from totalAmount
+          'status',          // Added status field
+          'createdAt',
+          'stripeSessionId'  // Changed from stripePaymentIntentId
+        ]);
       
       allow update: if request.auth != null 
-        && resource.data.userId == request.auth.uid
+        && (resource.data.userId == request.auth.uid || isUserAdmin())
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'createdAt']);
     }
 
     // Cart Collection
     match /carts/{cartId} {
-      allow read, write: if request.auth != null 
-        && (request.auth.uid == resource.data.userId 
-        || !exists(/databases/$(database)/documents/carts/$(cartId)));
+      allow read: if request.auth != null;
       
       allow create: if request.auth != null 
         && request.resource.data.keys().hasAll(['userId', 'items', 'status', 'createdAt'])
         && request.resource.data.userId == request.auth.uid;
       
-      allow update: if request.auth != null 
-        && resource.data.userId == request.auth.uid
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'createdAt']);
+      allow update, delete: if request.auth != null 
+        && resource.data.userId == request.auth.uid;
     }
 
-    // Payment Sessions Collection
-    match /paymentSessions/{sessionId} {
-      allow read, create: if request.auth != null 
+    // Stripe Payment Sessions Collection
+    match /stripe_sessions/{sessionId} {
+      allow read: if request.auth != null 
+        && resource.data.userId == request.auth.uid;
+      
+      allow create: if request.auth != null 
+        && request.resource.data.keys().hasAll([
+          'userId',
+          'sessionId',
+          'amount',
+          'status',
+          'createdAt'
+        ])
         && request.resource.data.userId == request.auth.uid;
       
       allow update: if request.auth != null 
         && resource.data.userId == request.auth.uid
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'createdAt']);
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'sessionId', 'createdAt']);
     }
 
     // Transaction Logs Collection
     match /transaction_logs/{logId} {
-      allow read: if isUserAdmin();
+      allow read, write: if isUserAdmin();
       
       allow create: if request.auth != null
         && request.resource.data.keys().hasAll([
           'type',
           'status',
-          'data'
+          'data',
+          'timestamp'
         ])
         && (
           request.resource.data.data.userId == request.auth.uid
           || isUserAdmin()
         );
-      
-      allow update, delete: if isUserAdmin();
     }
 
     // Deny access to any other collections by default
@@ -107,8 +121,6 @@ service firebase.storage {
     }
     
     match /profilePhotos/{userId} {
-      allow write: if request.auth != null && request.auth.uid == userId;
-      
       allow write: if request.auth != null 
         && request.auth.uid == userId
         && request.resource.size < 5 * 1024 * 1024
