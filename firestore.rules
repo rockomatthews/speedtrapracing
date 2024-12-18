@@ -1,0 +1,125 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isUserAdmin() {
+      let userId = request.auth.uid;
+      let userDoc = get(/databases/$(database)/documents/Users/$(userId));
+      
+      return request.auth != null 
+        && exists(/databases/$(database)/documents/Users/$(userId)) 
+        && userDoc.data.isAdmin == true;
+    }
+
+    // Users collection
+    match /Users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      allow create: if request.auth != null 
+        && request.auth.uid == userId 
+        && request.resource.data.keys().hasAll(['email', 'displayName', 'createdAt']);
+      
+      allow update: if request.auth != null 
+        && request.auth.uid == userId
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isAdmin', 'createdAt']);
+    }
+
+    // Products collection
+    match /products/{productId} {
+      allow read: if true;
+      
+      allow write: if true;
+    }
+    
+    match /bookings/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Orders collection
+    match /orders/{orderId} {
+      allow read, create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      allow create: if request.auth != null 
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasAll(['userId', 'items', 'totalAmount', 'createdAt']);
+      
+      allow update: if request.auth != null 
+        && resource.data.userId == request.auth.uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'createdAt']);
+    }
+
+    // Cart Collection
+    match /carts/{cartId} {
+      allow read, write: if request.auth != null 
+        && (request.auth.uid == resource.data.userId 
+        || !exists(/databases/$(database)/documents/carts/$(cartId)));
+      
+      allow create: if request.auth != null 
+        && request.resource.data.keys().hasAll(['userId', 'items', 'status', 'createdAt'])
+        && request.resource.data.userId == request.auth.uid;
+      
+      allow update: if request.auth != null 
+        && resource.data.userId == request.auth.uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'createdAt']);
+    }
+
+    // Payment Sessions Collection
+    match /paymentSessions/{sessionId} {
+      allow read, create: if request.auth != null 
+        && request.resource.data.userId == request.auth.uid;
+      
+      allow update: if request.auth != null 
+        && resource.data.userId == request.auth.uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'createdAt']);
+    }
+
+    // Transaction Logs Collection
+    match /transaction_logs/{logId} {
+      allow read: if isUserAdmin();
+      
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll([
+          'type',
+          'status',
+          'data'
+        ])
+        && (
+          request.resource.data.data.userId == request.auth.uid
+          || isUserAdmin()
+        );
+      
+      allow update, delete: if isUserAdmin();
+    }
+
+    // Deny access to any other collections by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read: if true;
+    }
+    
+    match /profilePhotos/{userId} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+      
+      allow write: if request.auth != null 
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    
+    match /productImages/{imageId} {
+      allow write: if request.auth != null 
+        && get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.isAdmin == true
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}
