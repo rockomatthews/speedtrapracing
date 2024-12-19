@@ -8,7 +8,8 @@ import {
   CardContent,
   Typography,
   CircularProgress,
-  Alert
+  Alert,
+  Snackbar
 } from '@mui/material';
 import {
   ShoppingCart as OrdersIcon,
@@ -27,46 +28,92 @@ export default function AdminDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
-  useEffect(() => {
-    async function fetchStats() {
-      try {
+  const formatCurrency = (amount) => {
+    const dollars = amount / 100;
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(dollars);
+  };
+
+  const logDebug = (message, data = null) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Dashboard Debug] ${message}`, data || '');
+    }
+  };
+
+  const fetchDashboardData = async (showLoading = true) => {
+    try {
+      if (showLoading) {
         setLoading(true);
-        setError(null);
-        
-        // Fetch all necessary data
-        const [ordersResponse, productsResponse] = await Promise.all([
-          medusaClient.admin.orders.list(),
-          medusaClient.admin.products.list(),
-        ]);
+      }
+      setError(null);
+      logDebug('Fetching dashboard data...');
 
-        // Calculate total revenue and unique customers
-        const totalRevenue = ordersResponse.orders.reduce((sum, order) => {
-          const orderTotal = order.total || 0;
-          return sum + (typeof orderTotal === 'number' ? orderTotal / 100 : parseFloat(orderTotal));
-        }, 0);
+      // Get orders first
+      const { orders } = await medusaClient.admin.orders.list();
+      logDebug('Orders fetched successfully', orders);
 
-        // Get unique customers count
-        const uniqueCustomers = new Set(
-          ordersResponse.orders.map(order => order.customerId)
-        ).size;
+      // Calculate stats from orders
+      const uniqueCustomers = new Set(orders.map(order => order.customer?.email).filter(Boolean));
+      const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
 
-        setStats({
-          orders: ordersResponse.orders.length || 0,
-          customers: uniqueCustomers,
-          products: productsResponse.products.length || 0,
-          revenue: totalRevenue
-        });
-      } catch (error) {
-        console.error('Error fetching dashboard stats:', error);
-        setError(error.message || 'Failed to load dashboard statistics');
-      } finally {
+      // Get products
+      const { products } = await medusaClient.admin.products.list();
+      logDebug('Products fetched successfully', products);
+
+      setStats({
+        orders: orders.length,
+        customers: uniqueCustomers.size,
+        products: products.length,
+        revenue: totalRevenue
+      });
+    } catch (err) {
+      logDebug('Error fetching dashboard data:', err);
+      const errorMessage = err.message || 'Failed to load dashboard statistics';
+      setError(errorMessage);
+      showSnackbar(errorMessage, 'error');
+    } finally {
+      if (showLoading) {
         setLoading(false);
       }
     }
+  };
 
-    fetchStats();
+  useEffect(() => {
+    logDebug('Component mounted');
+    fetchDashboardData();
+
+    const interval = setInterval(() => {
+      fetchDashboardData(false);
+    }, 300000);
+
+    return () => {
+      clearInterval(interval);
+      logDebug('Component unmounted');
+    };
   }, []);
+
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
+    });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({
+      ...snackbar,
+      open: false
+    });
+  };
 
   const statCards = [
     {
@@ -89,7 +136,7 @@ export default function AdminDashboard() {
     },
     {
       title: 'Total Revenue',
-      value: `$${stats.revenue.toFixed(2)}`,
+      value: formatCurrency(stats.revenue),
       icon: <RevenueIcon sx={{ fontSize: 40, color: '#d32f2f' }} />,
       color: '#ffcdd2'
     }
@@ -117,7 +164,6 @@ export default function AdminDashboard() {
         Dashboard Overview
       </Typography>
 
-      {/* Stat Cards */}
       <Grid container spacing={3} mb={4}>
         {statCards.map((stat, index) => (
           <Grid item xs={12} sm={6} md={3} key={index}>
@@ -140,34 +186,21 @@ export default function AdminDashboard() {
         ))}
       </Grid>
 
-      {/* Recent Activity Section */}
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Recent Orders
-              </Typography>
-              <Typography color="text.secondary">
-                View all orders in the Orders tab
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Product Overview
-              </Typography>
-              <Typography color="text.secondary">
-                Manage products in the Products tab
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

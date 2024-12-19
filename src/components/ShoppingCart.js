@@ -74,11 +74,9 @@ function ShoppingCartComponent({ items, onUpdateQuantity, onRemoveItem, clearCar
         verifyStripe();
     }, []);
 
-    // Hooks
+    // Hooks and State Management
     const router = useRouter();
     const { user } = useAuth();
-
-    // State Management
     const [isLoading, setIsLoading] = useState(false);
     const [activeStep, setActiveStep] = useState(0);
     const [shippingInfo, setShippingInfo] = useState(INITIAL_SHIPPING_STATE);
@@ -204,11 +202,13 @@ function ShoppingCartComponent({ items, onUpdateQuantity, onRemoveItem, clearCar
                         items: formattedItems,
                         userId: user?.uid || 'guest',
                         email: shippingInfo.email,
-                        shippingInfo: shippingInfo,
-                        success_url: `${window.location.origin}/marketplace?success=true`,
-                        cancel_url: `${window.location.origin}/marketplace?canceled=true`
+                        shippingInfo: shippingInfo
                     }),
                 });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
 
                 const data = await response.json();
                 
