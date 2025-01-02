@@ -1,4 +1,4 @@
-import { db } from './firebase';
+import { db } from './firebase-init';
 import { getAuth } from 'firebase/auth';
 import { 
   collection, 

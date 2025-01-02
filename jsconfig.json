@@ -4,7 +4,8 @@
     "paths": {
       "@/lib/*": ["src/lib/*"],
       "@/util*/": ["src/utils/*"],
-      "@/context*/": ["src/context/*"]
+      "@/context*/": ["src/context/*"],
+      "@/*": ["src/*"]
     }
   }
 }

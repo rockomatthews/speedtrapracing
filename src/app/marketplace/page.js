@@ -11,18 +11,20 @@ import {
   Drawer,
   CircularProgress,
   Container,
-  Typography
+  Typography,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { ShoppingCart as ShoppingCartIcon } from '@mui/icons-material';
+import ErrorBoundary from '../../components/ErrorBoundary';
 
 // Improved cart storage with error handling and quota management
 const cartManager = {
   save: (cart) => {
     try {
-      // Trim cart data to prevent storage issues
       const trimmedCart = cart.map(item => ({
         id: item.id,
-        title: item.title?.substring(0, 100) || '',  // Limit title length
+        title: item.title?.substring(0, 100) || '',
         price: Number(item.price) || 0,
         currency: item.currency || 'USD',
         quantity: Number(item.quantity) || 1,
@@ -33,14 +35,7 @@ const cartManager = {
         } : null
       }));
 
-      // Try to save, clear if needed
-      try {
-        localStorage.setItem('shopping-cart', JSON.stringify(trimmedCart));
-      } catch (e) {
-        // If quota exceeded, clear and try again
-        localStorage.clear();
-        localStorage.setItem('shopping-cart', JSON.stringify(trimmedCart));
-      }
+      localStorage.setItem('shopping-cart', JSON.stringify(trimmedCart));
     } catch (error) {
       console.error('Failed to save cart:', error);
     }
@@ -57,13 +52,46 @@ const cartManager = {
   }
 };
 
-export default function Marketplace() {
-  // State Management
+export default function MarketplacePage() {
+  return (
+    <ErrorBoundary>
+      <Marketplace />
+    </ErrorBoundary>
+  );
+}
+
+function Marketplace() {
   const [products, setProducts] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cartOpen, setCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState([]);
+  const [snackbarMessage, setSnackbarMessage] = useState(null);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('success') === 'true') {
+      setCartItems([]);
+      localStorage.removeItem('shopping-cart');
+      
+      setSnackbarMessage({
+        open: true,
+        message: 'Payment successful! Thank you for your purchase.',
+        severity: 'success'
+      });
+      
+      window.history.replaceState({}, '', '/marketplace');
+    }
+
+    if (searchParams.get('canceled') === 'true') {
+      setSnackbarMessage({
+        open: true,
+        message: 'Payment was canceled.',
+        severity: 'info'
+      });
+      window.history.replaceState({}, '', '/marketplace');
+    }
+  }, []);
 
   // Load cart on initial render
   useEffect(() => {
@@ -84,6 +112,7 @@ export default function Marketplace() {
   useEffect(() => {
     async function fetchProducts() {
       try {
+        setLoading(true);
         const response = await medusaClient.products.list({
           limit: 100,
           fields: [
@@ -109,7 +138,10 @@ export default function Marketplace() {
         }
       } catch (err) {
         console.error('Error fetching products:', err);
-        setError('Failed to load products. Please try again later.');
+        const errorMessage = err.code === 'app/duplicate-app' 
+          ? 'Application initialization error. Please refresh the page.'
+          : err.message || 'Failed to load products. Please try again later.';
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -204,6 +236,20 @@ export default function Marketplace() {
         products={products}
         onAddToCart={addToCart}
       />
+
+      <Snackbar
+        open={!!snackbarMessage?.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarMessage(null)}
+      >
+        <Alert 
+          onClose={() => setSnackbarMessage(null)} 
+          severity={snackbarMessage?.severity || 'info'} 
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage?.message}
+        </Alert>
+      </Snackbar>
 
       <Box 
         sx={{ 

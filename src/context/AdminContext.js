@@ -1,6 +1,6 @@
 // src/contexts/AdminContext.js
 import { createContext, useContext, useState, useEffect } from 'react';
-import { auth } from '@/lib/firebase';
+import { auth } from '@/config/firebase';
 import { isUserAdmin } from '@/utils/adminCheck';
 
 const AdminContext = createContext();

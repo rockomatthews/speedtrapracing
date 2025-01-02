@@ -10,7 +10,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import logo from '../public/logoBlack.svg';
 import SlideMenu from './SlideMenu';
-import { auth } from '../lib/firebase';
+import { auth } from '../config/firebase';
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
 const Header = () => {
@@ -20,11 +20,15 @@ const Header = () => {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
+    let unsubscribe;
+    
+    if (typeof window !== 'undefined' && auth) {
+      unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        setUser(currentUser);
+      });
+    }
 
-    return () => unsubscribe();
+    return () => unsubscribe && unsubscribe();
   }, []);
 
   const toggleMenu = () => {

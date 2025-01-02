@@ -1,5 +1,5 @@
 // src/utils/adminCheck.js
-import { db } from '@/lib/firebase';
+import { db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
 export async function isUserAdmin(uid) {

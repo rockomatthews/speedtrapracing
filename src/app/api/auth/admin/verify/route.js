@@ -1,7 +1,7 @@
 // /api/auth/admin/verify/route.js
 
 import { NextResponse } from 'next/server';
-import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
+import { adminAuth, adminDb } from '@/config/firebaseAdmin';
 import { cookies } from 'next/headers';
 
 export async function POST(request) {

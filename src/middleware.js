@@ -7,19 +7,15 @@ const CSP_DIRECTIVES = {
         "'self'",
         "'unsafe-inline'",
         "'unsafe-eval'",
-        "https://*.braintreegateway.com",
-        "https://*.paypal.com",
-        "https://*.braintreepayments.com",
-        "https://js.braintreegateway.com",
+        "https://js.stripe.com",
+        "https://*.stripe.com",
         "https://apis.google.com",
-        "https://*.googleapis.com",
-        "https://www.paypalobjects.com",
-        "https://api2.amplitude.com"
+        "https://*.googleapis.com"
     ],
     styleSrc: [
         "'self'",
         "'unsafe-inline'",
-        "https://assets.braintreegateway.com"
+        "https://fonts.googleapis.com"
     ],
     imgSrc: [
         "'self'",
@@ -27,16 +23,13 @@ const CSP_DIRECTIVES = {
         "blob:",
         "https:",
         "*.ctfassets.net",
-        "*.braintreegateway.com",
-        "*.adyen.com",
-        "*.paypal.com",
+        "*.stripe.com",
         "lh3.googleusercontent.com",
         "*.googleapis.com"
     ],
     fontSrc: [
         "'self'",
         "data:",
-        "https://assets.braintreegateway.com",
         "https://fonts.gstatic.com"
     ],
     connectSrc: [
@@ -45,9 +38,8 @@ const CSP_DIRECTIVES = {
         "https://cdn.contentful.com",
         "https://preview.contentful.com",
         "https://images.ctfassets.net",
-        "https://*.braintree-api.com",
-        "https://*.paypal.com",
-        "https://*.braintreepayments.com",
+        "https://*.stripe.com",
+        "https://api.stripe.com",
         "https://securetoken.googleapis.com",
         "https://identitytoolkit.googleapis.com",
         "https://*.firebaseio.com",
@@ -55,20 +47,15 @@ const CSP_DIRECTIVES = {
         "https://*.googleapis.com",
         "https://www.googleapis.com",
         "https://apis.google.com",
-        "https://client-analytics.braintreegateway.com",
-        "https://api.braintreegateway.com",
-        "https://api2.amplitude.com",
         "https://*.cloudfunctions.net",
         "https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net"
     ],
     frameSrc: [
         "'self'",
-        "https://*.braintreegateway.com",
-        "https://*.paypal.com",
-        "https://*.braintreepayments.com",
+        "https://*.stripe.com",
+        "https://js.stripe.com",
         "https://apis.google.com",
         "https://*.googleapis.com",
-        "https://assets.braintreegateway.com",
         "https://*.firebaseapp.com",
         "https://speedtrapracing-aa7c8.firebaseapp.com"
     ],

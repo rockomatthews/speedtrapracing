@@ -1,9 +1,9 @@
 // api/auth/verify/route.js
 
 import { NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebaseAdmin';
+import { adminAuth } from '@/config/firebaseAdmin';
 import { cookies } from 'next/headers';
-import { adminDb } from '@/lib/firebaseAdmin';
+import { adminDb } from '@/config/firebaseAdmin';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
