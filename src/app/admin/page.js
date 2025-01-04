@@ -17,6 +17,7 @@ import {
   AttachMoney as RevenueIcon
 } from '@mui/icons-material';
 import medusaClient from '@/lib/medusa-client';
+import { useRouter } from 'next/navigation';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -27,6 +28,7 @@ export default function AdminDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchStats() {
@@ -34,10 +36,21 @@ export default function AdminDashboard() {
         setLoading(true);
         setError(null);
         
+        // Get admin session token
+        const cookies = document.cookie.split(';');
+        const adminSessionCookie = cookies
+          .find(cookie => cookie.trim().startsWith('adminSession='));
+        
+        if (!adminSessionCookie) {
+          throw new Error('No admin session found');
+        }
+        
+        const idToken = adminSessionCookie.split('=')[1].trim();
+        
         // Fetch all necessary data
         const [ordersResponse, productsResponse] = await Promise.all([
-          medusaClient.admin.orders.list(),
-          medusaClient.admin.products.list(),
+          medusaClient.admin.orders.list({ headers: { Authorization: `Bearer ${idToken}` } }),
+          medusaClient.admin.products.list({ headers: { Authorization: `Bearer ${idToken}` } }),
         ]);
 
         // Calculate total revenue and unique customers
@@ -60,13 +73,16 @@ export default function AdminDashboard() {
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
         setError(error.message || 'Failed to load dashboard statistics');
+        if (error.message.includes('session')) {
+          router.push('/login?from=/admin');
+        }
       } finally {
         setLoading(false);
       }
     }
 
     fetchStats();
-  }, []);
+  }, [router]);
 
   const statCards = [
     {

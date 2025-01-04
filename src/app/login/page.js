@@ -1,21 +1,25 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Button, Typography, TextField, IconButton, CircularProgress } from '@mui/material';
 import { Google as GoogleIcon, Facebook as FacebookIcon, Apple as AppleIcon } from '@mui/icons-material';
 import SportsMotorsportsIcon from '@mui/icons-material/SportsMotorsports';
 import { useRouter } from 'next/navigation';
 import loginBackground from '../../public/loginBackground.png';
-import { auth, db } from '../../config/firebase';
+import { auth } from '../../config/firebase';
 import { 
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signInWithPopup, 
     GoogleAuthProvider, 
-    FacebookAuthProvider
+    FacebookAuthProvider,
+    sendPasswordResetEmail,
+    getAuth
 } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import safeStorage from '../../utils/safeStorage';
+import { signIn } from '../../utils/auth';
+import { useAuth } from '../../context/AuthContext';
 
 // Base URL for Firebase Functions - IMPORTANT: this should not include /api
 const FIREBASE_FUNCTIONS_URL = process.env.NODE_ENV === 'production' 
@@ -44,12 +48,28 @@ const INITIAL_USER_DATA = {
 
 const LoginPage = () => {
     const router = useRouter();
+    const { isAdmin } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
     const [isNewUser, setIsNewUser] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [redirectPath, setRedirectPath] = useState('/admin');
+    const [snackbarMessage, setSnackbarMessage] = useState({
+        open: false,
+        severity: 'success',
+        message: ''
+    });
+
+    // Get redirect path from URL on component mount
+    useEffect(() => {
+        const searchParams = new URLSearchParams(window.location.search);
+        const fromPath = searchParams.get('from');
+        if (fromPath) {
+            setRedirectPath(decodeURIComponent(fromPath));
+        }
+    }, []);
 
     // Error message handler with complete error mapping
     const getErrorMessage = (error) => {
@@ -59,14 +79,19 @@ const LoginPage = () => {
             case 'auth/invalid-credential':
                 return 'Invalid email or password. Please check your credentials and try again.';
             case 'auth/user-not-found':
-                return ERROR_MESSAGES.USER_NOT_FOUND;
+                return 'No account found with this email address.';
             case 'auth/wrong-password':
-                return ERROR_MESSAGES.WRONG_PASSWORD;
+                return 'Incorrect password. Please try again.';
             case 'auth/invalid-email':
-                return ERROR_MESSAGES.INVALID_EMAIL;
+                return 'Please enter a valid email address.';
+            case 'auth/too-many-requests':
+                return 'Too many failed login attempts. Please try again later or reset your password.';
             default:
+                if (error.message.includes('Not authorized as admin')) {
+                    return 'You are not authorized to access the admin area.';
+                }
                 console.error('Detailed auth error:', error);
-                return error.message || ERROR_MESSAGES.DEFAULT;
+                return error.message || 'An error occurred during authentication.';
         }
     };
 
@@ -271,62 +296,23 @@ console.log('Starting social login process:', {
     };
 
     // Email authentication handler
-    const handleEmailAuth = async function() {
+    const handleEmailAuth = async (event) => {
+        event.preventDefault();
+        setError(null);
         setLoading(true);
-        setError('');
-    
-        try {
-            const searchParams = new URLSearchParams(window.location.search);
-const redirectPath = decodeURIComponent(searchParams.get('from') || '/');
-const isAdminRoute = redirectPath.startsWith('/admin');
 
-console.log('Starting email authentication:', {
-    email: email,
-    isAdminRoute: isAdminRoute,
-    redirectPath: redirectPath,
-    decodedPath: decodeURIComponent(redirectPath),
-    FIREBASE_FUNCTIONS_URL: FIREBASE_FUNCTIONS_URL
-});
-    
-            let result = await signInWithEmailAndPassword(auth, email, password);
-            const idToken = await result.user.getIdToken(true);
-    
-            if (isAdminRoute) {
-                const verifyUrl = `${FIREBASE_FUNCTIONS_URL}/api/auth/admin/verify`;
-                console.log('Making admin verification request to:', verifyUrl);
-    
-                const verifyResponse = await fetch(verifyUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ idToken }),
-                    credentials: 'include'
-                });
-    
-                console.log('Admin verification response:', {
-                    status: verifyResponse.status,
-                    ok: verifyResponse.ok
-                });
-    
-                const responseData = await verifyResponse.json();
-                console.log('Admin verification response data:', responseData);
-    
-                if (!verifyResponse.ok) {
-                    throw new Error('Admin verification failed: ' + responseData.message);
-                }
+        try {
+            const { user, isAdmin } = await signIn(email, password);
             
-                console.log('Admin verification successful, attempting redirect');
-                
-                // Force full URL construction
-                const adminUrl = new URL('/admin', window.location.origin);
-                console.log('Redirecting to:', adminUrl.toString());
-                window.location.replace(adminUrl.toString());
-                return;
+            // For admin routes, verify admin status
+            if (redirectPath.startsWith('/admin')) {
+                if (!isAdmin) {
+                    throw new Error('Not authorized as admin');
+                }
             }
-    
+
+            // If we get here, authentication was successful
             router.push(redirectPath);
-    
         } catch (error) {
             console.error('Authentication error:', error);
             setError(getErrorMessage(error));
@@ -335,19 +321,48 @@ console.log('Starting email authentication:', {
         }
     };
 
+    // Add this function to your login component
+    const handleResetPassword = async (email) => {
+        try {
+            await sendPasswordResetEmail(auth, email);
+            // Show success message
+            setSnackbarMessage({
+                open: true,
+                severity: 'success',
+                message: 'Password reset email sent! Check your inbox.'
+            });
+        } catch (error) {
+            console.error('Password reset error:', error);
+            setSnackbarMessage({
+                open: true,
+                severity: 'error',
+                message: 'Failed to send reset email: ' + error.message
+            });
+        }
+    };
+
     // UI Rendering
     return (
         <Box
             sx={{
-                height: '100vh',
+                minHeight: '100vh',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
                 backgroundImage: `url(${loginBackground.src})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                color: '#fff',
-                padding: '20px',
+                position: 'relative',
+                '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                }
             }}
         >
             <Box
@@ -579,6 +594,14 @@ console.log('Starting email authentication:', {
                         'Already have an account? Sign In' : 
                         "Don't have an account? Sign Up"
                     }
+                </Button>
+
+                <Button
+                    variant="text"
+                    onClick={() => handleResetPassword(email)}
+                    sx={{ mt: 1 }}
+                >
+                    Forgot Password?
                 </Button>
             </Box>
         </Box>

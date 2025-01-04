@@ -31,12 +31,6 @@ export default function RootLayout({ children }) {
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <head>
-        {/* Braintree Client SDK */}
-        <Script 
-          src="https://js.braintreegateway.com/web/dropin/1.43.0/js/dropin.min.js"
-          strategy="lazyOnload"
-          id="braintree-script"
-        />
       </head>
       <body>
         <AuthProvider>

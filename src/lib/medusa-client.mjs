@@ -679,11 +679,11 @@ class MedusaFirebaseClient {
       const user = auth.currentUser;
       
       if (!user) {
-        throw new Error('User not authenticated');
+        throw new Error('No authenticated user');
       }
 
-      const userRef = doc(this.db, 'Users', user.uid);
-      const userDoc = await getDoc(userRef);
+      // Get the user's document from Firestore
+      const userDoc = await getDoc(doc(this.db, 'Users', user.uid));
       
       if (!userDoc.exists()) {
         throw new Error('User document not found');
@@ -691,11 +691,11 @@ class MedusaFirebaseClient {
 
       const userData = userDoc.data();
       
-      if (!userData || !userData.isAdmin || userData.role !== 'admin') {
+      if (!userData.isAdmin) {
         throw new Error('User does not have admin privileges');
       }
-      
-      return user;
+
+      return true;
     } catch (error) {
       console.error('[Admin Debug] Error checking admin status:', error);
       throw error;

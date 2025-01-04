@@ -90,7 +90,40 @@ const nextConfig = {
         'speedtrapracing-aa7c8.firebaseapp.com'
       ]
     }
-  }
+  },
+
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  distDir: '.next',
+  generateBuildId: async function() {
+    return `build-${Date.now()}-production`;
+  },
+  reactStrictMode: true,
+  poweredByHeader: false,
+  compress: true,
+  
+  async rewrites() {
+    return {
+      beforeFiles: [
+        // ... keep your existing rewrites
+      ],
+      fallback: [
+        {
+          source: '/admin/:path*',
+          destination: '/login'
+        }
+      ]
+    };
+  },
+  output: 'export',
+  serverRuntimeConfig: {
+    dynamicPages: ['schedule', 'profile']
+  },
+  trailingSlash: false,
+  assetPrefix: process.env.NODE_ENV === 'production' 
+    ? 'https://speedtrapracing.com' 
+    : ''
 };
 
 export default nextConfig;

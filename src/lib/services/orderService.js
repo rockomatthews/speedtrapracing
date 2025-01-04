@@ -8,7 +8,7 @@ export const orderService = {
       const orderRef = collection(db, 'orders');
       const order = {
         ...orderData,
-        braintreeTransactionId: transactionResult.transaction.id,
+        stripeSessionId: transactionResult.sessionId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         status: 'completed',
@@ -23,10 +23,9 @@ export const orderService = {
         },
         // Store payment details
         payment: {
-          method: transactionResult.transaction.paymentInstrumentType,
-          status: transactionResult.transaction.status,
-          processorResponseCode: transactionResult.transaction.processorResponseCode,
-          processorResponseText: transactionResult.transaction.processorResponseText,
+          method: 'stripe',
+          status: transactionResult.status,
+          paymentIntentId: transactionResult.paymentIntentId
         }
       };
 

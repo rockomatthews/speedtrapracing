@@ -2,22 +2,62 @@ import { NextResponse } from 'next/server';
 
 // Content Security Policy Directives
 const CSP_DIRECTIVES = {
-    defaultSrc: ["'self'"],
-    scriptSrc: [
+    'default-src': ["'self'"],
+    'connect-src': [
+        "'self'",
+        // Firebase services
+        "https://*.googleapis.com",
+        "https://identitytoolkit.googleapis.com",
+        "https://securetoken.googleapis.com",
+        "https://firestore.googleapis.com",
+        "https://*.firebaseio.com",
+        "wss://*.firebaseio.com",
+        "https://*.cloudfunctions.net",
+        "https://firebase.googleapis.com",
+        "https://*.firebase.com",
+        "https://*.firebaseapp.com",
+        "https://www.googleapis.com",
+        "https://apis.google.com",
+        "https://*.gstatic.com",
+        "https://firebaseinstallations.googleapis.com",
+        "https://oauth2.googleapis.com",
+        "https://accounts.google.com",
+        
+        // Stripe services
+        "https://*.stripe.com",
+        "https://api.stripe.com",
+        
+        // Other services
+        "https://api.contentful.com",
+        "https://cdn.contentful.com",
+        "https://preview.contentful.com",
+        "https://images.ctfassets.net"
+    ],
+    'script-src': [
         "'self'",
         "'unsafe-inline'",
         "'unsafe-eval'",
-        "https://js.stripe.com",
-        "https://*.stripe.com",
+        "https://*.firebaseapp.com",
+        "https://*.firebase.com",
+        "https://*.gstatic.com",
         "https://apis.google.com",
-        "https://*.googleapis.com"
+        "https://*.googleapis.com",
+        "https://identitytoolkit.googleapis.com",
+        "https://securetoken.googleapis.com",
+        "https://www.gstatic.com",
+        "https://js.stripe.com",
+        "https://*.stripe.com"
     ],
-    styleSrc: [
+    'frame-src': [
         "'self'",
-        "'unsafe-inline'",
-        "https://fonts.googleapis.com"
+        "https://*.firebaseapp.com",
+        "https://*.firebase.com",
+        "https://accounts.google.com",
+        "https://identitytoolkit.googleapis.com",
+        "https://securetoken.googleapis.com",
+        "https://*.stripe.com"
     ],
-    imgSrc: [
+    'img-src': [
         "'self'",
         "data:",
         "blob:",
@@ -27,43 +67,26 @@ const CSP_DIRECTIVES = {
         "lh3.googleusercontent.com",
         "*.googleapis.com"
     ],
-    fontSrc: [
+    'style-src': [
+        "'self'",
+        "'unsafe-inline'",
+        "https://fonts.googleapis.com"
+    ],
+    'font-src': [
         "'self'",
         "data:",
         "https://fonts.gstatic.com"
     ],
-    connectSrc: [
+    'object-src': ["'none'"],
+    'base-uri': ["'self'"],
+    'form-action': [
         "'self'",
-        "https://api.contentful.com",
-        "https://cdn.contentful.com",
-        "https://preview.contentful.com",
-        "https://images.ctfassets.net",
-        "https://*.stripe.com",
-        "https://api.stripe.com",
-        "https://securetoken.googleapis.com",
         "https://identitytoolkit.googleapis.com",
-        "https://*.firebaseio.com",
-        "wss://*.firebaseio.com",
-        "https://*.googleapis.com",
-        "https://www.googleapis.com",
-        "https://apis.google.com",
-        "https://*.cloudfunctions.net",
-        "https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net"
+        "https://securetoken.googleapis.com",
+        "https://accounts.google.com"
     ],
-    frameSrc: [
-        "'self'",
-        "https://*.stripe.com",
-        "https://js.stripe.com",
-        "https://apis.google.com",
-        "https://*.googleapis.com",
-        "https://*.firebaseapp.com",
-        "https://speedtrapracing-aa7c8.firebaseapp.com"
-    ],
-    objectSrc: ["'none'"],
-    baseUri: ["'self'"],
-    formAction: ["'self'"],
-    frameAncestors: ["'none'"],
-    workerSrc: ["'self'", "blob:"]
+    'frame-ancestors': ["'none'"],
+    'worker-src': ["'self'", "blob:"]
 };
 
 // Simplified Permission Policy without payment
@@ -97,27 +120,24 @@ const PERMISSION_POLICY_DIRECTIVES = [
     'xr-spatial-tracking=()'
 ];
 
-// Function to create security headers
+// Helper function to create CSP header string
+function createCSPHeader() {
+    return Object.entries(CSP_DIRECTIVES)
+        .map(([key, values]) => `${key} ${values.join(' ')}`)
+        .join('; ');
+}
+
+// Create security headers
 function createSecurityHeaders() {
-    const headers = new Headers();
-    
-    headers.set('X-Frame-Options', 'DENY');
-    headers.set('X-Content-Type-Options', 'nosniff');
-    headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-    headers.set('X-XSS-Protection', '1; mode=block');
-    headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    
-    // Set permissions policy with explicitly formatted directives
-    headers.set('Permissions-Policy', PERMISSION_POLICY_DIRECTIVES.join(', '));
-    
-    // Build Content Security Policy
-    const cspDirectives = Object.entries(CSP_DIRECTIVES).map(function([key, values]) {
-        const formattedKey = key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
-        return `${formattedKey} ${values.join(' ')}`;
+    const headers = new Headers({
+        'Content-Security-Policy': createCSPHeader(),
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'X-XSS-Protection': '1; mode=block',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
     });
-    
-    headers.set('Content-Security-Policy', cspDirectives.join('; '));
-    
+
     return headers;
 }
 
@@ -147,121 +167,101 @@ function createLoginRedirect(baseUrl, path, headers) {
 export async function middleware(request) {
     const requestUrl = new URL(request.url);
     const requestPath = request.nextUrl.pathname;
-    const headers = createSecurityHeaders();
     
+    // Create base response first
+    const response = NextResponse.next();
+    
+    // Apply CSP headers before any other operations
+    const cspHeader = Object.entries(CSP_DIRECTIVES)
+        .map(([key, values]) => `${key} ${values.join(' ')}`)
+        .join('; ');
+    
+    response.headers.set('Content-Security-Policy', cspHeader);
+    
+    // Add other security headers
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('X-Frame-Options', 'DENY');
+    response.headers.set('X-XSS-Protection', '1; mode=block');
+    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    response.headers.set('Permissions-Policy', PERMISSION_POLICY_DIRECTIVES.join(', '));
+
     // Get proper verification URL based on environment
     const verificationUrl = process.env.NODE_ENV === 'production'
-        ? 'https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net/api/auth/admin/verify'
-        : `${requestUrl.origin}/api/auth/admin/verify`;
-
-    // Log all requests for debugging
-    console.log('Middleware processing request:', {
-        url: requestUrl.toString(),
-        path: requestPath,
-        method: request.method,
-        environment: process.env.NODE_ENV,
-        timestamp: new Date().toISOString(),
-        verificationUrl: verificationUrl,
-        headers: Object.fromEntries(request.headers),
-        cookies: Object.fromEntries(request.cookies)
-    });
+        ? 'https://speedtrapracing.com/api/auth/admin/verify'
+        : 'http://localhost:3000/api/auth/admin/verify';
 
     // Handle admin routes
     if (requestPath.startsWith('/admin')) {
         const sessionCookie = request.cookies.get('adminSession');
         
-        console.log('Processing admin route:', {
-            path: requestPath,
-            hasCookie: Boolean(sessionCookie),
-            cookieValue: sessionCookie?.value ? 'present' : 'missing',
-            environment: process.env.NODE_ENV
-        });
-
-        if (!sessionCookie || !sessionCookie.value) {
-            console.log('No admin session found, redirecting to login');
-            return createLoginRedirect(requestUrl, requestPath, headers);
+        if (!sessionCookie?.value) {
+            const loginResponse = NextResponse.redirect(
+                new URL(`/login?from=${encodeURIComponent(requestPath)}`, requestUrl)
+            );
+            // Copy security headers to redirect response
+            loginResponse.headers.set('Content-Security-Policy', cspHeader);
+            return loginResponse;
         }
 
         try {
-            // Make verification request
             const verifyResponse = await fetch(verificationUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Cookie': `adminSession=${sessionCookie.value}`,
-                    'Origin': requestUrl.origin
                 },
-                credentials: 'include',
-                body: JSON.stringify({
-                    sessionCookie: sessionCookie.value,
-                    timestamp: Date.now()
-                })
+                body: JSON.stringify({ idToken: sessionCookie.value }),
+                credentials: 'include'
             });
 
-            const responseData = await verifyResponse.json();
-            
-            console.log('Verify response:', {
-                status: verifyResponse.status,
-                ok: verifyResponse.ok,
-                data: responseData,
-                timestamp: new Date().toISOString()
-            });
-            
-            if (!verifyResponse.ok || !responseData.isAdmin) {
-                console.log('Admin verification failed, redirecting to login');
-                return createLoginRedirect(requestUrl, requestPath, headers);
+            if (!verifyResponse.ok) {
+                const loginResponse = NextResponse.redirect(
+                    new URL(`/login?from=${encodeURIComponent(requestPath)}`, requestUrl)
+                );
+                loginResponse.headers.set('Content-Security-Policy', cspHeader);
+                return loginResponse;
             }
 
-            // Create successful response
-            const response = NextResponse.next();
-            
-            // Set cookie with appropriate domain
-            const cookieString = [
-                `adminSession=${sessionCookie.value}`,
-                'Path=/',
-                'HttpOnly',
-                'Secure',
-                'SameSite=Strict',
-                `Domain=${process.env.NODE_ENV === 'production' ? '.speedtrapracing.com' : 'localhost'}`
-            ].join('; ');
-            
-            response.headers.set('Set-Cookie', cookieString);
-            
-            // Add security headers
-            headers.forEach((value, key) => {
-                response.headers.set(key, value);
+            // Allow the request to proceed with admin session
+            response.cookies.set('adminSession', sessionCookie.value, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                path: '/',
+                maxAge: 432000 // 5 days
             });
-
-            // Add CORS headers for production
-            if (process.env.NODE_ENV === 'production') {
-                response.headers.set('Access-Control-Allow-Credentials', 'true');
-                response.headers.set('Access-Control-Allow-Origin', 'https://speedtrapracing.com');
-            }
-            
-            return response;
 
         } catch (error) {
-            console.error('Admin middleware error:', {
-                error: error.message,
-                stack: error.stack,
-                timestamp: new Date().toISOString()
-            });
-            return createLoginRedirect(requestUrl, requestPath, headers);
+            console.error('Admin middleware error:', error);
+            const loginResponse = NextResponse.redirect(
+                new URL(`/login?from=${encodeURIComponent(requestPath)}`, requestUrl)
+            );
+            loginResponse.headers.set('Content-Security-Policy', cspHeader);
+            return loginResponse;
         }
     }
 
-    // Handle non-admin routes
-    const response = NextResponse.next();
-    headers.forEach((value, key) => {
-        response.headers.set(key, value);
+    // Add CORS headers for development
+    if (process.env.NODE_ENV === 'development') {
+        response.headers.set('Access-Control-Allow-Origin', '*');
+        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        response.headers.set('Access-Control-Allow-Credentials', 'true');
+    }
+
+    // Log headers for debugging
+    console.log('Response headers:', {
+        csp: response.headers.get('Content-Security-Policy'),
+        cors: response.headers.get('Access-Control-Allow-Origin'),
+        timestamp: new Date().toISOString()
     });
+
     return response;
 }
 
-// Middleware configuration
+// Configure middleware matcher
 export const config = {
     matcher: [
-        '/admin/:path*',
-        '/((?!_next/static|_next/image|favicon.ico).*)'
+        // Match all paths except static files and api routes
+        '/((?!_next/static|_next/image|favicon.ico|api).*)'
     ]
 };
