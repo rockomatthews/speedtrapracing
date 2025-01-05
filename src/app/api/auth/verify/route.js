@@ -5,7 +5,7 @@ import { adminAuth } from '@/config/firebaseAdmin';
 import { cookies } from 'next/headers';
 import { adminDb } from '@/config/firebaseAdmin';
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'auto';
 export const revalidate = 0;
 
 

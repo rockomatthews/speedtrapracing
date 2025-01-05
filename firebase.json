@@ -4,16 +4,22 @@
     "indexes": "firestore.indexes.json"
   },
   "hosting": {
-    "public": "out",
+    "source": ".",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
+    "frameworksBackend": {
+      "region": "us-central1"
+    },
     "rewrites": [
       {
         "source": "**",
-        "destination": "/index.html"
+        "run": {
+          "serviceId": "ssrspeedtrapracingaa7c8",
+          "region": "us-central1"
+        }
       }
     ]
   },

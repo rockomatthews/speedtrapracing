@@ -39,7 +39,7 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: "default-src 'self'; " +
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://*.stripe.com https://apis.google.com https://*.googleapis.com; " +
-              "connect-src 'self' https://*.stripe.com https://api.stripe.com; " +
+              "connect-src 'self' https://*.stripe.com https://api.stripe.com https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net; " +
               "frame-src 'self' https://*.stripe.com https://js.stripe.com; " +
               "img-src 'self' data: blob: https: *.ctfassets.net *.stripe.com lh3.googleusercontent.com *.googleapis.com; " +
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
@@ -106,24 +106,23 @@ const nextConfig = {
   async rewrites() {
     return {
       beforeFiles: [
-        // ... keep your existing rewrites
-      ],
-      fallback: [
         {
-          source: '/admin/:path*',
-          destination: '/login'
+          source: '/api/:path*',
+          destination: 'https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net/api/:path*',
+          basePath: false
         }
       ]
     };
   },
-  output: 'export',
+  output: 'standalone',
   serverRuntimeConfig: {
     dynamicPages: ['schedule', 'profile']
   },
   trailingSlash: false,
   assetPrefix: process.env.NODE_ENV === 'production' 
     ? 'https://speedtrapracing.com' 
-    : ''
+    : '',
+  pageExtensions: ['js', 'jsx', 'ts', 'tsx']
 };
 
 export default nextConfig;

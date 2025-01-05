@@ -5,7 +5,6 @@ const admin = require('firebase-admin');
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
-const braintree = require('braintree');
 
 // Initialize Firebase Admin with explicit credential
 const serviceAccount = require('./service-account.json');
@@ -20,11 +19,15 @@ const app = express();
 app.use(cors({
     origin: [
         'https://speedtrapracing.com', 
+        'https://speedtrapracing-aa7c8.web.app',
+        'https://speedtrapracing-aa7c8.firebaseapp.com',
+        'https://checkout.stripe.com',
+        'https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net',
         'http://localhost:3000'
     ],
-    credentials: true,
+    credentials: false,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'Origin'],
     exposedHeaders: ['Set-Cookie'],
 }));
 
@@ -48,59 +51,13 @@ const COOKIE_CONFIG = {
     production: {
         domain: '.speedtrapracing.com',
         secure: true,
-        sameSite: 'lax', // Changed from 'strict' to 'lax' for better cross-domain handling
+        sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 5 * 1000 // 5 days
     }
 };
 
-// Initialize Braintree payment gateway
-let braintreeGateway = null;
-
-try {
-    // Validate required Braintree configuration
-    const requiredBraintreeConfig = {
-        merchantId: firebaseConfig.braintree?.merchantid,
-        publicKey: firebaseConfig.braintree?.publickey,
-        privateKey: firebaseConfig.braintree?.privatekey,
-        environment: firebaseConfig.braintree?.environment
-    };
-
-    // Check for missing configuration
-    const missingConfig = Object.entries(requiredBraintreeConfig)
-        .filter(([key, value]) => !value)
-        .map(([key]) => key);
-
-    if (missingConfig.length > 0) {
-        throw new Error(
-            `Missing required Braintree configuration: ${missingConfig.join(', ')}. ` +
-            'Please set using firebase functions:config:set'
-        );
-    }
-
-    // PArt 2
-    // Initialize Braintree gateway with configuration
-    braintreeGateway = new braintree.BraintreeGateway({
-        environment: braintree.Environment[
-            requiredBraintreeConfig.environment === 'production' ? 
-            'Production' : 
-            'Sandbox'
-        ],
-        merchantId: requiredBraintreeConfig.merchantId,
-        publicKey: requiredBraintreeConfig.publicKey,
-        privateKey: requiredBraintreeConfig.privateKey
-    });
-
-    console.log('Braintree gateway initialized successfully', {
-        environment: requiredBraintreeConfig.environment,
-        timestamp: new Date().toISOString()
-    });
-} catch (error) {
-    console.error('Braintree initialization error:', {
-        message: error.message,
-        stack: error.stack,
-        timestamp: new Date().toISOString()
-    });
-}
+// Initialize Stripe with the secret key
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || functions.config().stripe.secret_key);
 
 // Helper function to get cookie configuration based on environment
 function getCookieConfig() {
@@ -259,6 +216,61 @@ app.post('/api/braintree/process-payment', async function(request, response) {
             message: 'Payment processing failed',
             code: 'PROCESSING_ERROR',
             error: error.message
+        });
+    }
+});
+
+// Stripe checkout session endpoint
+app.post('/create-checkout-session', async (req, res) => {
+    try {
+        const { items } = req.body;
+        
+        if (!items || !Array.isArray(items)) {
+            return res.status(400).json({ error: 'Invalid items format' });
+        }
+
+        const lineItems = items.map(item => ({
+            price_data: {
+                currency: 'usd',
+                product_data: {
+                    name: item.title,
+                    images: [item.image],
+                },
+                unit_amount: item.price * 100, // Convert to cents
+            },
+            quantity: item.quantity,
+        }));
+
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: lineItems,
+            mode: 'payment',
+            success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/cancel`,
+            shipping_address_collection: {
+                allowed_countries: ['US'],
+            },
+            shipping_options: [
+                {
+                    shipping_rate_data: {
+                        type: 'fixed_amount',
+                        fixed_amount: { amount: 500, currency: 'usd' },
+                        display_name: 'Standard shipping',
+                        delivery_estimate: {
+                            minimum: { unit: 'business_day', value: 5 },
+                            maximum: { unit: 'business_day', value: 7 },
+                        },
+                    },
+                },
+            ],
+        });
+
+        res.status(200).json({ sessionId: session.id });
+    } catch (error) {
+        console.error('Stripe checkout error:', error);
+        res.status(500).json({ 
+            error: 'Error creating checkout session',
+            details: error.message 
         });
     }
 });

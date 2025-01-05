@@ -6,6 +6,10 @@ import { Box } from '@mui/material';
 import { customFont } from './fonts.js';
 import { AuthProvider } from '../context/AuthContext';
 import Script from 'next/script';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { CartProvider } from '@/contexts/CartContext';
+import theme from '@/theme';
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -45,7 +49,9 @@ export default function RootLayout({ children }) {
                 flexDirection: 'column'
               }}
             >
-              {children}
+              <CartProvider>
+                {children}
+              </CartProvider>
             </Box>
           </ThemeRegistry>
         </AuthProvider>

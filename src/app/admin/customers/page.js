@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 import { Visibility as ViewIcon } from '@mui/icons-material';
 import medusaClient from '@/lib/medusa-client';
+import { getUsersRef } from '@/config/firebase';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
