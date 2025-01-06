@@ -352,49 +352,79 @@ const ShoppingCartComponent = function({ items, onUpdateQuantity, onRemoveItem }
         });
     };
 
-    const handleShippingSubmit = function(event) {
+    const handleShippingSubmit = async (event) => {
         event.preventDefault();
-        if (validateShippingInfo()) {
-            setActiveStep(1);
+        if (!validateShippingInfo()) {
+            return;
         }
+        
+        // Store shipping info in localStorage
+        localStorage.setItem('shippingInfo', JSON.stringify(shippingInfo));
+        
+        setActiveStep(1);
     };
 
-    const handlePaymentSubmit = async (event) => {
-        event.preventDefault();
-        setIsLoading(true);
-        setError(null);
+    // Load shipping info on mount
+    useEffect(() => {
+        const savedShippingInfo = localStorage.getItem('shippingInfo');
+        if (savedShippingInfo) {
+            try {
+                const parsedInfo = JSON.parse(savedShippingInfo);
+                console.log('Loading saved shipping info:', parsedInfo);
+                setShippingInfo(parsedInfo);
+            } catch (e) {
+                console.error('Error loading shipping info:', e);
+            }
+        }
+    }, []);
 
+    // Debug log when shipping info changes
+    useEffect(() => {
+        console.log('Current shipping info:', shippingInfo);
+    }, [shippingInfo]);
+
+    const handleCheckout = async () => {
         try {
-            const response = await fetch('/api/create-checkout-session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    items,
-                    shippingInfo
-                }),
-            });
+            setLoading(true);
+            
+            const savedShippingInfo = localStorage.getItem('shippingInfo');
+            const shippingDetails = savedShippingInfo ? JSON.parse(savedShippingInfo) : {};
+            
+            console.log('Sending checkout request with shipping details:', shippingDetails);
+            
+            const response = await fetch(
+                'https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net/api/create-checkout-session',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': 'https://speedtrapracing.com'
+                    },
+                    body: JSON.stringify({ 
+                        items,
+                        shippingInfo: shippingDetails
+                    }),
+                    credentials: 'include'
+                }
+            );
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to create checkout session');
+                throw new Error('Network response was not ok');
             }
 
             const { sessionId } = await response.json();
             const stripe = await stripePromise;
             
-            const { error } = await stripe.redirectToCheckout({
-                sessionId
-            });
-
+            const { error } = await stripe.redirectToCheckout({ sessionId });
+            
             if (error) {
                 throw error;
             }
-        } catch (err) {
-            setError(err.message || 'An error occurred during checkout');
+        } catch (error) {
+            console.error('Checkout error:', error);
+            setError(error.message);
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
@@ -434,7 +464,7 @@ const ShoppingCartComponent = function({ items, onUpdateQuantity, onRemoveItem }
 
             {/* Payment Form */}
             <PaymentForm
-                onSubmit={handlePaymentSubmit}
+                onSubmit={handleCheckout}
                 loading={isLoading}
                 error={error}
             />
@@ -569,49 +599,79 @@ const ShoppingCartContent = function({ items, onUpdateQuantity, onRemoveItem }) 
         });
     };
 
-    const handleShippingSubmit = function(event) {
+    const handleShippingSubmit = async (event) => {
         event.preventDefault();
-        if (validateShippingInfo()) {
-            setActiveStep(1);
+        if (!validateShippingInfo()) {
+            return;
         }
+        
+        // Store shipping info in localStorage
+        localStorage.setItem('shippingInfo', JSON.stringify(shippingInfo));
+        
+        setActiveStep(1);
     };
 
-    const handlePaymentSubmit = async (event) => {
-        event.preventDefault();
-        setIsLoading(true);
-        setError(null);
+    // Load shipping info on mount
+    useEffect(() => {
+        const savedShippingInfo = localStorage.getItem('shippingInfo');
+        if (savedShippingInfo) {
+            try {
+                const parsedInfo = JSON.parse(savedShippingInfo);
+                console.log('Loading saved shipping info:', parsedInfo);
+                setShippingInfo(parsedInfo);
+            } catch (e) {
+                console.error('Error loading shipping info:', e);
+            }
+        }
+    }, []);
 
+    // Debug log when shipping info changes
+    useEffect(() => {
+        console.log('Current shipping info:', shippingInfo);
+    }, [shippingInfo]);
+
+    const handleCheckout = async () => {
         try {
-            const response = await fetch('/api/create-checkout-session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    items,
-                    shippingInfo
-                }),
-            });
+            setLoading(true);
+            
+            const savedShippingInfo = localStorage.getItem('shippingInfo');
+            const shippingDetails = savedShippingInfo ? JSON.parse(savedShippingInfo) : {};
+            
+            console.log('Sending checkout request with shipping details:', shippingDetails);
+            
+            const response = await fetch(
+                'https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net/api/create-checkout-session',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': 'https://speedtrapracing.com'
+                    },
+                    body: JSON.stringify({ 
+                        items,
+                        shippingInfo: shippingDetails
+                    }),
+                    credentials: 'include'
+                }
+            );
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to create checkout session');
+                throw new Error('Network response was not ok');
             }
 
             const { sessionId } = await response.json();
             const stripe = await stripePromise;
             
-            const { error } = await stripe.redirectToCheckout({
-                sessionId
-            });
-
+            const { error } = await stripe.redirectToCheckout({ sessionId });
+            
             if (error) {
                 throw error;
             }
-        } catch (err) {
-            setError(err.message || 'An error occurred during checkout');
+        } catch (error) {
+            console.error('Checkout error:', error);
+            setError(error.message);
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
@@ -651,7 +711,7 @@ const ShoppingCartContent = function({ items, onUpdateQuantity, onRemoveItem }) 
 
             {/* Payment Form */}
             <PaymentForm
-                onSubmit={handlePaymentSubmit}
+                onSubmit={handleCheckout}
                 loading={isLoading}
                 error={error}
             />

@@ -25,8 +25,8 @@ export default function RaceNightsPage() {
         // Initialize Contentful client inside the effect
         const { createClient } = await import('contentful');
         const client = createClient({
-          space: process.env.NEXT_PUBLIC_CONTENTFUL_SPACE_ID,
-          accessToken: process.env.NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN,
+          space: '3iajpw2ce98w',
+          accessToken: 'y-N5BHbGZ9rxpV9QJNJafcYH_8bCZkqGUBGzR4RUxiw',
         });
 
         const response = await client.getEntries({

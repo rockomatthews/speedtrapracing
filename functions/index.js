@@ -23,9 +23,11 @@ app.use(cors({
         'https://speedtrapracing-aa7c8.firebaseapp.com',
         'https://checkout.stripe.com',
         'https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net',
+        'https://firestore.googleapis.com',
+        'https://*.googleapis.com',
         'http://localhost:3000'
     ],
-    credentials: false,
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'Origin'],
     exposedHeaders: ['Set-Cookie'],
