@@ -39,7 +39,7 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: "default-src 'self'; " +
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://*.stripe.com https://apis.google.com https://*.googleapis.com; " +
-              "connect-src 'self' https://*.stripe.com https://api.stripe.com https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net https://*.googleapis.com https://firestore.googleapis.com https://*.firebaseio.com https://*.firebase.googleapis.com https://*.contentful.com; " +
+              "connect-src 'self' https://*.stripe.com https://api.stripe.com https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net https://*.googleapis.com https://firestore.googleapis.com https://*.firebaseio.com https://*.firebase.googleapis.com https://*.contentful.com https://cdn.contentful.com https://preview.contentful.com https://api.contentful.com; " +
               "frame-src 'self' https://*.stripe.com https://js.stripe.com; " +
               "img-src 'self' data: blob: https: *.ctfassets.net *.stripe.com lh3.googleusercontent.com *.googleapis.com; " +
               "font-src 'self' https: data:; " +

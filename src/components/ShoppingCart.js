@@ -393,31 +393,34 @@ const ShoppingCartComponent = function({ items, onUpdateQuantity, onRemoveItem }
             console.log('Sending checkout request with shipping details:', shippingDetails);
             
             const response = await fetch(
-                'https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net/api/create-checkout-session',
+                '/api/stripe/create-checkout-session',
                 {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Origin': 'https://speedtrapracing.com'
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ 
                         items,
                         shippingInfo: shippingDetails
-                    }),
-                    credentials: 'include'
+                    })
                 }
             );
 
             if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Checkout error response:', errorData);
                 throw new Error('Network response was not ok');
             }
 
             const { sessionId } = await response.json();
+            console.log('Got Stripe session ID:', sessionId);
+            
             const stripe = await stripePromise;
             
             const { error } = await stripe.redirectToCheckout({ sessionId });
             
             if (error) {
+                console.error('Stripe redirect error:', error);
                 throw error;
             }
         } catch (error) {
@@ -506,13 +509,218 @@ const ShoppingCartComponent = function({ items, onUpdateQuantity, onRemoveItem }
     }
 
     return (
-        <Elements stripe={stripePromise}>
-            <ShoppingCartContent 
-                items={items} 
-                onUpdateQuantity={onUpdateQuantity} 
-                onRemoveItem={onRemoveItem} 
-            />
-        </Elements>
+        <>
+            {items.length === 0 ? (
+                <Card sx={{ maxWidth: 600, margin: '20px auto', padding: 4 }}>
+                    <CardContent>
+                        <Box display="flex" flexDirection="column" alignItems="center" textAlign="center">
+                            <ShoppingCartIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+                            <Typography variant="h5" gutterBottom>Your Cart is Empty</Typography>
+                            <Typography color="text.secondary" sx={{ mb: 3 }}>
+                                Start adding items to your cart to check out.
+                            </Typography>
+                            <Button
+                                variant="contained"
+                                component="a"
+                                href="/marketplace"
+                                startIcon={<ShoppingCartIcon />}
+                            >
+                                Continue Shopping
+                            </Button>
+                        </Box>
+                    </CardContent>
+                </Card>
+            ) : (
+                <>
+                    <Card sx={{ maxWidth: 800, margin: '20px auto' }}>
+                        <CardContent>
+                            <Typography variant="h5" gutterBottom={true}>Shopping Cart</Typography>
+                            
+                            <Stepper activeStep={activeStep} sx={{ marginBottom: 4 }}>
+                                <Step>
+                                    <StepLabel>Shipping</StepLabel>
+                                </Step>
+                                <Step>
+                                    <StepLabel>Payment</StepLabel>
+                                </Step>
+                            </Stepper>
+    
+                            {activeStep === 0 ? (
+                                <form onSubmit={handleShippingSubmit}>
+                                    {items.map(function(item) {
+                                        return (
+                                            <Box key={item.id}>
+                                                <Box sx={{ display: 'flex', py: 2, alignItems: 'center' }}>
+                                                    <Box sx={{ flexGrow: 1 }}>
+                                                        <Typography variant="subtitle1">{item.title}</Typography>
+                                                        <Typography variant="body2" color="text.secondary">
+                                                            USD {Number(item.price).toFixed(2)}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                                        <Select
+                                                            size="small"
+                                                            value={item.quantity}
+                                                            onChange={function(event) {
+                                                                onUpdateQuantity(item.id, parseInt(event.target.value));
+                                                            }}
+                                                        >
+                                                            {[1, 2, 3, 4, 5].map(function(num) {
+                                                                return (
+                                                                    <MenuItem key={num} value={num}>{num}</MenuItem>
+                                                                );
+                                                            })}
+                                                        </Select>
+                                                        <IconButton 
+                                                            onClick={function() {
+                                                                onRemoveItem(item.id);
+                                                            }}
+                                                            color="error"
+                                                            size="small"
+                                                        >
+                                                            <DeleteIcon />
+                                                        </IconButton>
+                                                    </Box>
+                                                </Box>
+                                                <Divider />
+                                            </Box>
+                                        );
+                                    })}
+    
+                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', my: 2 }}>
+                                        <Typography variant="h6">
+                                            Total: USD {calculateTotal().toFixed(2)}
+                                        </Typography>
+                                    </Box>
+    
+                                    <Grid container spacing={2}>
+                                        <Grid item xs={12} sm={6}>
+                                            <TextField
+                                                required={true}
+                                                fullWidth={true}
+                                                label="First Name"
+                                                value={shippingInfo.firstName}
+                                                onChange={handleShippingInfoChange('firstName')}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <TextField
+                                                required={true}
+                                                fullWidth={true}
+                                                label="Last Name"
+                                                value={shippingInfo.lastName}
+                                                onChange={handleShippingInfoChange('lastName')}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12}>
+                                            <TextField
+                                                required={true}
+                                                fullWidth={true}
+                                                type="email"
+                                                label="Email"
+                                                value={shippingInfo.email}
+                                                onChange={handleShippingInfoChange('email')}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12}>
+                                            <TextField
+                                                required={true}
+                                                fullWidth={true}
+                                                label="Address Line 1"
+                                                value={shippingInfo.address}
+                                                onChange={handleShippingInfoChange('address')}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12}>
+                                            <TextField
+                                                fullWidth={true}
+                                                label="Address Line 2 (Optional)"
+                                                value={shippingInfo.address2}
+                                                onChange={handleShippingInfoChange('address2')}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <TextField
+                                                required={true}
+                                                fullWidth={true}
+                                                label="City"
+                                                value={shippingInfo.city}
+                                                onChange={handleShippingInfoChange('city')}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <TextField
+                                                select={true}
+                                                required={true}
+                                                fullWidth={true}
+                                                label="State"
+                                                value={shippingInfo.state}
+                                                onChange={handleShippingInfoChange('state')}
+                                            >
+                                                {US_STATES.map(function(state) {
+                                                    return (
+                                                        <MenuItem key={state.code} value={state.code}>
+                                                            {state.name}
+                                                        </MenuItem>
+                                                    );
+                                                })}
+                                            </TextField>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <TextField
+                                                required={true}
+                                                fullWidth={true}
+                                                label="ZIP Code"
+                                                value={shippingInfo.zipCode}
+                                                onChange={handleShippingInfoChange('zipCode')}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <TextField
+                                                fullWidth={true}
+                                                label="Phone (Optional)"
+                                                value={shippingInfo.phone}
+                                                onChange={handleShippingInfoChange('phone')}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12}>
+                                            <Button
+                                                type="submit"
+                                                variant="contained"
+                                                fullWidth={true}
+                                                size="large"
+                                                disabled={!validateShippingInfo()}
+                                            >
+                                                Continue to Payment
+                                            </Button>
+                                        </Grid>
+                                    </Grid>
+                                </form>
+                            ) : (
+                                renderPaymentStep()
+                            )}
+                        </CardContent>
+                    </Card>
+    
+                    <SuccessDialog
+                        open={showSuccessDialog}
+                        orderId={orderSuccess?.orderId}
+                        email={orderSuccess?.email}
+                        total={orderSuccess?.total}
+                        onClose={function() {
+                            setShowSuccessDialog(false);
+                        }}
+                        onContinueShopping={function() {
+                            setShowSuccessDialog(false);
+                            window.location.href = '/marketplace';
+                        }}
+                        onViewOrderDetails={function(orderId) {
+                            window.location.href = `/order-confirmation/${orderId}`;
+                        }}
+                    />
+                </>
+            )}
+        </>
     );
 }
 
@@ -640,31 +848,34 @@ const ShoppingCartContent = function({ items, onUpdateQuantity, onRemoveItem }) 
             console.log('Sending checkout request with shipping details:', shippingDetails);
             
             const response = await fetch(
-                'https://us-central1-speedtrapracing-aa7c8.cloudfunctions.net/api/create-checkout-session',
+                '/api/stripe/create-checkout-session',
                 {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Origin': 'https://speedtrapracing.com'
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ 
                         items,
                         shippingInfo: shippingDetails
-                    }),
-                    credentials: 'include'
+                    })
                 }
             );
 
             if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Checkout error response:', errorData);
                 throw new Error('Network response was not ok');
             }
 
             const { sessionId } = await response.json();
+            console.log('Got Stripe session ID:', sessionId);
+            
             const stripe = await stripePromise;
             
             const { error } = await stripe.redirectToCheckout({ sessionId });
             
             if (error) {
+                console.error('Stripe redirect error:', error);
                 throw error;
             }
         } catch (error) {
