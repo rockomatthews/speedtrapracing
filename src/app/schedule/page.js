@@ -37,38 +37,38 @@ const Schedule = () => {
   const [bookings, setBookings] = useState([]); // New state for bookings
   const [loading, setLoading] = useState(true);
 
-  console.log("selectedDate: ",selectedDate)
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
     });
-
+  
     const existingBookingDetails = localStorage.getItem('bookingDetails');
     if (existingBookingDetails) {
-      console.log("existingBookingDetails: ", existingBookingDetails)
       const parsedBookingDetails = JSON.parse(existingBookingDetails);
-      console.log("parsedBookingDetails :", parsedBookingDetails)
-      
+  
       // Populate the component's state with the saved booking details
       setSelectedDate(DateTime.fromISO(parsedBookingDetails.date));
-      setSelectedTimeSlots(parsedBookingDetails.timeSlots.reduce((acc, time) => {
-        acc[time] = true; // Set each selected time slot to true
-        return acc;
-      }, {}));
+      setSelectedTimeSlots(
+        parsedBookingDetails.timeSlots.reduce((acc, time) => {
+          acc[time] = true; // Set each selected time slot to true
+          return acc;
+        }, {})
+      );
       setGroupSize(parsedBookingDetails.groupSize);
-      setLoading(false)
+    } else {
+      // Set the default date to the current date if no saved booking details
+      setSelectedDate(DateTime.now());
     }
-    setLoading(false)
-
+  
+    setLoading(false);
     return () => unsubscribe();
   }, []);
+  
 
-  console.log("Updated selectedDate: ", selectedDate);
 
   useEffect(() => {
     if(selectedDate == null && !loading){
       
-      console.log("Updated selectedDate to current data ", selectedDate);
       const today = DateTime.now();
       setSelectedDate(today);
     }
@@ -150,7 +150,7 @@ const Schedule = () => {
     setShowTempBar(Object.keys(selectedTimeSlots).length === 1);
   }, [selectedTimeSlots]);
 
-  const handleNextClick = async() => {
+  const handleNextClick = async () => {
     if (!selectedDate) {
       setError('Please select a date');
       return;
@@ -159,23 +159,58 @@ const Schedule = () => {
       setError('Please select at least one time slot');
       return;
     }
+  
     const bookingDetails = {
       date: selectedDate.toISO().split('T')[0],
       timeSlots: Object.keys(selectedTimeSlots),
-      groupSize: groupSize,
+      groupSize,
       totalPrice: calculateTotalPrice(),
       user: user.uid,
-      isFinalized: false
+      isFinalized: false,
     };
-
-    const bookingsCollectionRef = collection(db, 'bookings');
-    const docRef = await addDoc(bookingsCollectionRef, bookingDetails);
-    bookingDetails.docId = docRef.id;
-
-    localStorage.setItem('bookingDetails', JSON.stringify(bookingDetails));
-    router.push('/payment');
+  
+    try {
+      // Check if bookingDetails already has a docId
+      if (localStorage.getItem('bookingDetails')) {
+        const savedBookingDetails = JSON.parse(localStorage.getItem('bookingDetails'));
+  
+        if (savedBookingDetails.docId) {
+          // If a docId exists, update the document in Firestore
+          const bookingDocRef = doc(db, 'bookings', savedBookingDetails.docId);
+          await updateDoc(bookingDocRef, bookingDetails);
+  
+          // Update localStorage with the modified details
+          localStorage.setItem(
+            'bookingDetails',
+            JSON.stringify({ ...bookingDetails, docId: savedBookingDetails.docId })
+          );
+        } else {
+          // If no docId, create a new document
+          const bookingsCollectionRef = collection(db, 'bookings');
+          const docRef = await addDoc(bookingsCollectionRef, bookingDetails);
+  
+          // Save the new docId in localStorage
+          bookingDetails.docId = docRef.id;
+          localStorage.setItem('bookingDetails', JSON.stringify(bookingDetails));
+        }
+      } else {
+        // No existing bookingDetails, create a new document
+        const bookingsCollectionRef = collection(db, 'bookings');
+        const docRef = await addDoc(bookingsCollectionRef, bookingDetails);
+  
+        // Save the new docId in localStorage
+        bookingDetails.docId = docRef.id;
+        localStorage.setItem('bookingDetails', JSON.stringify(bookingDetails));
+      }
+  
+      // Navigate to the payment page
+      router.push('/payment');
+    } catch (error) {
+      console.error('Error creating/updating booking:', error);
+      setError('An error occurred while processing your booking. Please try again.');
+    }
   };
-
+  
   const calculateAvailableSims = () => {
     
     if (selectedDate == null) return 0; // Fixed the syntax error
@@ -219,70 +254,33 @@ const Schedule = () => {
     >
       <Box sx={{ width: '100%', zIndex: 1, position: 'relative' }}>
 
-        <LocalizationProvider dateAdapter={AdapterLuxon}>
-          <DatePicker
-            label="Select Date"
-            value={selectedDate}
-            onChange={handleDateChange}
-            minDate={DateTime.now()}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                InputProps={{
-                  ...params.InputProps,
-                  readOnly: true,
-                }}
-                sx={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  borderRadius: '4px',
-                  marginBottom: 2,
-                  width: '100%',
-                  '& .MuiInputBase-root': {
-                    color: '#ffffff',
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: '#ffffff',
-                  },
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#ffffff',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#ffffff',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#ffffff',
-                  },
-                  '& .MuiPickersDay-root': {
-                    color: '#000000',
-                    '&.Mui-selected': {
-                      backgroundColor: '#ffcc03',
-                      color: '#000000',
-                      '&:hover': {
-                        backgroundColor: '#d9ad00',
-                      },
-                    },
-                  },
-                  '& .MuiPickersDay-today': {
-                    borderColor: '#ffcc03',
-                  },
-                  '& .MuiPickersCalendarHeader-label': {
-                    color: '#ffffff',
-                  },
-                  '& .MuiIconButton-root': {
-                    color: '#ffffff',
-                  },
-                  '& .MuiPickersDay-daySelected': {
-                    backgroundColor: '#ffcc03',
-                    color: '#000000',
-                  },
-                  '& .MuiDialogActions-root .MuiButton-text': {
-                    color: '#000000',
-                  },
-                }}
-              />
-            )}
-          />
-        </LocalizationProvider>
+      <LocalizationProvider dateAdapter={AdapterLuxon}>
+        <DatePicker
+          label="Select Date"
+          value={selectedDate} // Ensure this points to the state
+          onChange={handleDateChange}
+          minDate={DateTime.now()} // Prevent selecting dates in the past
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              InputProps={{
+                ...params.InputProps,
+                readOnly: true,
+              }}
+              sx={{
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '4px',
+                marginBottom: 2,
+                width: '100%',
+                '& .MuiInputBase-root': { color: '#ffffff' },
+                '& .MuiInputLabel-root': { color: '#ffffff' },
+                '& .MuiOutlinedInput-notchedOutline': { borderColor: '#ffffff' },
+              }}
+            />
+          )}
+        />
+      </LocalizationProvider>
+
 
         {groupSize > 0 && selectedDate && Object.keys(selectedTimeSlots).length > 0 ? (
           <Button

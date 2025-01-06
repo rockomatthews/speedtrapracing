@@ -213,39 +213,47 @@ const Profile = () => {
           <p>No bookings found.</p>
         ) : (
           <Box>
-          {userBookings.map((booking) => (
-            <Paper
-              key={booking.id}
-              sx={{
-                marginBottom: 2,
-                padding: 2,
-                backgroundColor: '#1c1c1c',
-                color: '#fff',
-              }}
-            >
-              <Typography>Date: {booking.date}</Typography>
-              <Typography>Time Slots:     
-                {booking.timeSlots.map((slot, index) => (
-                  <Box
-                  key={index}
+          {userBookings
+          .sort((a, b) => new Date(a.date + 'T' + a.timeSlots[0]) - new Date(b.date + 'T' + b.timeSlots[0])) // Sort bookings by date and time
+          .map((booking) => {
+            const now = new Date();
+            const bookingStartTime = new Date(booking.date + 'T' + booking.timeSlots[0]); // Combine date and first time slot
+            
+            const isPast = bookingStartTime < now; // Check if booking is in the past
+
+              return (
+                <Paper
+                  key={booking.id}
                   sx={{
-                    display: 'inline-block',
-                    backgroundColor: '#3f51b5', // Change to your desired color
-                    color: '#fff',
-                    padding: '5px 5px',
-                    borderRadius: '5px',
-                    margin: '5px',
+                    marginBottom: 2,
+                    padding: 2,
+                    backgroundColor: isPast ? '#ffcccc' : '#1c1c1c', // Red for past bookings
+                    color: isPast ? '#000' : '#fff', // Black text for past bookings
                   }}
-                  >
+                >
+                  <Typography>Date: {booking.date}</Typography>
+                  <Typography>
+                    Time Slots:
+                    {booking.timeSlots.map((slot, index) => (
+                      <Box
+                        key={index}
+                        sx={{
+                          display: 'inline-block',
+                          backgroundColor: '#3f51b5',
+                          color: '#fff',
+                          padding: '5px 5px',
+                          borderRadius: '5px',
+                          margin: '5px',
+                        }}
+                      >
                         {slot}
                       </Box>
                     ))}
-              </Typography>
-              
-              <Typography>Group Size / Sims: {booking.groupSize}</Typography>
-              
-            </Paper>
-          ))}
+                  </Typography>
+                  <Typography>Group Size / Sims: {booking.groupSize}</Typography>
+                </Paper>
+              );
+            })}
         </Box>
         )}
 

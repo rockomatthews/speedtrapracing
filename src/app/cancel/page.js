@@ -1,7 +1,6 @@
-// app/booking/cancel/page.js
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -11,9 +10,34 @@ import {
 } from '@mui/material';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useRouter } from 'next/navigation';
+import { doc, deleteDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase'; // Import Firebase config
 
 const CancelPage = () => {
   const router = useRouter();
+
+  useEffect(() => {
+    const cancelBooking = async () => {
+      const bookingDetails = localStorage.getItem('bookingDetails');
+      if (bookingDetails) {
+        const parsedBookingDetails = JSON.parse(bookingDetails);
+        if (parsedBookingDetails.docId) {
+          try {
+            const bookingDocRef = doc(db, 'bookings', parsedBookingDetails.docId);
+            await deleteDoc(bookingDocRef); // Delete the document from Firestore
+            console.log('Booking document deleted successfully.');
+          } catch (error) {
+            console.error('Error deleting booking document:', error);
+          }
+        }
+
+        localStorage.removeItem('bookingDetails');
+        console.log('Booking details removed from localStorage.');
+      }
+    };
+
+    cancelBooking();
+  }, []);
 
   return (
     <Box

@@ -23,8 +23,9 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { useRouter } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import Image from 'next/image';
-import { doc, getDoc, updateDoc, setDoc, addDoc, collection, deleteDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, addDoc, collection, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
+import { DateTime } from 'luxon';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
@@ -50,18 +51,18 @@ const Payment = () => {
 
   const formatBookingDetails = (details) => {
     if (!details) return null;
-    
-    const date = new Date(details.date).toLocaleDateString('en-US', {
+
+    const date = DateTime.fromISO(details.date).toLocaleString({
       weekday: 'long',
-      year: 'numeric',
       month: 'long',
-      day: 'numeric'
-    });
+      day: 'numeric',
+      year: 'numeric',
+    });    
     
     return (
       <Card 
         sx={{ 
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          backgroundColor: '#000',
           marginBottom: '20px',
           width: '100%',
           maxWidth: isMobile ? '100%' : '350px',
@@ -111,7 +112,6 @@ const Payment = () => {
   };
 
   useEffect(() => {
-    // Function to delete the booking document
     const deleteBooking = async () => {
       if (bookingDetails && bookingDetails.docId) {
         const bookingDocRef = doc(db, 'bookings', bookingDetails.docId);
@@ -119,13 +119,9 @@ const Payment = () => {
       }
     };
   
-    // Set up cleanup function to delete booking on unmount
-    return () => {
-      deleteBooking();
-    };
   }, [bookingDetails]);
   
-  console.log("bookingDetails: ",bookingDetails)
+  
   const handleMethodClick = async (method) => {
     setSelectedMethod(method);
     setLoading(true);

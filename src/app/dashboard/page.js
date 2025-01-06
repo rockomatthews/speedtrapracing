@@ -20,6 +20,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
+import { DateTime } from 'luxon';
 
 const AdminDashboard = () => {
   const { user, loading } = useAuth();
@@ -29,6 +30,7 @@ const AdminDashboard = () => {
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
+  const [timeLeft, setTimeLeft] = useState({});
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -51,7 +53,65 @@ const AdminDashboard = () => {
     checkAdmin();
   }, [user, loading, router]);
 
-  // Fetch bookings from Firestore
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        const now = DateTime.now();
+        const updatedTimeLeft = {};
+  
+        bookings.forEach((booking) => {
+          const timeSlotsLeft = booking.timeSlots
+            .map((slot) => {
+              const [hour, minute] = slot.split(':');
+              const bookingSlotTime = DateTime.fromISO(booking.date).set({
+                hour: parseInt(hour, 10),
+                minute: parseInt(minute, 10),
+              });
+  
+              if (bookingSlotTime > now) {
+                return bookingSlotTime.diff(now, ['minutes']).minutes; // Time left in minutes
+              }
+              return 0; // Skip past time slots
+            })
+            .filter((timeLeft) => timeLeft > 0); // Keep only active time slots
+  
+          const totalTimeLeft = timeSlotsLeft.length > 0
+            ? timeSlotsLeft.reduce((total, minutes) => total + minutes, 0)
+            : 0; // Total remaining time in minutes
+  
+          updatedTimeLeft[booking.id] = totalTimeLeft;
+        });
+  
+        return updatedTimeLeft;
+      });
+    }, 1000);
+  
+    return () => clearInterval(interval); // Cleanup interval on unmount
+  }, [bookings]);
+  
+
+  const calculateTimeLeft = (booking) => {
+    const now = DateTime.now();
+    const timeSlotsLeft = booking.timeSlots
+      .map((slot) => {
+        const [hour, minute] = slot.split(':');
+        const bookingSlotTime = DateTime.fromISO(booking.date).set({
+          hour: parseInt(hour, 10),
+          minute: parseInt(minute, 10),
+        });
+  
+        if (bookingSlotTime > now) {
+          return bookingSlotTime.diff(now, ['minutes']).minutes; // Time left in minutes
+        }
+        return 0; // Skip past time slots
+      })
+      .filter((timeLeft) => timeLeft > 0); // Keep only active time slots
+  
+    return timeSlotsLeft.length > 0
+      ? timeSlotsLeft.reduce((total, minutes) => total + minutes, 0)
+      : 0; // Total remaining time in minutes
+  };
+
   const fetchBookings = async () => {
     try {
       const bookingsCollection = collection(db, 'bookings');
@@ -130,7 +190,6 @@ const AdminDashboard = () => {
       {isLoading ? (
         <Typography sx={{ color: '#fff' }}>Loading...</Typography>
       ) : isMobile ? (
-        // Mobile layout
         <Box>
           {bookings.map((booking) => (
             <Paper
@@ -146,25 +205,35 @@ const AdminDashboard = () => {
                 {booking.userName}
               </Typography>
               <Typography>Date: {booking.date}</Typography>
-              <Typography>Time Slots:     
+              <Typography>
+                Time Slots:
                 {booking.timeSlots.map((slot, index) => (
                   <Box
-                  key={index}
-                  sx={{
-                    display: 'inline-block',
-                    backgroundColor: '#3f51b5', // Change to your desired color
-                    color: '#fff',
-                    padding: '5px 5px',
-                    borderRadius: '5px',
-                    margin: '5px',
-                  }}
+                    key={index}
+                    sx={{
+                      display: 'inline-block',
+                      backgroundColor: '#3f51b5',
+                      color: '#fff',
+                      padding: '5px 5px',
+                      borderRadius: '5px',
+                      margin: '5px',
+                    }}
                   >
-                        {slot}
-                      </Box>
-                    ))}
+                    {slot}
+                  </Box>
+                ))}
               </Typography>
-              
-              <Typography>Group Size / Sims: {booking.groupSize}</Typography>
+              <Typography>Group Size: {booking.groupSize}</Typography>
+              <Typography>Sims: 8 </Typography>
+              <Typography>
+                Time Left:{' '}
+                {timeLeft[booking.id] && timeLeft[booking.id] > 0
+                  ? `${Math.floor(timeLeft[booking.id])}.${Math.round((timeLeft[booking.id] % 1) * 100)
+                      .toString()
+                      .padStart(2, '0')} minutes`
+                  : 'Completed'}
+              </Typography>
+
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', marginTop: 1 }}>
                 <IconButton
                   color="primary"
@@ -183,8 +252,9 @@ const AdminDashboard = () => {
             </Paper>
           ))}
         </Box>
+
       ) : (
-        // Desktop layout (existing table)
+
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
@@ -199,7 +269,16 @@ const AdminDashboard = () => {
                   <Typography sx={{ fontWeight: 'bold' }}>Time Slots</Typography>
                 </TableCell>
                 <TableCell>
-                  <Typography sx={{ fontWeight: 'bold' }}>Group Size / Sims</Typography>
+                  <Typography sx={{ fontWeight: 'bold' }}>Group Size</Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography sx={{ fontWeight: 'bold' }}>Sims</Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography sx={{ fontWeight: 'bold' }}>Time Left</Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography sx={{ fontWeight: 'bold' }}>checked in</Typography>
                 </TableCell>
                 <TableCell>
                   <Typography sx={{ fontWeight: 'bold' }}>Actions</Typography>
@@ -217,7 +296,7 @@ const AdminDashboard = () => {
                         key={index}
                         sx={{
                           display: 'inline-block',
-                          backgroundColor: '#3f51b5', // Change to your desired color
+                          backgroundColor: '#3f51b5',
                           color: '#fff',
                           padding: '5px 10px',
                           borderRadius: '5px',
@@ -228,7 +307,22 @@ const AdminDashboard = () => {
                       </Box>
                     ))}
                   </TableCell>
+
                   <TableCell>{booking.groupSize}</TableCell>
+                  <TableCell>8</TableCell>
+
+                  <TableCell>
+                    {timeLeft[booking.id] && timeLeft[booking.id] > 0
+                      ? `${Math.floor(timeLeft[booking.id])}.${Math.round((timeLeft[booking.id] % 1) * 100)
+                          .toString()
+                          .padStart(2, '0')} minutes`
+                      : 'Completed'}
+                  </TableCell>
+                  <TableCell>
+                    {/* {booking.checkedIn ? 'Yes' : 'No'} */}
+                    yes
+                  </TableCell>
+
                   <TableCell>
                     <IconButton
                       color="primary"
@@ -247,6 +341,7 @@ const AdminDashboard = () => {
                 </TableRow>
               ))}
             </TableBody>
+
           </Table>
         </TableContainer>
       )}

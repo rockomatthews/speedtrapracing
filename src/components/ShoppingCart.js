@@ -88,6 +88,21 @@ const US_STATES = [
   { name: 'Wyoming', code: 'WY' }
 ].sort((a, b) => a.name.localeCompare(b.name));
 
+const ERROR_MESSAGES = {
+  CARD_DECLINED: "Your card was declined. Please try a different payment method.",
+  FRAUD_SUSPECTED: "This transaction was flagged for potential fraud. Please try a different payment method or contact your bank.",
+  PROCESSOR_DECLINED: "Transaction declined by your bank. Please try another card or contact your bank.",
+  NETWORK_ERROR: "Connection error detected. Please check your internet and try again.",
+  INVALID_PAYMENT: "Invalid payment information provided. Please check and try again.",
+  GENERAL_ERROR: "An error occurred processing your payment. Please try again.",
+  SESSION_EXPIRED: "Your payment session expired. Please refresh and try again.",
+  INSUFFICIENT_FUNDS: "Insufficient funds. Please try a different card or payment method.",
+  CVV_VERIFICATION: "CVV verification failed. Please check your card details.",
+  POSTAL_CODE: "Postal code verification failed. Please check your billing information.",
+  EXPIRED_CARD: "The card has expired. Please use a different card.",
+  GATEWAY_ERROR: "Payment system temporarily unavailable. Please try again shortly."
+};
+
 // Empty cart state component
 const EmptyCartState = () => (
   <Card sx={{ maxWidth: 600, margin: '20px auto', py: 6 }}>
@@ -211,11 +226,20 @@ const ShoppingCartComponent = ({ items = [], onUpdateQuantity, onRemoveItem }) =
   // State management
   const [isLoading, setIsLoading] = useState(false);
   const [paymentError, setPaymentError] = useState(null);
+  const [paymentErrorDialogOpen, setPaymentErrorDialogOpen] = useState(false);
+  const [paymentErrorIsWarning, setPaymentErrorIsWarning] = useState(false);
   const [braintreeInstance, setBraintreeInstance] = useState(null);
   const [activeStep, setActiveStep] = useState(0);
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(null);
   
+      // Snackbar State
+  const [snackbarMessage, setSnackbarMessage] = useState({
+        open: false,
+        message: '',
+        severity: 'info'
+    });
+
   // Shipping information state
   const [shippingInfo, setShippingInfo] = useState({
     firstName: '',
@@ -301,22 +325,83 @@ const ShoppingCartComponent = ({ items = [], onUpdateQuantity, onRemoveItem }) =
     );
   };
 
-  // Braintree initialization
-  const fetchClientToken = async () => {
-    try {
-      const response = await fetch('/api/braintree/client-token');
-      const data = await response.json();
-      
-      if (data.clientToken) {
-        await initializeBraintree(data.clientToken);
-      } else {
-        throw new Error('No client token received');
-      }
-    } catch (error) {
-      console.error('Error fetching client token:', error);
-      setPaymentError('Failed to initialize payment system. Please try again.');
+  const handlePaymentError = function(error, isWarning = false) {
+    console.error('Payment error:', error);
+    
+    let errorMessage = ERROR_MESSAGES.GENERAL_ERROR;
+    
+    if (error.message) {
+        if (error.message.includes('Processor Declined')) {
+            errorMessage = ERROR_MESSAGES.PROCESSOR_DECLINED;
+            isWarning = true;
+        } else if (error.message.includes('Fraud Suspected')) {
+            errorMessage = ERROR_MESSAGES.FRAUD_SUSPECTED;
+            isWarning = true;
+        } else if (error.message.includes('Insufficient Funds')) {
+            errorMessage = ERROR_MESSAGES.INSUFFICIENT_FUNDS;
+            isWarning = true;
+        } else if (error.message.includes('CVV')) {
+            errorMessage = ERROR_MESSAGES.CVV_VERIFICATION;
+            isWarning = true;
+        } else if (error.message.includes('Postal Code')) {
+            errorMessage = ERROR_MESSAGES.POSTAL_CODE;
+            isWarning = true;
+        } else if (error.message.includes('Expired Card')) {
+            errorMessage = ERROR_MESSAGES.EXPIRED_CARD;
+            isWarning = true;
+        } else if (error.message.includes('Network Error')) {
+            errorMessage = ERROR_MESSAGES.NETWORK_ERROR;
+        } else if (error.message.includes('Gateway')) {
+            errorMessage = ERROR_MESSAGES.GATEWAY_ERROR;
+        }
+    }
+
+    setPaymentError(errorMessage);
+    setPaymentErrorIsWarning(isWarning);
+    setPaymentErrorDialogOpen(true);
+    
+    if (!isWarning) {
+        setSnackbarMessage({
+            open: true,
+            message: "There was an issue processing your payment",
+            severity: 'error'
+        });
     }
   };
+
+  // Braintree initialization
+  const fetchClientToken = async function() {
+    try {
+        console.log('Fetching client token...');
+        
+        const response = await fetch('/api/braintree/client-token', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            console.error('Client token fetch failed with status:', response.status);
+            throw new Error(`Failed to fetch client token: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data.clientToken) {
+            console.error('No client token in response:', data);
+            throw new Error('No client token received');
+        }
+
+        console.log('Successfully received client token');
+        await initializeBraintree(data.clientToken);
+        
+    } catch (error) {
+        console.error('Error fetching client token:', error);
+        handlePaymentError(new Error('Failed to initialize payment system'));
+    }
+};
+
 
   const initializeBraintree = async (token) => {
     try {
