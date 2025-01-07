@@ -17,71 +17,24 @@ const CARD_ELEMENT_OPTIONS = {
     },
 };
 
-const PaymentForm = ({ amount, onSuccess, onError }) => {
-    const stripe = useStripe();
-    const elements = useElements();
-    const [isProcessing, setIsProcessing] = useState(false);
-
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        
-        if (!stripe || !elements) {
-            return;
-        }
-
-        setIsProcessing(true);
-
-        try {
-            // Create payment intent
-            const response = await fetch('/api/stripe/payment-intent', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ amount }),
-            });
-
-            const { clientSecret } = await response.json();
-
-            // Confirm payment
-            const result = await stripe.confirmCardPayment(clientSecret, {
-                payment_method: {
-                    card: elements.getElement(CardElement),
-                }
-            });
-
-            if (result.error) {
-                onError(result.error);
-            } else {
-                onSuccess(result.paymentIntent);
-            }
-        } catch (error) {
-            onError(error);
-        } finally {
-            setIsProcessing(false);
-        }
-    };
-
+const PaymentForm = ({ onSubmit, loading, error }) => {
     return (
-        <form onSubmit={handleSubmit}>
-            <Box sx={{ mb: 3 }}>
-                <CardElement options={CARD_ELEMENT_OPTIONS} />
-            </Box>
+        <form onSubmit={(e) => onSubmit(e)}>
             <Button
                 type="submit"
                 variant="contained"
+                color="primary"
                 fullWidth
-                disabled={!stripe || isProcessing}
+                disabled={loading}
+                sx={{ mb: 2 }}
             >
-                {isProcessing ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <CircularProgress size={20} color="inherit" />
-                        <span>Processing...</span>
-                    </Box>
-                ) : (
-                    `Pay $${(amount / 100).toFixed(2)}`
-                )}
+                {loading ? <CircularProgress size={24} /> : 'Pay with Stripe'}
             </Button>
+            {error && (
+                <Typography color="error" align="center">
+                    {error}
+                </Typography>
+            )}
         </form>
     );
 };

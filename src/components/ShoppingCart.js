@@ -48,8 +48,8 @@ const ERROR_MESSAGES = {
     GATEWAY_ERROR: "Payment system temporarily unavailable. Please try again shortly."
 };
 
-// Move this outside of the component
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+// Initialize Stripe outside of component
+const stripePromise = loadStripe('pk_live_51QAK9gRrm3SnxLCwHv53cFxXUdRG833k8Z83Vh5uAchzpCw9MqnyT5UJpOYVaJ9TIc0PmGa7qyrxraA063QwyeGE00RnyKzKHV');
 
 const INITIAL_SHIPPING_STATE = {
     firstName: '',
@@ -383,9 +383,10 @@ const ShoppingCartComponent = function({ items, onUpdateQuantity, onRemoveItem }
         console.log('Current shipping info:', shippingInfo);
     }, [shippingInfo]);
 
-    const handleCheckout = async () => {
+    const handleCheckout = async (event) => {
+        event.preventDefault(); // Prevent form submission refresh
         try {
-            setLoading(true);
+            setIsLoading(true);
             
             const savedShippingInfo = localStorage.getItem('shippingInfo');
             const shippingDetails = savedShippingInfo ? JSON.parse(savedShippingInfo) : {};
@@ -416,6 +417,9 @@ const ShoppingCartComponent = function({ items, onUpdateQuantity, onRemoveItem }
             console.log('Got Stripe session ID:', sessionId);
             
             const stripe = await stripePromise;
+            if (!stripe) {
+                throw new Error('Stripe failed to initialize');
+            }
             
             const { error } = await stripe.redirectToCheckout({ sessionId });
             
@@ -427,485 +431,38 @@ const ShoppingCartComponent = function({ items, onUpdateQuantity, onRemoveItem }
             console.error('Checkout error:', error);
             setError(error.message);
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
     };
 
     const renderPaymentStep = () => (
         <Box>
             {/* Show shipping info summary */}
-            <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-                <Typography variant="h6" gutterBottom>Shipping Information</Typography>
-                <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                        <Typography variant="body2" color="text.secondary">
-                            Name: {shippingInfo.firstName} {shippingInfo.lastName}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            Email: {shippingInfo.email}
-                        </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <Typography variant="body2" color="text.secondary">
-                            Address: {shippingInfo.address}
-                            {shippingInfo.address2 && `, ${shippingInfo.address2}`}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            {shippingInfo.city}, {shippingInfo.state} {shippingInfo.zipCode}
-                        </Typography>
-                    </Grid>
-                </Grid>
-            </Box>
-
-            {/* Order Summary */}
-            <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>Order Summary</Typography>
-                <Typography variant="body1">
-                    Total: ${calculateTotal().toFixed(2)}
-                </Typography>
-            </Box>
-
-            {/* Payment Form */}
-            <PaymentForm
-                onSubmit={handleCheckout}
-                loading={isLoading}
-                error={error}
-            />
-
-            {/* Back Button */}
-            <Button
-                variant="outlined"
-                onClick={() => setActiveStep(0)}
-                sx={{ mt: 2 }}
-                fullWidth
-            >
-                Back to Shipping
-            </Button>
-        </Box>
-    );
-
-    if (items.length === 0) {
-        return (
-            <Card sx={{ maxWidth: 600, margin: '20px auto', padding: 4 }}>
-                <CardContent>
-                    <Box display="flex" flexDirection="column" alignItems="center" textAlign="center">
-                        <ShoppingCartIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
-                        <Typography variant="h5" gutterBottom>Your Cart is Empty</Typography>
-                        <Typography color="text.secondary" sx={{ mb: 3 }}>
-                            Start adding items to your cart to check out.
-                        </Typography>
-                        <Button
-                            variant="contained"
-                            component="a"
-                            href="/marketplace"
-                            startIcon={<ShoppingCartIcon />}
-                        >
-                            Continue Shopping
-                        </Button>
-                    </Box>
-                </CardContent>
-            </Card>
-        );
-    }
-
-    return (
-        <>
-            {items.length === 0 ? (
-                <Card sx={{ maxWidth: 600, margin: '20px auto', padding: 4 }}>
-                    <CardContent>
-                        <Box display="flex" flexDirection="column" alignItems="center" textAlign="center">
-                            <ShoppingCartIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
-                            <Typography variant="h5" gutterBottom>Your Cart is Empty</Typography>
-                            <Typography color="text.secondary" sx={{ mb: 3 }}>
-                                Start adding items to your cart to check out.
-                            </Typography>
-                            <Button
-                                variant="contained"
-                                component="a"
-                                href="/marketplace"
-                                startIcon={<ShoppingCartIcon />}
-                            >
-                                Continue Shopping
-                            </Button>
-                        </Box>
-                    </CardContent>
-                </Card>
-            ) : (
-                <>
-                    <Card sx={{ maxWidth: 800, margin: '20px auto' }}>
-                        <CardContent>
-                            <Typography variant="h5" gutterBottom={true}>Shopping Cart</Typography>
-                            
-                            <Stepper activeStep={activeStep} sx={{ marginBottom: 4 }}>
-                                <Step>
-                                    <StepLabel>Shipping</StepLabel>
-                                </Step>
-                                <Step>
-                                    <StepLabel>Payment</StepLabel>
-                                </Step>
-                            </Stepper>
-    
-                            {activeStep === 0 ? (
-                                <form onSubmit={handleShippingSubmit}>
-                                    {items.map(function(item) {
-                                        return (
-                                            <Box key={item.id}>
-                                                <Box sx={{ display: 'flex', py: 2, alignItems: 'center' }}>
-                                                    <Box sx={{ flexGrow: 1 }}>
-                                                        <Typography variant="subtitle1">{item.title}</Typography>
-                                                        <Typography variant="body2" color="text.secondary">
-                                                            USD {Number(item.price).toFixed(2)}
-                                                        </Typography>
-                                                    </Box>
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                                        <Select
-                                                            size="small"
-                                                            value={item.quantity}
-                                                            onChange={function(event) {
-                                                                onUpdateQuantity(item.id, parseInt(event.target.value));
-                                                            }}
-                                                        >
-                                                            {[1, 2, 3, 4, 5].map(function(num) {
-                                                                return (
-                                                                    <MenuItem key={num} value={num}>{num}</MenuItem>
-                                                                );
-                                                            })}
-                                                        </Select>
-                                                        <IconButton 
-                                                            onClick={function() {
-                                                                onRemoveItem(item.id);
-                                                            }}
-                                                            color="error"
-                                                            size="small"
-                                                        >
-                                                            <DeleteIcon />
-                                                        </IconButton>
-                                                    </Box>
-                                                </Box>
-                                                <Divider />
-                                            </Box>
-                                        );
-                                    })}
-    
-                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', my: 2 }}>
-                                        <Typography variant="h6">
-                                            Total: USD {calculateTotal().toFixed(2)}
-                                        </Typography>
-                                    </Box>
-    
-                                    <Grid container spacing={2}>
-                                        <Grid item xs={12} sm={6}>
-                                            <TextField
-                                                required={true}
-                                                fullWidth={true}
-                                                label="First Name"
-                                                value={shippingInfo.firstName}
-                                                onChange={handleShippingInfoChange('firstName')}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={12} sm={6}>
-                                            <TextField
-                                                required={true}
-                                                fullWidth={true}
-                                                label="Last Name"
-                                                value={shippingInfo.lastName}
-                                                onChange={handleShippingInfoChange('lastName')}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={12}>
-                                            <TextField
-                                                required={true}
-                                                fullWidth={true}
-                                                type="email"
-                                                label="Email"
-                                                value={shippingInfo.email}
-                                                onChange={handleShippingInfoChange('email')}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={12}>
-                                            <TextField
-                                                required={true}
-                                                fullWidth={true}
-                                                label="Address Line 1"
-                                                value={shippingInfo.address}
-                                                onChange={handleShippingInfoChange('address')}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={12}>
-                                            <TextField
-                                                fullWidth={true}
-                                                label="Address Line 2 (Optional)"
-                                                value={shippingInfo.address2}
-                                                onChange={handleShippingInfoChange('address2')}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={12} sm={6}>
-                                            <TextField
-                                                required={true}
-                                                fullWidth={true}
-                                                label="City"
-                                                value={shippingInfo.city}
-                                                onChange={handleShippingInfoChange('city')}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={12} sm={6}>
-                                            <TextField
-                                                select={true}
-                                                required={true}
-                                                fullWidth={true}
-                                                label="State"
-                                                value={shippingInfo.state}
-                                                onChange={handleShippingInfoChange('state')}
-                                            >
-                                                {US_STATES.map(function(state) {
-                                                    return (
-                                                        <MenuItem key={state.code} value={state.code}>
-                                                            {state.name}
-                                                        </MenuItem>
-                                                    );
-                                                })}
-                                            </TextField>
-                                        </Grid>
-                                        <Grid item xs={12} sm={6}>
-                                            <TextField
-                                                required={true}
-                                                fullWidth={true}
-                                                label="ZIP Code"
-                                                value={shippingInfo.zipCode}
-                                                onChange={handleShippingInfoChange('zipCode')}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={12} sm={6}>
-                                            <TextField
-                                                fullWidth={true}
-                                                label="Phone (Optional)"
-                                                value={shippingInfo.phone}
-                                                onChange={handleShippingInfoChange('phone')}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={12}>
-                                            <Button
-                                                type="submit"
-                                                variant="contained"
-                                                fullWidth={true}
-                                                size="large"
-                                                disabled={!validateShippingInfo()}
-                                            >
-                                                Continue to Payment
-                                            </Button>
-                                        </Grid>
-                                    </Grid>
-                                </form>
-                            ) : (
-                                renderPaymentStep()
-                            )}
-                        </CardContent>
-                    </Card>
-    
-                    <SuccessDialog
-                        open={showSuccessDialog}
-                        orderId={orderSuccess?.orderId}
-                        email={orderSuccess?.email}
-                        total={orderSuccess?.total}
-                        onClose={function() {
-                            setShowSuccessDialog(false);
-                        }}
-                        onContinueShopping={function() {
-                            setShowSuccessDialog(false);
-                            window.location.href = '/marketplace';
-                        }}
-                        onViewOrderDetails={function(orderId) {
-                            window.location.href = `/order-confirmation/${orderId}`;
-                        }}
-                    />
-                </>
-            )}
-        </>
-    );
-}
-
-const ShoppingCartContent = function({ items, onUpdateQuantity, onRemoveItem }) {
-    const [isLoading, setIsLoading] = useState(false);
-    const [activeStep, setActiveStep] = useState(0);
-    const [shippingInfo, setShippingInfo] = useState(INITIAL_SHIPPING_STATE);
-    const [orderSuccess, setOrderSuccess] = useState(null);
-    const [showSuccessDialog, setShowSuccessDialog] = useState(false);
-    const [error, setError] = useState(null);
-
-    const calculateTotal = function() {
-        return items.reduce(function(sum, item) {
-            const itemPrice = Number(item.price) || 0;
-            const itemQuantity = Number(item.quantity) || 0;
-            return sum + (itemPrice * itemQuantity);
-        }, 0);
-    };
-
-    const handlePaymentSuccess = async (paymentIntent) => {
-        try {
-            if (auth.currentUser) {
-                const userRef = doc(db, 'Users', auth.currentUser.uid);
-                await updateDoc(userRef, {
-                    firstName: shippingInfo.firstName,
-                    lastName: shippingInfo.lastName,
-                    email: shippingInfo.email,
-                    hasOrdered: true,
-                    shippingAddresses: arrayUnion({
-                        address1: shippingInfo.address,
-                        address2: shippingInfo.address2 || null,
-                        city: shippingInfo.city,
-                        state: shippingInfo.state,
-                        postal_code: shippingInfo.zipCode,
-                        country: shippingInfo.country
-                    }),
-                    updatedAt: new Date().toISOString()
-                });
-            }
-
-            // Clear cart items
-            items.forEach((item) => onRemoveItem(item.id));
-            
-            // Set success data
-            setOrderSuccess({
-                orderId: paymentIntent.id,
-                email: shippingInfo.email,
-                total: (paymentIntent.amount / 100).toFixed(2)
-            });
-
-            setShowSuccessDialog(true);
-            setActiveStep(0);
-            setShippingInfo(INITIAL_SHIPPING_STATE);
-        } catch (error) {
-            console.error('Error processing successful payment:', error);
-            handlePaymentError(error);
-        }
-    };
-
-    const handleShippingInfoChange = function(field) {
-        return function(event) {
-            setShippingInfo(function(prev) {
-                return {
-                    ...prev,
-                    [field]: event.target.value
-                };
-            });
-        };
-    };
-
-    const validateShippingInfo = function() {
-        const required = [
-            'firstName',
-            'lastName',
-            'email',
-            'address',
-            'city',
-            'state',
-            'zipCode'
-        ];
-        
-        return required.every(function(field) {
-            return shippingInfo[field] && shippingInfo[field].trim() !== '';
-        });
-    };
-
-    const handleShippingSubmit = async (event) => {
-        event.preventDefault();
-        if (!validateShippingInfo()) {
-            return;
-        }
-        
-        // Store shipping info in localStorage
-        localStorage.setItem('shippingInfo', JSON.stringify(shippingInfo));
-        
-        setActiveStep(1);
-    };
-
-    // Load shipping info on mount
-    useEffect(() => {
-        const savedShippingInfo = localStorage.getItem('shippingInfo');
-        if (savedShippingInfo) {
-            try {
-                const parsedInfo = JSON.parse(savedShippingInfo);
-                console.log('Loading saved shipping info:', parsedInfo);
-                setShippingInfo(parsedInfo);
-            } catch (e) {
-                console.error('Error loading shipping info:', e);
-            }
-        }
-    }, []);
-
-    // Debug log when shipping info changes
-    useEffect(() => {
-        console.log('Current shipping info:', shippingInfo);
-    }, [shippingInfo]);
-
-    const handleCheckout = async () => {
-        try {
-            setLoading(true);
-            
-            const savedShippingInfo = localStorage.getItem('shippingInfo');
-            const shippingDetails = savedShippingInfo ? JSON.parse(savedShippingInfo) : {};
-            
-            console.log('Sending checkout request with shipping details:', shippingDetails);
-            
-            const response = await fetch(
-                '/api/stripe/create-checkout-session',
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                        items,
-                        shippingInfo: shippingDetails
-                    })
+            <Box sx={{ 
+                mb: 3, 
+                p: 2, 
+                bgcolor: 'background.paper', 
+                borderRadius: 1,
+                '& .MuiTypography-root': {
+                    color: 'white'
                 }
-            );
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Checkout error response:', errorData);
-                throw new Error('Network response was not ok');
-            }
-
-            const { sessionId } = await response.json();
-            console.log('Got Stripe session ID:', sessionId);
-            
-            const stripe = await stripePromise;
-            
-            const { error } = await stripe.redirectToCheckout({ sessionId });
-            
-            if (error) {
-                console.error('Stripe redirect error:', error);
-                throw error;
-            }
-        } catch (error) {
-            console.error('Checkout error:', error);
-            setError(error.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const renderPaymentStep = () => (
-        <Box>
-            {/* Show shipping info summary */}
-            <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+            }}>
                 <Typography variant="h6" gutterBottom>Shipping Information</Typography>
                 <Grid container spacing={2}>
                     <Grid item xs={12} sm={6}>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2">
                             Name: {shippingInfo.firstName} {shippingInfo.lastName}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2">
                             Email: {shippingInfo.email}
                         </Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2">
                             Address: {shippingInfo.address}
                             {shippingInfo.address2 && `, ${shippingInfo.address2}`}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2">
                             {shippingInfo.city}, {shippingInfo.state} {shippingInfo.zipCode}
                         </Typography>
                     </Grid>
