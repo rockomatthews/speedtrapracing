@@ -276,6 +276,8 @@ const ShoppingCartComponent = function({ items, onUpdateQuantity, onRemoveItem }
     const [orderSuccess, setOrderSuccess] = useState(null);
     const [showSuccessDialog, setShowSuccessDialog] = useState(false);
     const [error, setError] = useState(null);
+    const [snackbarMessage, setSnackbarMessage] = useState(null);
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
 
     const calculateTotal = function() {
         return items.reduce(function(sum, item) {
@@ -384,7 +386,7 @@ const ShoppingCartComponent = function({ items, onUpdateQuantity, onRemoveItem }
     }, [shippingInfo]);
 
     const handleCheckout = async (event) => {
-        event.preventDefault(); // Prevent form submission refresh
+        event.preventDefault();
         try {
             setIsLoading(true);
             
@@ -393,27 +395,44 @@ const ShoppingCartComponent = function({ items, onUpdateQuantity, onRemoveItem }
             
             console.log('Sending checkout request with shipping details:', shippingDetails);
             
-            const response = await fetch(
-                '/api/stripe/create-checkout-session',
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                        items,
-                        shippingInfo: shippingDetails
-                    })
-                }
-            );
+            // Ensure prices are numbers
+            const formattedItems = items.map(item => ({
+                id: item.id,
+                name: item.name,
+                price: Number(item.price),
+                quantity: item.quantity,
+                images: item.images || []
+            }));
 
+            const response = await fetch('/api/stripe/checkout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    items: formattedItems,
+                    shippingInfo: shippingDetails
+                })
+            });
+
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                console.error('Error parsing response:', e);
+                throw new Error('Invalid server response');
+            }
+            
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Checkout error response:', errorData);
-                throw new Error('Network response was not ok');
+                console.error('Checkout error response:', data);
+                throw new Error(data.error || `Server error: ${response.status}`);
             }
 
-            const { sessionId } = await response.json();
+            const { sessionId } = data;
+            if (!sessionId) {
+                throw new Error('No session ID received from server');
+            }
+            
             console.log('Got Stripe session ID:', sessionId);
             
             const stripe = await stripePromise;
@@ -429,7 +448,13 @@ const ShoppingCartComponent = function({ items, onUpdateQuantity, onRemoveItem }
             }
         } catch (error) {
             console.error('Checkout error:', error);
-            setError(error.message);
+            setError(error.message || 'An unexpected error occurred');
+            // Show error to user
+            setSnackbarMessage({
+                message: error.message || 'Payment processing failed. Please try again.',
+                severity: 'error'
+            });
+            setSnackbarOpen(true);
         } finally {
             setIsLoading(false);
         }
