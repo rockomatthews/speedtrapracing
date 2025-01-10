@@ -20,32 +20,60 @@ export async function POST(request) {
       );
     }
 
-    // Validate prices are numbers
-    const invalidItems = items.filter(item => 
-      typeof item.price !== 'number' || isNaN(item.price) || item.price <= 0
-    );
+    // Validate items have required fields
+    const invalidItems = items.filter(item => {
+      const hasValidPrice = typeof item.price === 'number' && !isNaN(item.price) && item.price > 0;
+      const hasValidName = typeof item.name === 'string' && item.name.trim().length > 0;
+      const hasValidQuantity = typeof item.quantity === 'number' && item.quantity > 0;
+      
+      if (!hasValidPrice || !hasValidName || !hasValidQuantity) {
+        console.error('Invalid item:', item);
+        return true;
+      }
+      return false;
+    });
+
     if (invalidItems.length > 0) {
-      console.error('Invalid item prices:', invalidItems);
+      console.error('Invalid items:', invalidItems);
       return NextResponse.json(
-        { error: 'Invalid item prices' },
+        { error: 'Invalid items: Missing required fields or invalid values' },
         { status: 400 }
       );
     }
 
     // Create line items for Stripe
-    const lineItems = items.map(item => ({
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: item.name,
-          images: item.images?.length ? [item.images[0]] : [],
+    const lineItems = items.map(item => {
+      const lineItem = {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: item.name.trim(),
+            description: item.description || 'No description available',
+            images: item.images?.length ? [item.images[0]] : [],
+            metadata: {
+              id: item.id
+            }
+          },
+          unit_amount_decimal: (item.price * 100).toFixed(0),
         },
-        unit_amount: Math.round(item.price * 100), // Convert to cents
-      },
-      quantity: item.quantity,
-    }));
+        quantity: item.quantity,
+        adjustable_quantity: {
+          enabled: true,
+          minimum: 1,
+          maximum: 10,
+        },
+      };
 
-    console.log('Creating Stripe session with line items:', lineItems);
+      // Remove empty or undefined values
+      if (!lineItem.price_data.product_data.images.length) {
+        delete lineItem.price_data.product_data.images;
+      }
+
+      console.log('Created line item:', JSON.stringify(lineItem, null, 2));
+      return lineItem;
+    });
+
+    console.log('Line items:', JSON.stringify(lineItems, null, 2));
 
     try {
       const session = await stripe.checkout.sessions.create({
@@ -53,6 +81,17 @@ export async function POST(request) {
         line_items: lineItems,
         mode: 'payment',
         billing_address_collection: 'required',
+        allow_promotion_codes: true,
+        phone_number_collection: {
+          enabled: true,
+        },
+        payment_intent_data: {
+          receipt_email: shippingInfo.email,
+          metadata: {
+            orderId: `order_${Date.now()}`,
+            customerName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
+          }
+        },
         success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/cart`,
         shipping_address_collection: {
@@ -85,6 +124,7 @@ export async function POST(request) {
           customerEmail: shippingInfo.email,
           customerName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
         },
+        customer_email: shippingInfo.email,
       });
 
       console.log('Created Stripe session:', session.id);

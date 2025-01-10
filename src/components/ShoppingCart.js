@@ -378,7 +378,20 @@ const ShoppingCartComponent = function({ items, onUpdateQuantity, onRemoveItem }
                 console.error('Error loading shipping info:', e);
             }
         }
-    }, []);
+
+        // Listen for cart cleared event
+        const handleCartCleared = () => {
+            if (onRemoveItem) {
+                items.forEach(item => onRemoveItem(item.id));
+            }
+        };
+
+        window.addEventListener('cartCleared', handleCartCleared);
+
+        return () => {
+            window.removeEventListener('cartCleared', handleCartCleared);
+        };
+    }, [items, onRemoveItem]);
 
     // Debug log when shipping info changes
     useEffect(() => {
@@ -395,14 +408,21 @@ const ShoppingCartComponent = function({ items, onUpdateQuantity, onRemoveItem }
             
             console.log('Sending checkout request with shipping details:', shippingDetails);
             
-            // Ensure prices are numbers
-            const formattedItems = items.map(item => ({
-                id: item.id,
-                name: item.name,
-                price: Number(item.price),
-                quantity: item.quantity,
-                images: item.images || []
-            }));
+            // Ensure prices are numbers and names are strings
+            const formattedItems = items.map(item => {
+                console.log('Processing item:', item);
+                return {
+                    id: item.id,
+                    name: item.title || item.name || 'Unnamed Product',
+                    description: item.description || item.title || item.name || 'No description available',
+                    price: Number(item.price),
+                    quantity: item.quantity,
+                    images: Array.isArray(item.images) ? item.images : 
+                            item.image ? [item.image] : []
+                };
+            });
+
+            console.log('Formatted items for Stripe:', JSON.stringify(formattedItems, null, 2));
 
             const response = await fetch('/api/stripe/checkout', {
                 method: 'POST',

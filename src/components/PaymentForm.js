@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import React from 'react';
 import { Box, Button, CircularProgress, Typography } from '@mui/material';
 
 const CARD_ELEMENT_OPTIONS = {
@@ -8,13 +7,13 @@ const CARD_ELEMENT_OPTIONS = {
             fontSize: '16px',
             color: '#424770',
             '::placeholder': {
-                color: '#aab7c4',
-            },
+                color: '#aab7c4'
+            }
         },
         invalid: {
-            color: '#9e2146',
-        },
-    },
+            color: '#9e2146'
+        }
+    }
 };
 
 const PaymentForm = ({ onSubmit, loading, error }) => {

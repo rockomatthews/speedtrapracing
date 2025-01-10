@@ -11,9 +11,15 @@ export default function SuccessPage() {
 
   useEffect(() => {
     if (sessionId) {
-      // Clear cart
+      // Clear cart from localStorage
       localStorage.removeItem('cart');
       localStorage.removeItem('shippingInfo');
+      
+      // Clear cart from parent component if available
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cartCleared'));
+      }
+      
       setStatus('success');
     }
   }, [sessionId]);

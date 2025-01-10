@@ -78,11 +78,26 @@ async function handleSuccessfulPayment(paymentIntent) {
   try {
     // Fulfill the purchase
     console.log('💰 Payment succeeded:', paymentIntent.id);
-    // TODO: 
-    // - Update order status in database
-    // - Send confirmation email
-    // - Update inventory
-    // - Notify shipping/fulfillment
+
+    // Send receipt email via Stripe
+    if (paymentIntent.customer) {
+      await stripe.customers.createSource(paymentIntent.customer, {
+        source: paymentIntent.payment_method
+      });
+    }
+
+    // Create and send the receipt
+    const receipt = await stripe.charges.create({
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+      customer: paymentIntent.customer,
+      description: 'Speed Trap Racing Purchase',
+      metadata: paymentIntent.metadata,
+      receipt_email: paymentIntent.receipt_email || paymentIntent.metadata.customerEmail,
+    });
+
+    console.log('Receipt sent:', receipt.id);
+
   } catch (err) {
     console.error('Error handling successful payment:', err);
   }
