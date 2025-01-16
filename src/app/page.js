@@ -6,6 +6,7 @@ import comingSoon from '../public/blurBackground.jpeg';
 import underConstructionIcon from '../public/underIcon.png';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import Landing from './landing/page'
 
 export default function Home() {
   const router = useRouter();
@@ -72,83 +73,7 @@ export default function Home() {
         },
       }}
     >
-      <Box sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignContent: 'center',
-        alignItems: 'center'
-      }}>
-        <Typography
-          variant="h2"
-          component="h1"
-          sx={{
-            color: 'white',
-            textAlign: 'center',
-            fontWeight: 'bold',
-            zIndex: 2,
-            textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-            marginTop: '25px'
-          }}
-        >
-          Website Under Construction
-        </Typography>
-        
-        <Button
-          variant="contained"
-          size="large"
-          onClick={() => router.push('/marketplace')}
-          sx={{
-            backgroundColor: '#ffcc03',
-            color: '#000',
-            padding: '1rem 2rem',
-            fontSize: '1.25rem',
-            fontWeight: 'bold',
-            margin: '35px',
-            zIndex: 2,
-            '&:hover': {
-              backgroundColor: '#e6b800',
-            },
-          }}
-        >
-          View Our Apparel!
-        </Button>
-
-        {/* Countdown Timer */}
-        <Typography
-          variant="h4"
-          component="p"
-          sx={{
-            color: '#fff',
-            zIndex: 2,
-            fontSize: '20px',
-            textAlign: 'center',
-            fontWeight: 'bold',
-            marginTop: '10px',
-            textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-          }}
-        >
-         🏁 RACES START IN 🏁
-        </Typography>
-        <Typography
-          variant="h4"
-          component="p"
-          sx={{
-            color: '#fff',
-            zIndex: 2,
-            textAlign: 'center',
-            fontWeight: 'bold',
-            marginTop: '10px',
-            marginBottom: '10px',
-            textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-          }}
-        >
-          {timeRemaining.days}d {timeRemaining.hours}h {timeRemaining.minutes}m {timeRemaining.seconds}s
-        </Typography>
-      </Box>
-
-      <Box sx={{ margin: "auto" }}>
-        <Image src={underConstructionIcon} alt="under construction icon" width={300} height={300} />
-      </Box>
+      <Landing />
     </Box>
   );
 }
