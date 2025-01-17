@@ -1,0 +1,58 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": {
+    "source": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "frameworksBackend": {
+      "region": "us-central1"
+    },
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "ssrspeedtrapracingaa7c8",
+          "region": "us-central1"
+        }
+      }
+    ]
+  },
+  "functions": {
+    "source": "functions",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log"
+    ],
+    "runtime": "nodejs20",
+    "predeploy": [
+      "npm --prefix \"$RESOURCE_DIR\" install"
+    ],
+    "codebase": "default",
+    "minInstances": 0,
+    "maxInstances": 10,
+    "memory": "256MB"
+  },
+  "emulators": {
+    "functions": {
+      "port": 5001
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "hosting": {
+      "port": 5000
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "name": "speedtrapracing",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "add-hat": "node src/scripts/addHat.js",
+    "deploy": "npm run build && firebase deploy"
+  },
+  "dependencies": {
+    "@braintree/browser-detection": "^2.0.1",
+    "@contentful/rich-text-react-renderer": "^15.22.11",
+    "@emotion/cache": "latest",
+    "@emotion/react": "^11.13.3",
+    "@emotion/styled": "^11.13.0",
+    "@hapi/accept": "6.0.3",
+    "@hapi/boom": "10.0.1",
+    "@hapi/hoek": "11.0.7",
+    "@medusajs/medusa": "^1.20.10",
+    "@medusajs/medusa-js": "^6.1.7",
+    "@mui/icons-material": "^6.1.6",
+    "@mui/lab": "^6.0.0-beta.10",
+    "@mui/material": "^6.1.6",
+    "@mui/x-date-pickers-pro": "^7.19.0",
+    "@stripe/react-stripe-js": "^2.6.2",
+    "@stripe/stripe-js": "^4.10.0",
+    "axios": "^1.7.7",
+    "braintree-web": "^3.112.0",
+    "braintree-web-drop-in": "^1.43.0",
+    "contentful": "^11.0.3",
+    "cookie": "0.7.2",
+    "date-fns": "^4.1.0",
+    "firebase": "^10.14.1",
+    "firebase-admin": "^12.7.0",
+    "firebase-frameworks": "0.11.5",
+    "firebase-functions": "6.1.0",
+    "graphql": "^16.9.0",
+    "graphql-request": "^7.1.0",
+    "lru-cache": "6.0.0",
+    "luxon": "^3.5.0",
+    "next": "14.2.14",
+    "react": "^18",
+    "react-big-calendar": "^1.15.0",
+    "react-datepicker": "^7.4.0",
+    "react-dom": "^18",
+    "react-slick": "^0.30.2",
+    "sharp": "^0.33.5",
+    "slick-carousel": "^1.8.1",
+    "stripe": "^17.5.0",
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "@types/cors": "2.8.17",
+    "dotenv": "^16.4.5"
+  },
+  "resolutions": {
+    "cookie": "0.7.2",
+    "lru-cache": "6.0.0"
+  },
+  "overrides": {
+    "cookie": "0.7.2",
+    "lru-cache": "6.0.0"
+  }
+}

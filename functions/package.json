@@ -1,0 +1,33 @@
+{
+  "name": "functions",
+  "description": "Cloud Functions for Firebase",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "npm ci && firebase deploy --only functions,hosting",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "^7.1.0",
+    "@hapi/accept": "^6.0.3",
+    "cookie": "^0.5.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.x.x",
+    "express": "^4.18.2",
+    "firebase-admin": "^11.11.1",
+    "firebase-functions": "^4.5.0",
+    "lru-cache": "^7.18.3",
+    "stripe": "^14.10.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17"
+  },
+  "private": true,
+  "type": "commonjs"
+}
